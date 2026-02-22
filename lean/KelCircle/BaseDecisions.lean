@@ -149,8 +149,9 @@ def baseGate (s : CircleState) (signer : MemberId)
 
 -- The full gate composes base gate and application gate.
 -- The base gate uses CircleState (base fold).
--- The application gate uses only the application fold state (γ),
--- not the base state. Each layer sees only its own fold.
+-- For base decisions, the application gate needs only the
+-- application fold state (γ) — the base gate already covers
+-- membership and role checks.
 def fullGate {γ : Type} (s : CircleState) (signer : MemberId)
     (sequencerId : MemberId) (d : BaseDecision)
     (appState : γ) (appGate : γ → BaseDecision → Bool) : Bool :=
