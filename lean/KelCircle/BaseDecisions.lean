@@ -148,4 +148,61 @@ theorem bootstrap_rejects_remove (s : CircleState)
     baseGate s signer sid (.removeMember id) = false := by
   simp [baseGate, protectsSequencer, hboot, hne]
 
+-------------------------------------------------------------------
+-- Admin majority for role changes
+-------------------------------------------------------------------
+
+-- Majority threshold: strictly more than half
+def majority (n : Nat) : Nat := n / 2 + 1
+
+-- A role change proposal has reached majority when the number
+-- of admin approvals meets the majority threshold
+def hasAdminMajority (s : CircleState) (approvalCount : Nat) : Bool :=
+  approvalCount >= majority (adminCount s)
+
+-- Single admin majority is trivially 1
+theorem single_admin_majority :
+    majority 1 = 1 := by
+  simp [majority]
+
+-------------------------------------------------------------------
+-- Demotion and bootstrap re-entry
+-------------------------------------------------------------------
+
+-- Demoting the sole admin of a single-member-admin state
+-- returns to bootstrap mode.
+-- We prove: if a state has exactly one admin with id `aid`,
+-- then changing that admin to member yields bootstrap.
+theorem demote_sole_admin_enters_bootstrap
+    (sid aid : MemberId) (hne : sid ≠ aid) :
+    let s := applyBaseDecision (genesisState sid)
+               (.introduceMember aid .admin)
+    isBootstrapB (applyBaseDecision s (.changeRole aid .member)) = true := by
+  simp [genesisState, applyBaseDecision, emptyCircle,
+        isBootstrapB, List.all, List.map, hne]
+  decide
+
+-- After demotion of sole admin, bootstrap gate accepts new admin
+theorem demote_then_bootstrap_accepts_admin
+    (sid aid newAdmin : MemberId)
+    (signer : MemberId) (hne : sid ≠ aid) :
+    let s := applyBaseDecision (genesisState sid)
+               (.introduceMember aid .admin)
+    let s' := applyBaseDecision s (.changeRole aid .member)
+    baseGate s' signer sid (.introduceMember newAdmin .admin) = true := by
+  simp [genesisState, applyBaseDecision, emptyCircle,
+        baseGate, protectsSequencer, isBootstrapB,
+        List.all, List.map, hne]
+  left; decide
+
+-- Sequencer survives demotion: still a member after role change
+theorem sequencer_survives_demotion
+    (sid aid : MemberId) (hne : sid ≠ aid) :
+    let s := applyBaseDecision (genesisState sid)
+               (.introduceMember aid .admin)
+    let s' := applyBaseDecision s (.changeRole aid .member)
+    isMemberB s' sid = true := by
+  simp [genesisState, applyBaseDecision, emptyCircle,
+        isMemberB, List.any, List.map, hne]
+
 end KelCircle
