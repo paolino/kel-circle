@@ -294,3 +294,16 @@ it. Instead, they verify that the server's decisions were consistent:
 every sequenced event has a valid signature from a member who was
 in the circle at the time. If the server accepted an event from a
 non-member, the client's replay would detect the inconsistency.
+
+### Trust model: censor but not forge
+
+The server has **full visibility** over all events and **full
+control** over what gets sequenced — it can delay, reorder, or
+reject submissions. In this sense, the server is a censor.
+
+However, the server **cannot forge events**. Every event carries a
+signature from the member's private key, and the server never holds
+any member's private key. A forged event would fail signature
+verification during client replay. This is the fundamental security
+guarantee: the server controls the sequence, but cannot fabricate
+the content.
