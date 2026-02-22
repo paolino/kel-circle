@@ -259,10 +259,10 @@ for all member KELs**. It holds copies of every member's full KEL
 state and verify signatures at any time without depending on
 external infrastructure.
 
-Members cannot update their own KELs directly. To perform a key
-rotation, a member submits the rotation event to the server. The
-server validates it (correct prior digest, valid signature from the
-current key) and only then appends it to its copy of that member's
+Members cannot update their own KELs directly. Every KEL event —
+inception, key rotation, and interaction — must be submitted to the
+server. The server validates each event (correct prior digest, valid
+signature) and only then appends it to its copy of that member's
 KEL. The server is the **sole writer** of all KELs in the circle.
 
 For each submitted event, the server:
