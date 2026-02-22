@@ -83,6 +83,16 @@ docker:
 docker-load: docker
     docker load < result
 
+# Deploy dev: build, load, push with dev tag, update server
+deploy-dev: docker-load
+    #!/usr/bin/env bash
+    set -euo pipefail
+    TAG=$(docker images "ghcr.io/paolino/kel-circle" --format '{{"{{"}}.Tag{{"}}"}}' | head -1)
+    echo "Loaded tag: $TAG"
+    docker tag "ghcr.io/paolino/kel-circle:$TAG" "ghcr.io/paolino/kel-circle:dev"
+    docker push "ghcr.io/paolino/kel-circle:dev"
+    echo "Pushed ghcr.io/paolino/kel-circle:dev"
+
 # Clean build artifacts
 clean:
     cabal clean
