@@ -111,7 +111,8 @@ data ServerConfig g d p r = ServerConfig
 
 {- | Build a WAI 'Application' from a 'ServerConfig'.
 Routes: GET /info, GET /condition, GET /events?after=N,
-POST /events, GET /stream.
+POST /events, GET /stream. Unmatched routes are passed
+to the optional fallback application, or return 404.
 -}
 mkApp
     :: ( FromJSON d
@@ -122,8 +123,10 @@ mkApp
        , ToJSON r
        )
     => ServerConfig g d p r
+    -> Maybe Application
+    -- ^ Optional fallback for unmatched routes
     -> Application
-mkApp cfg req respond =
+mkApp cfg mFallback req respond =
     case (requestMethod req, pathInfo req) of
         ("GET", ["info"]) ->
             handleInfo cfg respond
@@ -135,10 +138,13 @@ mkApp cfg req respond =
             handlePostEvent cfg req respond
         ("GET", ["stream"]) ->
             handleStream cfg respond
-        _ ->
-            respond $
-                jsonResponse status404 $
-                    BadRequest "not found"
+        _ -> case mFallback of
+            Just fallback ->
+                fallback req respond
+            Nothing ->
+                respond $
+                    jsonResponse status404 $
+                        BadRequest "not found"
 
 -- --------------------------------------------------------
 -- GET /info

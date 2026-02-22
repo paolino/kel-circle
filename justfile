@@ -12,11 +12,11 @@ e2e:
 
 # Format Haskell sources
 format:
-    fourmolu -i lib/**/*.hs lib/KelCircle.hs test/Main.hs test/E2EMain.hs test/KelCircle/Test/*.hs test/E2E/*.hs
+    fourmolu -i lib/**/*.hs lib/KelCircle.hs app/Main.hs test/Main.hs test/E2EMain.hs test/KelCircle/Test/*.hs test/E2E/*.hs
 
 # Lint Haskell sources
 lint:
-    hlint lib/ test/
+    hlint lib/ app/ test/
 
 # Format cabal file
 cabal-fmt:
@@ -51,7 +51,7 @@ ci: format-check lint build test lean build-docs
 
 # Check Haskell formatting (no modification)
 format-check:
-    fourmolu --mode check lib/**/*.hs lib/KelCircle.hs test/Main.hs test/E2EMain.hs test/KelCircle/Test/*.hs test/E2E/*.hs
+    fourmolu --mode check lib/**/*.hs lib/KelCircle.hs app/Main.hs test/Main.hs test/E2EMain.hs test/KelCircle/Test/*.hs test/E2E/*.hs
 
 # Build documentation
 build-docs:
