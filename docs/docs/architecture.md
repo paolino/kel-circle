@@ -468,30 +468,20 @@ flowchart TD
 ## Server/client trust boundary
 
 ```mermaid
-graph TD
-    subgraph Server["Server (authority)"]
-        SEQ[Sequencer identity]
-        GATE[Gate enforcement]
-        ORD[Canonical ordering]
-        PERSIST[Persistence]
+graph LR
+    subgraph SRV["Server — authority"]
+        SEQ["Sequencer identity"] --> ORD["Canonical ordering"]
+        GATE["Gate enforcement"] --> ORD
+        ORD --> DB["SQLite persistence"]
     end
 
-    subgraph Client["Client (auditor)"]
-        PRIV[Private key]
-        FOLD2[Fold replay]
-        CP[Checkpoint]
-        LOCAL["Local gate hints\n(UX only)"]
+    subgraph CLI["Client — auditor"]
+        KEY["Private key"] -->|signs| POST["POST /events"]
+        FOLD["Fold replay"] --> CKPT["Local checkpoint"]
     end
 
-    Server -->|"event stream\n(signed, ordered)"| Client
-    Client -->|"signed events\n(POST /events)"| Server
-
-    SEQ -->|"assigns seqIndex\n+ timestamp"| ORD
-    GATE -->|"enforces all rules\nbefore sequencing"| ORD
-    ORD --> PERSIST
-
-    FOLD2 -->|"verify server\ndecisions"| CP
-    PRIV -->|"sign submissions"| Client
+    SRV -->|"signed + ordered event stream"| CLI
+    POST -->|"submit event"| SRV
 ```
 
 | Concern | Server | Client |
