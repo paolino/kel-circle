@@ -171,7 +171,7 @@ withTestEnv action = do
     mgr <- HC.newManager HC.defaultManagerSettings
     result <-
         Warp.testWithApplication
-            (pure $ mkApp cfg)
+            (pure $ mkApp cfg Nothing)
             ( \port ->
                 action
                     TestEnv
