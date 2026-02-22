@@ -312,7 +312,11 @@ remains locked until the user authenticates to sign a new event.
 For efficiency, clients do not replay the full history from genesis
 on every connection. Instead, they maintain a **checkpoint** — a
 snapshot of the fold state (both base and application layers) at a
-known sequence index, along with the corresponding KEL states.
+known sequence index, together with the **pre-image** of that fold:
+the complete circle of KELs as they stood at that index. The fold
+state is derived from the KELs, so storing the pre-image alongside
+the result lets the client resume verification from a known-good
+point without replaying from genesis.
 
 To stay current, clients connect to an **SSE (Server-Sent Events)
 endpoint**. The SSE stream continuously provides:
