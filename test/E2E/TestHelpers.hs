@@ -168,6 +168,7 @@ withTestEnv action = do
                     trivialProposalGate
                 , scPassphrase = testPass
                 , scBroadcast = ch
+                , scLog = \_ -> pure ()
                 }
     mgr <- HC.newManager HC.defaultManagerSettings
     result <-
