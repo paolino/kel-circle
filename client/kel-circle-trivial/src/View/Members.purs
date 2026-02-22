@@ -7,7 +7,6 @@ module View.Members
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Data.String as String
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
@@ -28,12 +27,14 @@ type State =
   { circleState :: CircleState
   , myKey :: Maybe String
   , newMemberKey :: String
+  , newMemberName :: String
   , newMemberAdmin :: Boolean
   }
 
 data Action
   = Receive Input
   | SetNewMemberKey String
+  | SetNewMemberName String
   | ToggleNewMemberAdmin
   | DoIntroduce
   | DoRemove String
@@ -54,6 +55,7 @@ initialState input =
   { circleState: input.circleState
   , myKey: input.myKey
   , newMemberKey: ""
+  , newMemberName: ""
   , newMemberAdmin: false
   }
 
@@ -86,7 +88,7 @@ memberTable st =
     HH.table [ HP.class_ (HH.ClassName "member-table") ]
       [ HH.thead_
           [ HH.tr_
-              [ HH.th_ [ HH.text "Key" ]
+              [ HH.th_ [ HH.text "Name" ]
               , HH.th_ [ HH.text "Role" ]
               , if amIAdmin then HH.th_ [ HH.text "Actions" ]
                 else HH.text ""
@@ -98,10 +100,10 @@ memberTable st =
 memberRow :: forall m. Boolean -> Member -> H.ComponentHTML Action () m
 memberRow amIAdmin member =
   HH.tr_
-    [ HH.td [ HP.class_ (HH.ClassName "key") ]
-        [ HH.text (truncateKey member.memberId) ]
+    [ HH.td [ HP.class_ (HH.ClassName "name") ]
+        [ HH.text member.memberName ]
     , HH.td_ [ HH.text (show member.memberRole) ]
-    , if amIAdmin then HH.td_
+    , if amIAdmin && member.memberName /= "sequencer" then HH.td_
         [ HH.button
             [ HE.onClick (const (DoRemove member.memberId))
             , HP.class_ (HH.ClassName "btn-danger")
@@ -119,6 +121,11 @@ introduceForm st =
         [ HP.placeholder "CESR public key"
         , HP.value st.newMemberKey
         , HE.onValueInput SetNewMemberKey
+        ]
+    , HH.input
+        [ HP.placeholder "Display name"
+        , HP.value st.newMemberName
+        , HE.onValueInput SetNewMemberName
         ]
     , HH.label_
         [ HH.input
@@ -150,6 +157,9 @@ handleAction = case _ of
   SetNewMemberKey s ->
     H.modify_ _ { newMemberKey = s }
 
+  SetNewMemberName s ->
+    H.modify_ _ { newMemberName = s }
+
   ToggleNewMemberAdmin ->
     H.modify_ \s -> s { newMemberAdmin = not s.newMemberAdmin }
 
@@ -158,15 +168,8 @@ handleAction = case _ of
     when (st.newMemberKey /= "") do
       let
         role = if st.newMemberAdmin then Admin else MemberRole
-      H.raise (SubmitDecision (IntroduceMember st.newMemberKey role))
-      H.modify_ _ { newMemberKey = "", newMemberAdmin = false }
+      H.raise (SubmitDecision (IntroduceMember st.newMemberKey st.newMemberName role))
+      H.modify_ _ { newMemberKey = "", newMemberName = "", newMemberAdmin = false }
 
   DoRemove key ->
     H.raise (SubmitDecision (RemoveMember key))
-
--- Helpers
-
-truncateKey :: String -> String
-truncateKey s =
-  if String.length s > 12 then String.take 12 s <> "..."
-  else s

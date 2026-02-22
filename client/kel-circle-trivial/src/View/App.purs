@@ -261,7 +261,7 @@ handleAction = case _ of
           submitEvent
             (Just passphrase)
             ident
-            (CEBaseDecision (IntroduceMember key Admin))
+            (CEBaseDecision (IntroduceMember key key Admin))
         Nothing ->
           H.modify_ _
             { error = Just "No identity" }

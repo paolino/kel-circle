@@ -89,7 +89,7 @@ initFullState sid initApp =
                 , sequencerId = sid'
                 }
             )
-            (IntroduceMember sid' Member)
+            (IntroduceMember sid' "sequencer" Member)
 
 -- ---------------------------------------------------------------
 -- Gate functions

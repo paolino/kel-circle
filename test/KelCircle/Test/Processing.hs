@@ -59,7 +59,7 @@ s0 :: FullState () () ()
 s0 = initFullState sid ()
 
 s1 :: FullState () () ()
-s1 = applyBase s0 (IntroduceMember aid Admin)
+s1 = applyBase s0 (IntroduceMember aid "" Admin)
 
 -- ---------------------------------------------------------
 -- Sequence increments (mirrors apply_*_increments_seq)
@@ -76,7 +76,7 @@ testSeqIncrements =
                 ( fsNextSeq $
                     applyBase
                         s0
-                        (IntroduceMember aid Admin)
+                        (IntroduceMember aid "" Admin)
                 )
         , testCase "app decision increments" $
             assertEqual
@@ -193,7 +193,7 @@ testProposalPreservation =
                 ( fsProposals $
                     applyBase
                         s1
-                        (IntroduceMember (MemberId "new") Member)
+                        (IntroduceMember (MemberId "new") "" Member)
                 )
         , testCase "app decision preserves proposals" $
             assertEqual

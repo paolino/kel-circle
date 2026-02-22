@@ -36,7 +36,7 @@ type FullState g p r =
 -- | Mirrors Haskell @initFullState@.
 initFullState :: forall g p r. MemberId -> g -> FullState g p r
 initFullState sid initApp =
-  { circle: applyBaseDecision (emptyCircle sid) (IntroduceMember sid MemberRole)
+  { circle: applyBaseDecision (emptyCircle sid) (IntroduceMember sid "sequencer" MemberRole)
   , appState: initApp
   , proposals: []
   , nextSeq: 1

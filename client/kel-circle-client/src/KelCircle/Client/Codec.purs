@@ -58,10 +58,11 @@ decodeRole json = case decodeJson json of
 -- --------------------------------------------------------
 
 encodeBaseDecision :: BaseDecision -> Json
-encodeBaseDecision (IntroduceMember mid role) =
+encodeBaseDecision (IntroduceMember mid name role) =
   J.fromObject $ FO.fromFoldable
     [ Tuple "tag" (encodeJson "introduceMember")
     , Tuple "memberId" (encodeJson mid)
+    , Tuple "name" (encodeJson name)
     , Tuple "role" (encodeRole role)
     ]
 encodeBaseDecision (RemoveMember mid) =
@@ -88,9 +89,10 @@ decodeBaseDecision json = do
   case tag of
     "introduceMember" -> do
       mid <- obj .: "memberId"
+      name <- obj .: "name"
       roleJson <- obj .: "role"
       role <- decodeRole roleJson
-      pure (IntroduceMember mid role)
+      pure (IntroduceMember mid name role)
     "removeMember" -> do
       mid <- obj .: "memberId"
       pure (RemoveMember mid)
@@ -208,15 +210,17 @@ encodeMember m =
   J.fromObject $ FO.fromFoldable
     [ Tuple "memberId" (encodeJson m.memberId)
     , Tuple "memberRole" (encodeRole m.memberRole)
+    , Tuple "name" (encodeJson m.memberName)
     ]
 
 decodeMember :: Json -> Either JsonDecodeError Member
 decodeMember json = do
   obj <- decodeJson json
   memberId <- obj .: "memberId"
-  roleJson <- obj .: "memberRole"
+  roleJson <- obj .: "role"
   memberRole <- decodeRole roleJson
-  pure { memberId, memberRole }
+  memberName <- obj .: "name"
+  pure { memberId, memberRole, memberName }
 
 -- --------------------------------------------------------
 -- Submission (for POST /events)

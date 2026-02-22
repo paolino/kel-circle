@@ -90,11 +90,11 @@ isBootstrap cs = authMode cs == Bootstrap
 -- | Mirrors Haskell @applyBaseDecision@.
 applyBaseDecision :: Circle -> BaseDecision -> Circle
 applyBaseDecision c = case _ of
-  IntroduceMember mid role ->
+  IntroduceMember mid name role ->
     c
       { circleState = c.circleState
           { members = Array.snoc c.circleState.members
-              { memberId: mid, memberRole: role }
+              { memberId: mid, memberRole: role, memberName: name }
           }
       }
   RemoveMember mid ->
@@ -111,16 +111,20 @@ applyBaseDecision c = case _ of
           { members = map
               ( \m ->
                   if m.memberId == mid then
-                    { memberId: mid, memberRole: newRole }
+                    m { memberRole = newRole }
                   else m
               )
               c.circleState.members
           }
       }
   RotateSequencer newSid ->
-    { circleState: c.circleState
-        { members = Array.snoc c.circleState.members
-            { memberId: newSid, memberRole: MemberRole }
-        }
-    , sequencerId: newSid
-    }
+    let oldSid = c.sequencerId
+        renamedMembers = map
+          (\m -> if m.memberId == oldSid then m { memberName = oldSid } else m)
+          c.circleState.members
+    in { circleState: c.circleState
+            { members = Array.snoc renamedMembers
+                { memberId: newSid, memberRole: MemberRole, memberName: "sequencer" }
+            }
+       , sequencerId: newSid
+       }

@@ -62,7 +62,7 @@ genesisCircle =
             , sequencerId = sid
             }
         )
-        (IntroduceMember sid Member)
+        (IntroduceMember sid "sequencer" Member)
 
 -- ---------------------------------------------------------
 -- Genesis (mirrors Lean genesis_* theorems)
@@ -106,7 +106,7 @@ testIntroduction =
                 let c' =
                         applyBaseDecision
                             genesisCircle
-                            (IntroduceMember mid' Member)
+                            (IntroduceMember mid' "" Member)
                 in  isMember (circleState c') mid'
         , testProperty
             "preserves existing members"
@@ -114,7 +114,7 @@ testIntroduction =
                 let c' =
                         applyBaseDecision
                             genesisCircle
-                            (IntroduceMember mid' Member)
+                            (IntroduceMember mid' "" Member)
                 in  isMember (circleState c') sid
         ]
 
@@ -132,7 +132,7 @@ testBootstrapExit =
                 let c' =
                         applyBaseDecision
                             genesisCircle
-                            (IntroduceMember mid' Admin)
+                            (IntroduceMember mid' "" Admin)
                 in  not (isBootstrap (circleState c'))
         ]
 
@@ -149,7 +149,7 @@ testSequencerProtection =
             "sequencer removal is always rejected by base gate"
             $ do
                 let s0 = initFullState sid ()
-                    s1 = applyBase s0 (IntroduceMember aid Admin)
+                    s1 = applyBase s0 (IntroduceMember aid "" Admin)
                 -- After exiting bootstrap, try to remove sequencer
                 -- The base gate should reject this
                 let gateResult =
@@ -163,7 +163,7 @@ testSequencerProtection =
             "sequencer promotion to admin is rejected"
             $ do
                 let s0 = initFullState sid ()
-                    s1 = applyBase s0 (IntroduceMember aid Admin)
+                    s1 = applyBase s0 (IntroduceMember aid "" Admin)
                 let gateResult =
                         baseGate
                             (circleState (fsCircle s1))
@@ -188,7 +188,7 @@ testDemotion =
                     c1 =
                         applyBaseDecision
                             c0
-                            (IntroduceMember aid Admin)
+                            (IntroduceMember aid "" Admin)
                     c2 =
                         applyBaseDecision
                             c1
@@ -203,7 +203,7 @@ testDemotion =
                     c1 =
                         applyBaseDecision
                             c0
-                            (IntroduceMember aid Admin)
+                            (IntroduceMember aid "" Admin)
                     c2 =
                         applyBaseDecision
                             c1

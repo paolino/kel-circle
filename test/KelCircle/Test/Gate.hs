@@ -17,6 +17,7 @@ import KelCircle.Gate
     ( baseGate
     , fullGate
     , hasAdminMajority
+    , hasUniqueName
     )
 import KelCircle.Processing
     ( FullState (..)
@@ -26,6 +27,7 @@ import KelCircle.Processing
 import KelCircle.State
     ( Circle (..)
     , CircleState
+    , applyBaseDecision
     , majority
     )
 import KelCircle.Test.Generators ()
@@ -46,6 +48,7 @@ tests =
         , testFullGateComposition
         , testAdminMajority
         , testRotationGate
+        , testNameUniqueness
         ]
 
 sid :: MemberId
@@ -62,7 +65,7 @@ bootstrapState =
 normalState :: FullState () () ()
 normalState =
     let s0 = initFullState sid ()
-    in  applyBase s0 (IntroduceMember aid Admin)
+    in  applyBase s0 (IntroduceMember aid "" Admin)
 
 -- ---------------------------------------------------------
 -- Bootstrap gate (mirrors bootstrap_accepts_admin_intro,
@@ -80,7 +83,7 @@ testBootstrapGate =
                     bootstrapState
                     sid
                     sid
-                    (IntroduceMember mid' Admin)
+                    (IntroduceMember mid' "" Admin)
         , testProperty
             "rejects member introduction"
             $ \mid' ->
@@ -89,7 +92,7 @@ testBootstrapGate =
                         bootstrapState
                         sid
                         sid
-                        (IntroduceMember mid' Member)
+                        (IntroduceMember mid' "" Member)
         , testCase
             "rejects removal"
             $ assertBool ""
@@ -136,7 +139,7 @@ testFullGateComposition =
                             s
                             aid
                             sid
-                            (IntroduceMember (MemberId "new") Member)
+                            (IntroduceMember (MemberId "new") "" Member)
                             ()
                             (\_ _ -> False)
                 assertBool
@@ -189,4 +192,44 @@ testRotationGate =
                         aid
                         sid
                         (RotateSequencer newSid)
+        ]
+
+-- ---------------------------------------------------------
+-- Name uniqueness (hasUniqueName enforced at gate level)
+-- ---------------------------------------------------------
+
+testNameUniqueness :: TestTree
+testNameUniqueness =
+    testGroup
+        "name uniqueness"
+        [ testCase
+            "duplicate name rejected in bootstrap"
+            $ do
+                let s = bootstrapState
+                    -- introduce first admin with name "alice"
+                    s1 =
+                        circleState $
+                            applyBaseDecision
+                                (Circle s sid)
+                                (IntroduceMember (MemberId "alice-id") "alice" Admin)
+                    -- second introduction with same name must be rejected
+                    result =
+                        hasUniqueName
+                            s1
+                            (IntroduceMember (MemberId "alice-id-2") "alice" Admin)
+                assertBool "should reject duplicate name" (not result)
+        , testCase
+            "unique name accepted"
+            $ do
+                let s = bootstrapState
+                    s1 =
+                        circleState $
+                            applyBaseDecision
+                                (Circle s sid)
+                                (IntroduceMember (MemberId "alice-id") "alice" Admin)
+                    result =
+                        hasUniqueName
+                            s1
+                            (IntroduceMember (MemberId "bob-id") "bob" Admin)
+                assertBool "should accept unique name" result
         ]

@@ -13,7 +13,7 @@ import KelCircle.Client.Types (MemberId, ProposalId, Role, Timestamp)
 -- | Base decisions: protocol-level membership operations.
 -- | Mirrors Haskell @BaseDecision@.
 data BaseDecision
-  = IntroduceMember MemberId Role
+  = IntroduceMember MemberId String Role
   | RemoveMember MemberId
   | ChangeRole MemberId Role
   | RotateSequencer MemberId
@@ -21,7 +21,7 @@ data BaseDecision
 derive instance eqBaseDecision :: Eq BaseDecision
 
 instance showBaseDecision :: Show BaseDecision where
-  show (IntroduceMember mid _) = "IntroduceMember " <> mid
+  show (IntroduceMember mid _ _) = "IntroduceMember " <> mid
   show (RemoveMember mid) = "RemoveMember " <> mid
   show (ChangeRole mid _) = "ChangeRole " <> mid
   show (RotateSequencer mid) = "RotateSequencer " <> mid

@@ -111,13 +111,15 @@ instance ToJSON Member where
         object
             [ "memberId" .= memberId m
             , "role" .= memberRole m
+            , "name" .= memberName m
             ]
 
 instance FromJSON Member where
-    parseJSON = withObject "Member" $ \o ->
-        MemberRecord
-            <$> o .: "memberId"
-            <*> o .: "role"
+    parseJSON = withObject "Member" $ \o -> do
+        mid <- o .: "memberId"
+        role <- o .: "role"
+        name <- o .: "name"
+        pure $ MemberRecord mid role name
 
 -- --------------------------------------------------------
 -- ProposalStatus
@@ -155,10 +157,11 @@ instance
 -- --------------------------------------------------------
 
 instance ToJSON BaseDecision where
-    toJSON (IntroduceMember mid role) =
+    toJSON (IntroduceMember mid name role) =
         object
             [ "tag" .= ("introduceMember" :: Text)
             , "memberId" .= mid
+            , "name" .= name
             , "role" .= role
             ]
     toJSON (RemoveMember mid) =
@@ -182,8 +185,11 @@ instance FromJSON BaseDecision where
     parseJSON = withObject "BaseDecision" $ \o -> do
         (tag :: Text) <- o .: "tag"
         case tag of
-            "introduceMember" ->
-                IntroduceMember <$> o .: "memberId" <*> o .: "role"
+            "introduceMember" -> do
+                mid <- o .: "memberId"
+                name <- o .: "name"
+                role <- o .: "role"
+                pure $ IntroduceMember mid name role
             "removeMember" ->
                 RemoveMember <$> o .: "memberId"
             "changeRole" ->

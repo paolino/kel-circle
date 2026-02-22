@@ -20,6 +20,7 @@ module KelCircle.State
     , isAdmin
     , adminCount
     , majority
+    , nameExists
 
       -- * Bootstrap mode
     , AuthMode (..)
@@ -30,10 +31,11 @@ module KelCircle.State
     , applyBaseDecision
     ) where
 
+import Data.Text (Text)
 import KelCircle.Events (BaseDecision (..))
 import KelCircle.Types
     ( Member (..)
-    , MemberId
+    , MemberId (..)
     , Role (..)
     )
 
@@ -113,17 +115,23 @@ authMode s
 isBootstrap :: CircleState -> Bool
 isBootstrap s = authMode s == Bootstrap
 
+{- | Does a member with the given name already exist?
+Used to enforce unique name invariant at the gate.
+-}
+nameExists :: CircleState -> Text -> Bool
+nameExists s name = any (\m -> memberName m == name) (members s)
+
 {- | Apply a base decision to the circle.
 Mirrors Lean @applyBaseDecision@.
 -}
 applyBaseDecision :: Circle -> BaseDecision -> Circle
 applyBaseDecision c = \case
-    IntroduceMember mid role ->
+    IntroduceMember mid name role ->
         c
             { circleState =
                 (circleState c)
                     { members =
-                        MemberRecord mid role
+                        MemberRecord mid role name
                             : members (circleState c)
                     }
             }
@@ -145,22 +153,28 @@ applyBaseDecision c = \case
                         map
                             ( \m ->
                                 if memberId m == mid
-                                    then
-                                        MemberRecord
-                                            mid
-                                            newRole
+                                    then m{memberRole = newRole}
                                     else m
                             )
                             (members (circleState c))
                     }
             }
     RotateSequencer newSid ->
-        Circle
-            { circleState =
-                (circleState c)
-                    { members =
-                        MemberRecord newSid Member
-                            : members (circleState c)
-                    }
-            , sequencerId = newSid
-            }
+        let oldSid = sequencerId c
+            renamedMembers =
+                map
+                    ( \m ->
+                        if memberId m == oldSid
+                            then m{memberName = unMemberId oldSid}
+                            else m
+                    )
+                    (members (circleState c))
+        in  Circle
+                { circleState =
+                    (circleState c)
+                        { members =
+                            MemberRecord newSid Member "sequencer"
+                                : renamedMembers
+                        }
+                , sequencerId = newSid
+                }

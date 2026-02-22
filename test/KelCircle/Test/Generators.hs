@@ -68,16 +68,16 @@ genRole = elements [Admin, Member]
 
 -- | Generate a member record.
 genMember :: Gen Member
-genMember =
-    MemberRecord
-        <$> genMemberId
-        <*> genRole
+genMember = do
+    mid <- genMemberId
+    role <- genRole
+    pure $ MemberRecord mid role ""
 
 -- | Generate a base decision.
 genBaseDecision :: Gen BaseDecision
 genBaseDecision =
     oneof
-        [ IntroduceMember <$> genMemberId <*> genRole
+        [ IntroduceMember <$> genMemberId <*> pure "" <*> genRole
         , RemoveMember <$> genMemberId
         , ChangeRole <$> genMemberId <*> genRole
         , RotateSequencer <$> genMemberId
@@ -116,7 +116,7 @@ genCircleWithAdmin = do
     sid <- genMemberId
     aid <- genMemberId
     let s0 = initFullState sid ()
-        s1 = applyBase s0 (IntroduceMember aid Admin)
+        s1 = applyBase s0 (IntroduceMember aid "" Admin)
     pure s1
 
 -- | Generate a FullState in bootstrap mode (no admins).

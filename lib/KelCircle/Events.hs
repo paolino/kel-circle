@@ -26,6 +26,7 @@ module KelCircle.Events
     , CircleEvent (..)
     ) where
 
+import Data.Text (Text)
 import KelCircle.Types
     ( MemberId
     , ProposalId
@@ -72,7 +73,7 @@ Mirrors Lean @BaseDecision@.
 -}
 data BaseDecision
     = -- | Add a member with a given role
-      IntroduceMember MemberId Role
+      IntroduceMember MemberId Text Role
     | -- | Remove a member from the circle
       RemoveMember MemberId
     | -- | Change a member's role

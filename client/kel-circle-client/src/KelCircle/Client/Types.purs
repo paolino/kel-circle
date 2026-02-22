@@ -40,4 +40,5 @@ isAdmin _ = false
 type Member =
   { memberId :: MemberId
   , memberRole :: Role
+  , memberName :: String
   }

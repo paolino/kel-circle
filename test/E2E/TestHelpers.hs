@@ -336,6 +336,7 @@ bootstrapAdmin tid =
             CEBaseDecision $
                 IntroduceMember
                     (MemberId $ tidKey tid)
+                    (tidKey tid)
                     Admin
         }
 
@@ -349,6 +350,7 @@ introduceMember signer newMember =
             CEBaseDecision $
                 IntroduceMember
                     (MemberId $ tidKey newMember)
+                    (tidKey newMember)
                     Member
         }
 
@@ -362,6 +364,7 @@ introduceAdmin signer newAdmin =
             CEBaseDecision $
                 IntroduceMember
                     (MemberId $ tidKey newAdmin)
+                    (tidKey newAdmin)
                     Admin
         }
 

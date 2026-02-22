@@ -50,7 +50,7 @@ data Role
       Member
     deriving stock (Eq, Ord, Show)
 
-{- | A circle member with their identifier and role.
+{- | A circle member with their identifier, role, and display name.
 Mirrors Lean @Member@.
 -}
 data Member = MemberRecord
@@ -58,5 +58,7 @@ data Member = MemberRecord
     -- ^ KERI prefix
     , memberRole :: Role
     -- ^ Current role
+    , memberName :: Text
+    -- ^ Human-readable display name
     }
     deriving stock (Eq, Show)

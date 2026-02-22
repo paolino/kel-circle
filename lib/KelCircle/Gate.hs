@@ -14,6 +14,9 @@ module KelCircle.Gate
       protectsSequencer
     , requiresMajority
 
+      -- * Name uniqueness
+    , hasUniqueName
+
       -- * Base gate
     , baseGate
 
@@ -31,6 +34,7 @@ import KelCircle.State
     , isAdmin
     , isBootstrap
     , majority
+    , nameExists
     )
 import KelCircle.Types (MemberId, Role (..))
 
@@ -50,10 +54,18 @@ Mirrors Lean @requiresMajority@.
 -}
 requiresMajority :: BaseDecision -> Bool
 requiresMajority = \case
-    IntroduceMember _ Admin -> True
+    IntroduceMember _ _ Admin -> True
     ChangeRole _ Admin -> True
     ChangeRole _ Member -> True
     _ -> False
+
+{- | Reject introduction of a member whose name is
+already taken.
+-}
+hasUniqueName :: CircleState -> BaseDecision -> Bool
+hasUniqueName s = \case
+    IntroduceMember _ name _ -> not (nameExists s name)
+    _ -> True
 
 {- | Base gate for straight decisions.
 In bootstrap: only admin introduction.
@@ -69,9 +81,10 @@ baseGate
     -> Bool
 baseGate s signer sid d =
     protectsSequencer sid d
+        && hasUniqueName s d
         && if isBootstrap s
             then case d of
-                IntroduceMember _ Admin -> True
+                IntroduceMember _ _ Admin -> True
                 _ -> False
             else isAdmin s signer && not (requiresMajority d)
 
