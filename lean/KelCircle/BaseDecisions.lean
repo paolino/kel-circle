@@ -117,18 +117,16 @@ theorem genesis_preserves_sequencer_id (sid : MemberId) :
 -------------------------------------------------------------------
 
 -- The sequencer cannot be removed or promoted to admin.
--- Sequencer rotation is not a straight decision — it requires
--- admin majority proposal, so it's rejected by the straight gate.
+-- Sequencer rotation is a straight decision (any admin).
 def protectsSequencer (sid : MemberId) (d : BaseDecision) : Bool :=
   match d with
   | .removeMember id => !(id == sid)
   | .changeRole id .admin => !(id == sid)
-  | .rotateSequencer _ => false  -- requires majority, not straight
   | _ => true
 
--- Base gate for straight decisions (not proposals).
--- Sequencer rotation is always rejected here — it must go
--- through a majority proposal instead.
+-- Base gate for straight decisions.
+-- In bootstrap: only admin introduction.
+-- In normal: signer must be admin.
 def baseGate (s : CircleState) (signer : MemberId)
     (sequencerId : MemberId) (d : BaseDecision) : Bool :=
   protectsSequencer sequencerId d &&
@@ -231,14 +229,16 @@ theorem sequencer_survives_demotion
         isMemberB, List.any, List.map, hne]
 
 -------------------------------------------------------------------
--- Sequencer rotation (requires admin majority proposal)
+-- Sequencer rotation (straight decision, any admin)
 -------------------------------------------------------------------
 
--- Sequencer rotation is rejected by the straight gate
-theorem rotate_rejected_by_straight_gate (s : CircleState)
-    (signer : MemberId) (sid newSid : MemberId) :
-    baseGate s signer sid (.rotateSequencer newSid) = false := by
-  simp [baseGate, protectsSequencer]
+-- Rotation passes the base gate when signer is admin
+theorem rotate_accepted_by_admin (s : CircleState)
+    (signer : MemberId) (sid newSid : MemberId)
+    (hnotboot : isBootstrapB s = false)
+    (hadmin : isAdminB s signer = true) :
+    baseGate s signer sid (.rotateSequencer newSid) = true := by
+  simp [baseGate, protectsSequencer, hnotboot, hadmin]
 
 -- After rotation, the new sequencer is a member
 theorem rotate_new_sequencer_is_member

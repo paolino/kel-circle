@@ -84,10 +84,12 @@ The protocol defines two categories of membership operations:
 
 These are accepted immediately when submitted by any admin:
 
-- **Introduce member** — add a new non-admin member to the circle.
-  Any admin can do this unilaterally.
+- **Introduce member** — add a new non-admin member to the circle
 - **Remove member** — remove a member from the circle (except the
-  sequencer). Any admin can do this unilaterally.
+  sequencer)
+- **Rotate sequencer** — replace the sequencer's identity with a
+  new KERI prefix. The old sequencer stays as a regular member;
+  the new one takes over sequencing
 
 ### Proposals requiring admin majority
 
@@ -96,24 +98,16 @@ admins:
 
 - **Promote to admin** — change a member's role to admin
 - **Demote from admin** — change an admin's role to member
-- **Rotate sequencer** — replace the sequencer's identity with a
-  new KERI prefix. The old sequencer stays as a regular member;
-  the new one takes over sequencing. This is the only way to
-  change who runs the server.
 
-Admin role changes and sequencer rotation affect the power
-structure of the circle, so they require consensus rather than
-unilateral action. Note that a single remaining admin can demote
-themselves (majority of one), which returns the circle to bootstrap
-mode.
-
-The sequencer rotation is always rejected by the straight decision
-gate — it can only be enacted through a majority proposal.
+Admin role changes affect the power structure of the circle, so
+they require consensus rather than unilateral action. Note that a
+single remaining admin can demote themselves (majority of one),
+which returns the circle to bootstrap mode.
 
 **Lean predicates:** `BaseDecision`, `applyBaseDecision`, `Circle`,
 `introduce_adds_member`, `introduce_admin_exits_bootstrap`,
 `introduce_preserves_existing`, `baseGate`,
-`rotate_rejected_by_straight_gate`,
+`rotate_accepted_by_admin`,
 `rotate_new_sequencer_is_member`,
 `rotate_old_sequencer_stays_member`,
 `rotate_updates_sequencer_id`
