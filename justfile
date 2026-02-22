@@ -8,7 +8,7 @@ test:
 
 # Format Haskell sources
 format:
-    fourmolu -i lib/**/*.hs
+    fourmolu -i lib/**/*.hs lib/KelCircle.hs
 
 # Lint Haskell sources
 lint:
@@ -42,8 +42,12 @@ lint-client:
 test-client:
     cd client && spago test -p kel-circle-client
 
-# Full CI check (design phase: only Lean proofs and docs)
-ci: lean build-docs
+# Full CI check
+ci: format-check lint build lean build-docs
+
+# Check Haskell formatting (no modification)
+format-check:
+    fourmolu --mode check lib/**/*.hs lib/KelCircle.hs
 
 # Build documentation
 build-docs:
