@@ -14,18 +14,18 @@ companion PureScript client library.
 ```mermaid
 graph TD
     subgraph Haskell["Haskell — kel-circle.cabal"]
-        LIB["library\n13 exposed modules"]
-        SRV["executable\nkel-circle-server"]
-        UT["test-suite\nunit-tests"]
-        E2E["test-suite\ne2e-tests"]
+        LIB["library<br/>13 exposed modules"]
+        SRV["executable<br/>kel-circle-server"]
+        UT["test-suite<br/>unit-tests"]
+        E2E["test-suite<br/>e2e-tests"]
         SRV --> LIB
         UT  --> LIB
         E2E --> LIB
     end
 
     subgraph PS["PureScript — client/"]
-        PSLIB["kel-circle-client\nAPI · types · codec · fold"]
-        PSAPP["kel-circle-trivial\ndemo UI (Halogen)"]
+        PSLIB["kel-circle-client<br/>API · types · codec · fold"]
+        PSAPP["kel-circle-trivial<br/>demo UI (Halogen)"]
         PSAPP --> PSLIB
     end
 
@@ -174,25 +174,25 @@ in-memory state.
 
 ```mermaid
 flowchart TD
-    CLIENT([Client]) -->|POST /events\nJSON body| EP["/events endpoint"]
+    CLIENT([Client]) -->|"POST /events<br/>JSON body"| EP["/events endpoint"]
 
     EP --> DEC{Decode JSON}
     DEC -->|fail| R400["400 Bad Request"]
     DEC -->|ok| MODE{AuthMode?}
 
-    MODE -->|Bootstrap| PP{Passphrase\npresent & correct?}
+    MODE -->|Bootstrap| PP{"Passphrase<br/>present & correct?"}
     PP -->|no| R401["401 Unauthorized"]
     PP -->|yes| GATE
 
     MODE -->|Normal| GATE
 
-    GATE[Gate validation\nbaseGate + appGate] --> GR{Accept?}
+    GATE["Gate validation<br/>baseGate + appGate"] --> GR{Accept?}
     GR -->|no| R422["422 Unprocessable"]
-    GR -->|yes| SQL[(SQLite\nappend row)]
+    GR -->|yes| SQL[("SQLite<br/>append row")]
 
-    SQL --> APPLY[Apply to FullState\nSTM TVar update]
-    APPLY --> BCAST[Broadcast via\nSSE channel]
-    APPLY --> R200["200 OK\n{sequenceNumber: N}"]
+    SQL --> APPLY["Apply to FullState<br/>STM TVar update"]
+    APPLY --> BCAST["Broadcast via<br/>SSE channel"]
+    APPLY --> R200["200 OK<br/>{sequenceNumber: N}"]
 
     BCAST --> SSE([SSE subscribers])
 ```
@@ -212,15 +212,15 @@ flowchart LR
     UN -->|fail| REJ2["❌ rejected"]
     UN -->|pass| BOOT{isBootstrap?}
 
-    BOOT -->|yes| AI{IntroduceMember\n+ Admin?}
+    BOOT -->|yes| AI{"IntroduceMember<br/>+ Admin?"}
     AI -->|no| REJ3["❌ rejected"]
     AI -->|yes| ACC1["✅ accepted"]
 
     BOOT -->|no| ADM{signer isAdmin?}
     ADM -->|no| REJ4["❌ rejected"]
     ADM -->|yes| MAJ{requiresMajority?}
-    MAJ -->|yes| REJ5["❌ rejected\n(needs proposal)"]
-    MAJ -->|no| APPG{appGate\npasses?}
+    MAJ -->|yes| REJ5["❌ rejected<br/>(needs proposal)"]
+    MAJ -->|no| APPG{"appGate<br/>passes?"}
     APPG -->|no| REJ6["❌ rejected"]
     APPG -->|yes| ACC2["✅ accepted"]
 ```
@@ -230,7 +230,7 @@ Gates for other event types:
 ```mermaid
 flowchart LR
     subgraph AppDecision
-        AD[AppDecision] --> ADM2{isMember\nsigner?}
+        AD[AppDecision] --> ADM2{"isMember<br/>signer?"}
         ADM2 -->|no| R1["❌"]
         ADM2 -->|yes| AG{appGate?}
         AG -->|no| R2["❌"]
@@ -238,17 +238,17 @@ flowchart LR
     end
 
     subgraph Response
-        RE[Response] --> IM{isMember\nsigner?}
+        RE[Response] --> IM{"isMember<br/>signer?"}
         IM -->|no| R3["❌"]
-        IM -->|yes| PO{proposal\nopen?}
+        IM -->|yes| PO{"proposal<br/>open?"}
         PO -->|no| R4["❌"]
-        PO -->|yes| HR{already\nresponded?}
+        PO -->|yes| HR{"already<br/>responded?"}
         HR -->|yes| R5["❌"]
         HR -->|no| A2["✅"]
     end
 
     subgraph Resolve
-        RV[Resolve] --> IS{signer ==\nsequencerId?}
+        RV[Resolve] --> IS{"signer ==<br/>sequencerId?"}
         IS -->|no| R6["❌"]
         IS -->|yes| A3["✅"]
     end
@@ -260,14 +260,14 @@ flowchart LR
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Open : CEProposal emitted\nby any member
+    [*] --> Open : CEProposal emitted<br/>by any member
 
-    Open --> Open : CEResponse received\n(new respondent)
+    Open --> Open : CEResponse received<br/>(new respondent)
 
-    Open --> Resolved_Threshold : CEResolveProposal\n(ThresholdReached)
-    Open --> Resolved_PosProposer : CEResolveProposal\n(ProposerPositive)
-    Open --> Resolved_NegProposer : CEResolveProposal\n(ProposerNegative)
-    Open --> Resolved_Timeout : CEResolveProposal\n(Timeout)
+    Open --> Resolved_Threshold : CEResolveProposal<br/>(ThresholdReached)
+    Open --> Resolved_PosProposer : CEResolveProposal<br/>(ProposerPositive)
+    Open --> Resolved_NegProposer : CEResolveProposal<br/>(ProposerNegative)
+    Open --> Resolved_Timeout : CEResolveProposal<br/>(Timeout)
 
     Resolved_Threshold --> [*]
     Resolved_PosProposer --> [*]
@@ -293,15 +293,15 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Bootstrap : server starts\nsequencer added\n(Member role, no admins)
+    [*] --> Bootstrap : server starts<br/>sequencer added<br/>(Member role, no admins)
 
-    Bootstrap --> Bootstrap : passphrase-gated events\n(non-admin intros rejected)
+    Bootstrap --> Bootstrap : passphrase-gated events<br/>(non-admin intros rejected)
 
-    Bootstrap --> Normal : IntroduceMember _ Admin\n(first admin enters circle)
+    Bootstrap --> Normal : IntroduceMember _ Admin<br/>(first admin enters circle)
 
-    Normal --> Normal : any base/app/proposal\nevent under admin gate
+    Normal --> Normal : any base/app/proposal<br/>event under admin gate
 
-    Normal --> Bootstrap : last admin demoted\n(adminCount → 0)
+    Normal --> Bootstrap : last admin demoted<br/>(adminCount → 0)
 
     note right of Bootstrap
         Only IntroduceMember with
@@ -327,8 +327,8 @@ SQLite) and on each new event (incremental update to the TVar).
 ```mermaid
 flowchart TD
     subgraph Startup
-        DB[(SQLite\nevents table)] -->|SELECT all rows| ROWS[Ordered rows\noldest → newest]
-        ROWS --> FOLD[foldAll\napplyCircleEvent]
+        DB[("SQLite<br/>events table")] -->|SELECT all rows| ROWS["Ordered rows<br/>oldest → newest"]
+        ROWS --> FOLD["foldAll<br/>applyCircleEvent"]
         FOLD --> FS0[Initial FullState]
         FS0 --> TV[(TVar FullState)]
     end
@@ -338,11 +338,11 @@ flowchart TD
         VAL --> INS[INSERT INTO events]
         INS --> READ[Read current TVar]
         READ --> APP[applyCircleEvent]
-        APP --> WRITE["Write TVar\n(STM atomic)"]
+        APP --> WRITE["Write TVar<br/>(STM atomic)"]
     end
 
     subgraph Query
-        TV2[(TVar FullState)] -->|readTVarIO| RESP[HTTP response\nor SSE]
+        TV2[(TVar FullState)] -->|readTVarIO| RESP["HTTP response<br/>or SSE"]
     end
 ```
 
@@ -352,8 +352,8 @@ fixed base fold and any pluggable application fold:
 ```mermaid
 graph LR
     subgraph twoLayerFold
-        BF["baseFold\n(membership, roles)"]
-        AF["appFold\n(domain-specific g)"]
+        BF["baseFold<br/>(membership, roles)"]
+        AF["appFold<br/>(domain-specific g)"]
     end
     SEQ["[SequencedEvent (CircleEvent d p r)]"] --> BF & AF
     BF --> BS["CircleState (base)"]
@@ -377,7 +377,7 @@ erDiagram
 ```mermaid
 flowchart LR
     subgraph Store["CircleStore (runtime)"]
-        TV["TVar FullState\n(hot cache)"]
+        TV["TVar FullState<br/>(hot cache)"]
         CONN["SQLite connection"]
     end
 
@@ -427,7 +427,7 @@ sequenceDiagram
     S-->>C: SSE text/event-stream
     loop on each new event
         CH->>S: seqN
-        S-->>C: event: new\ndata: {"sn": N}
+        S-->>C: "event: new data: {sn: N}"
     end
 ```
 
@@ -441,22 +441,22 @@ checkpoint.
 
 ```mermaid
 flowchart TD
-    START([App start]) --> LOAD[Load checkpoint\nfrom localStorage]
-    LOAD --> CONN[Connect to GET /stream\nSSE]
+    START([App start]) --> LOAD["Load checkpoint<br/>from localStorage"]
+    LOAD --> CONN["Connect to GET /stream<br/>SSE"]
 
-    CONN --> LISTEN{SSE event\narrives?}
+    CONN --> LISTEN{"SSE event<br/>arrives?"}
     LISTEN -->|yes: sn=N| CMP{N > checkpoint?}
     CMP -->|no| LISTEN
 
     CMP -->|yes| FETCH[GET /events?after=checkpoint]
     FETCH --> MORE{more events?}
-    MORE -->|yes| APPLY[applyCircleEvent\nthrough fold]
+    MORE -->|yes| APPLY["applyCircleEvent<br/>through fold"]
     APPLY --> INC[increment checkpoint]
     INC --> MORE
-    MORE -->|no| SAVE[Save checkpoint\nto localStorage]
+    MORE -->|no| SAVE["Save checkpoint<br/>to localStorage"]
     SAVE --> LISTEN
 
-    USER([User action]) --> SIGN[Sign event\nwith private key]
+    USER([User action]) --> SIGN["Sign event<br/>with private key"]
     SIGN --> POST[POST /events]
     POST --> OK{200 OK?}
     OK -->|yes| INC2[update nextSeq]
@@ -542,7 +542,7 @@ sequenceDiagram
     C->>S: CEResponse vote sn=5
     S-->>C: sn=7
 
-    Note over S: adminCount=3, majority=2\n2 responses ≥ 2 → threshold met
+    Note over S: adminCount=3, majority=2<br/>2 responses ≥ 2 → threshold met
 
     S->>S: CEResolveProposal 5 ThresholdReached
     Note over S: sn=8, proposal closed
@@ -564,12 +564,12 @@ sequenceDiagram
     participant Admin
     participant Server
 
-    Note over Server: sequencerId = "seq-0"\nmembers = [{id:"seq-0",name:"sequencer",...}, ...]
+    Note over Server: sequencerId = "seq-0"<br/>members = [{id:"seq-0",name:"sequencer",...}, ...]
 
     Admin->>Server: CEBaseDecision (RotateSequencer "seq-1")
-    Note over Server: rename "seq-0" member → name = "seq-0"\nprepend {id:"seq-1", name:"sequencer", role:Member}
+    Note over Server: rename "seq-0" member → name = "seq-0"<br/>prepend {id:"seq-1", name:"sequencer", role:Member}
 
-    Note over Server: sequencerId = "seq-1"\nmembers = [{id:"seq-1",name:"sequencer"}, {id:"seq-0",name:"seq-0"}, ...]
+    Note over Server: sequencerId = "seq-1"<br/>members = [{id:"seq-1",name:"sequencer"}, {id:"seq-0",name:"seq-0"}, ...]
 ```
 
 ---
@@ -579,16 +579,16 @@ sequenceDiagram
 ```mermaid
 graph TD
     subgraph Unit["unit-tests"]
-        GEN[Generators\narbitrary MemberId / Role]
-        SEQ2[Sequence\ninvariants]
-        BD2[BaseDecisions\nmembership ops]
-        GT[Gate\ntwo-level checks]
-        PR2[Proposals\nlifecycle]
-        PR3[Processing\nstate transitions]
+        GEN["Generators<br/>arbitrary MemberId / Role"]
+        SEQ2["Sequence<br/>invariants"]
+        BD2["BaseDecisions<br/>membership ops"]
+        GT["Gate<br/>two-level checks"]
+        PR2["Proposals<br/>lifecycle"]
+        PR3["Processing<br/>state transitions"]
     end
 
     subgraph E2E2["e2e-tests"]
-        HTTP[Real HTTP server\non random port]
+        HTTP["Real HTTP server<br/>on random port"]
         SC[Bootstrap scenario]
         MM[Member management]
         RL[Role change proposals]
