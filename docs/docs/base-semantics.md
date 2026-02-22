@@ -243,6 +243,60 @@ A future optimization may allow skipping fully resolved proposals
 during fold replay, but the base model treats every sequenced event
 as a fold input.
 
+## Event processing pipeline
+
+The sequencer processes five kinds of events, each with its own
+gate and state transition:
+
+1. **Base decision** — membership operations (introduce, remove,
+   changeRole, rotate). Gated by the two-level gate (`baseGate` +
+   application gate). Updates the circle state.
+
+2. **Application decision** — domain-specific straight decisions.
+   Signer must be a member. Application gate validates content.
+   Updates the application fold state only.
+
+3. **Proposal** — opens a coordination round. Signer must be a
+   member. Registers the proposal in the proposal registry with
+   its deadline.
+
+4. **Response** — responds to an open proposal. Signer must be a
+   member who has not already responded to this proposal. The
+   proposal must be open.
+
+5. **Proposal resolution** — server-emitted decision that closes
+   a proposal. Only the sequencer can emit resolutions.
+
+Each event increments the global sequence number. The processing
+pipeline guarantees separation of concerns:
+
+- Base decisions change the circle but not the proposal registry
+- Application decisions change the app fold but not the circle
+  or the proposal registry
+- Proposals and responses change the proposal registry but not
+  the circle or the app fold
+- Resolutions change the proposal registry but not the circle
+  or the app fold
+
+This separation is formally verified in Lean: each `apply*`
+function preserves the state components it does not logically
+modify.
+
+**Lean predicates:** `CircleEvent`, `FullState`, `initFullState`,
+`gateBaseDecision`, `gateAppDecision`, `gateProposal`,
+`gateResponse`, `gateResolve`,
+`applyBase`, `applyAppDecision`, `applyProposal`,
+`applyResponse`, `applyResolve`,
+`apply_base_increments_seq`, `apply_app_decision_increments_seq`,
+`apply_proposal_increments_seq`, `apply_response_increments_seq`,
+`apply_resolve_increments_seq`,
+`app_decision_preserves_circle`, `proposal_preserves_circle`,
+`response_preserves_circle`, `resolve_preserves_circle`,
+`base_preserves_proposals`, `app_decision_preserves_proposals`,
+`non_sequencer_cannot_resolve`, `sequencer_can_resolve`,
+`init_seq_is_one`, `init_no_proposals`,
+`init_sequencer_is_member`
+
 ### Dependency on full KELs
 
 Both the server and clients must fold and validate against the
