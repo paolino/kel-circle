@@ -338,7 +338,7 @@ flowchart TD
         VAL --> INS[INSERT INTO events]
         INS --> READ[Read current TVar]
         READ --> APP[applyCircleEvent]
-        APP --> WRITE[Write TVar\n(STM atomic)]
+        APP --> WRITE["Write TVar\n(STM atomic)"]
     end
 
     subgraph Query
@@ -480,7 +480,7 @@ graph TD
         PRIV[Private key]
         FOLD2[Fold replay]
         CP[Checkpoint]
-        LOCAL[Local gate hints\n(UX only)"]
+        LOCAL["Local gate hints\n(UX only)"]
     end
 
     Server -->|"event stream\n(signed, ordered)"| Client
