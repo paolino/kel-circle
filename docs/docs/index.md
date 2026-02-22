@@ -76,20 +76,14 @@ rules while sharing the same coordination infrastructure.
 
 ## Architecture overview
 
-```mermaid
-graph TD
-    A[Member A<br/>own KEL] -->|signed interaction| S[Sequencer<br/>own KEL]
-    B[Member B<br/>own KEL] -->|signed interaction| S
-    C[Member C<br/>own KEL] -->|signed interaction| S
-    S -->|assign index + timestamp| GS[Global Sequence]
-    GS -->|filter decisions| F[Fold → State]
-```
+![Kel-Circle Protocol](images/circle.svg)
 
-Each member signs their interaction events with keys from their own
-KEL. The sequencer validates, assigns a global index and timestamp,
-and appends to the sequence. Only **decisions** advance the fold;
-proposals and responses are coordination machinery that eventually
-produce (or fail to produce) a decision.
+Five members (teal) each maintain their own KEL with an inception
+event and numbered interaction events. The sequencer (amber, center)
+assigns each interaction a global index, forming the canonical
+sequence. Dashed arrows show which member interaction maps to which
+global sequence slot. Only **decisions** in the sequence advance
+the fold; proposals and responses are coordination machinery.
 
 ## Documentation
 
