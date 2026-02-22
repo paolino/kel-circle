@@ -300,6 +300,13 @@ every sequenced event has a valid signature from a member who was
 in the circle at the time. If the server accepted an event from a
 non-member, the client's replay would detect the inconsistency.
 
+Clients store the current fold state **locally** — this is public
+data derived from the global sequence and requires no special
+protection. The member's **private key** is stored separately and
+protected by a password. The two are never co-located: the fold
+state can be freely cached and synced, while the private key
+remains locked until the user authenticates to sign a new event.
+
 ### Checkpoint-based sync
 
 For efficiency, clients do not replay the full history from genesis
