@@ -20,6 +20,11 @@ carries a UTC timestamp. For any indices *i < j*, the timestamp at
 knowledge of the protocol and application semantics. It governs
 what interactions are valid and controls the fold.
 
+**Lean predicates:** `SequencedEvent`, `GlobalSequence`,
+`WellFormedSequence`, `indicesContiguous`, `timestampsIncreasing`,
+`noDuplicateIndices`, `append_preserves_contiguous`,
+`append_preserves_increasing`, `append_preserves_no_dups`
+
 ## Circle genesis
 
 The first two events in every circle are fixed by the protocol:
@@ -64,6 +69,9 @@ required.
 A member is identified by their KERI prefix (the self-certifying
 identifier from their own KEL). Each member's KEL is independent
 and handles inception and key rotation per the KERI specification.
+
+**Lean predicates:** `CircleState`, `isMember`, `isAdmin`,
+`admin_is_member`
 
 ## Admin roles
 
@@ -115,7 +123,11 @@ which returns the circle to bootstrap mode.
 `rotate_accepted_by_admin`,
 `rotate_new_sequencer_is_member`,
 `rotate_old_sequencer_stays_member`,
-`rotate_updates_sequencer_id`
+`rotate_updates_sequencer_id`,
+`majority`, `hasAdminMajority`, `single_admin_majority`,
+`demote_sole_admin_enters_bootstrap`,
+`demote_then_bootstrap_accepts_admin`,
+`sequencer_survives_demotion`
 
 ## The two-level gate
 
@@ -173,6 +185,10 @@ resolved).
 This separation means the base infrastructure (membership, roles,
 sequencing, proposals) is reusable across applications, while each
 application defines its own domain-specific validity rules.
+
+**Lean predicates:** `protectsSequencer`, `requiresMajority`,
+`baseGate`, `fullGate`, `full_gate_base_rejects`,
+`full_gate_app_rejects`
 
 ## Bootstrap mode
 

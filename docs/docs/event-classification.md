@@ -9,19 +9,22 @@ parameterized by the application.
 ### 1. Straight decision
 
 A straight decision is an event that, as long as it passes both
-the base gate and the application semantic gate, is accepted and
-immediately changes the fold state. No coordination machinery is
-involved — no proposal, no voting, no timeout.
+the base gate and the application gate, is accepted and immediately
+changes the fold state. No coordination machinery is involved — no
+proposal, no voting, no timeout.
+
+The two-level gate for straight decisions:
 
 ```
-semanticGate :: FoldState -> Decision -> Bool
+baseGate        :: CircleState -> MemberId -> MemberId -> BaseDecision -> Bool
+applicationGate :: AppFoldState -> BaseDecision -> Bool
 ```
 
-If the gate returns true, the decision is sequenced and the fold
-advances. If it returns false, the event is rejected.
+If both gates return true, the decision is sequenced and the fold
+advances. If either returns false, the event is rejected.
 
 Straight decisions are the simplest path: a member submits, the
-server validates, the fold updates.
+server validates through the two-level gate, the fold updates.
 
 ### 2. Proposal
 
@@ -59,6 +62,10 @@ event. They also accumulate for lifecycle tracking until:
 - The threshold gate fires (if present), or
 - The proposer closes the proposal, or
 - The timeout expires
+
+**Lean predicates:** `EventClass`, `event_trichotomy`,
+`decision_not_proposal`, `decision_not_response`,
+`proposal_not_response`
 
 ## Proposal lifecycle
 
@@ -142,6 +149,10 @@ This means:
 - Every sequenced event advances the fold
 - Full audit trail preserved in the sequence
 
+**Lean predicates:** `foldAll`, `fold_empty`, `fold_append`,
+`TwoLayerState`, `twoLayerFold`, `two_layer_fold_empty`,
+`two_layer_fold_append`
+
 ## Application parameterization
 
 The protocol fixes the **event classes** (decision, proposal,
@@ -155,13 +166,15 @@ response) but leaves the **content** to the application:
 | Decision content | — | domain-specific payload |
 | Proposal content | timeout, threshold gate shape | domain-specific payload |
 | Response content | — | domain-specific payload |
-| Semantic gate | base gate (membership, freshness) | application gate function |
+| Base gate | membership, freshness, sequencer protection | — |
+| Application gate | — | domain-specific validation |
 | Threshold gate | — | application-defined function |
 
 The application supplies:
 
 - Types for decision, proposal, and response content
-- A semantic gate function (`FoldState -> Event -> Bool`)
+- An application gate function (for base decisions:
+  `AppFoldState -> BaseDecision -> Bool`)
 - An optional threshold gate function per proposal
   (`[ResponseContent] -> Bool`)
 - A fold function that applies events to state
