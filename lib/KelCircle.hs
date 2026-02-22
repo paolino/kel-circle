@@ -31,6 +31,9 @@ module KelCircle
 
       -- * Event processing pipeline
     , module KelCircle.Processing
+
+      -- * Validation
+    , module KelCircle.Validate
     ) where
 
 import KelCircle.Events
@@ -41,3 +44,4 @@ import KelCircle.Proposals
 import KelCircle.Sequence
 import KelCircle.State
 import KelCircle.Types
+import KelCircle.Validate
