@@ -124,9 +124,19 @@ def protectsSequencer (sid : MemberId) (d : BaseDecision) : Bool :=
   | .changeRole id .admin => !(id == sid)
   | _ => true
 
+-- Admin role changes require majority, not straight decision.
+-- This rejects introduce-as-admin and changeRole-to-admin.
+def requiresMajority (d : BaseDecision) : Bool :=
+  match d with
+  | .introduceMember _ .admin => true
+  | .changeRole _ .admin => true
+  | .changeRole _ .member => true  -- demotion also needs majority
+  | _ => false
+
 -- Base gate for straight decisions.
--- In bootstrap: only admin introduction.
--- In normal: signer must be admin.
+-- In bootstrap: only admin introduction (special case).
+-- In normal: signer must be admin, and the decision must not
+-- require majority (admin role changes go through proposals).
 def baseGate (s : CircleState) (signer : MemberId)
     (sequencerId : MemberId) (d : BaseDecision) : Bool :=
   protectsSequencer sequencerId d &&
@@ -135,7 +145,7 @@ def baseGate (s : CircleState) (signer : MemberId)
     | .introduceMember _ .admin => true
     | _ => false
   else
-    isAdminB s signer
+    isAdminB s signer && !requiresMajority d
 
 -- Bootstrap gate accepts admin introduction (when sequencer safe)
 theorem bootstrap_accepts_admin_intro (s : CircleState)
@@ -238,7 +248,7 @@ theorem rotate_accepted_by_admin (s : CircleState)
     (hnotboot : isBootstrapB s = false)
     (hadmin : isAdminB s signer = true) :
     baseGate s signer sid (.rotateSequencer newSid) = true := by
-  simp [baseGate, protectsSequencer, hnotboot, hadmin]
+  simp [baseGate, protectsSequencer, requiresMajority, hnotboot, hadmin]
 
 -- After rotation, the new sequencer is a member
 theorem rotate_new_sequencer_is_member

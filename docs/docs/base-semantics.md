@@ -47,7 +47,7 @@ The sequencer is a permanent, non-admin member:
 These protections are enforced unconditionally, regardless of mode.
 
 The sequencer's identity *can* be replaced via a **sequencer
-rotation** — but this requires admin majority (see below).
+rotation** — any admin can do this as a straight decision.
 
 **Lean predicates:** `genesis`, `genesis_sequencer_is_member`,
 `genesis_sequencer_not_admin`, `genesis_is_bootstrap`,
@@ -80,16 +80,18 @@ but cannot modify the circle's membership structure.
 
 The protocol defines two categories of membership operations:
 
-### Straight decisions (single admin)
+### Straight decisions (admin-gated)
 
-These are accepted immediately when submitted by any admin:
+These are accepted immediately when the signer is an admin:
 
-- **Introduce member** — add a new non-admin member to the circle
-- **Remove member** — remove a member from the circle (except the
-  sequencer)
+- **Introduce member** — add a new non-admin member to the circle.
+  Introducing someone directly as admin is rejected by the straight
+  gate — admin role requires a majority proposal.
+- **Remove member** — remove a member from the circle. Removing the
+  sequencer is always rejected.
 - **Rotate sequencer** — replace the sequencer's identity with a
   new KERI prefix. The old sequencer stays as a regular member;
-  the new one takes over sequencing
+  the new one takes over sequencing.
 
 ### Proposals requiring admin majority
 
