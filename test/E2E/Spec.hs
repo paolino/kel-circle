@@ -10,7 +10,7 @@ proposals, responses, and resolution.
 -}
 module E2E.Spec (tests) where
 
-import Data.Aeson (encode)
+import Data.Aeson (Value (..), encode)
 import E2E.TestHelpers
 import KelCircle.Events (Resolution (..))
 import KelCircle.Server.JSON (Submission (..))
@@ -19,10 +19,11 @@ import Network.HTTP.Client qualified as HC
 import Network.HTTP.Types
     ( status200
     , status401
+    , status404
     , status422
     )
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (testCase, (@?=))
+import Test.Tasty.HUnit (assertFailure, testCase, (@?=))
 
 -- | All E2E test scenarios.
 tests :: TestTree
@@ -112,6 +113,12 @@ memberTests =
         , testCase
             "duplicate member rejected"
             testDuplicateMember
+        , testCase
+            "sequencer cannot be removed"
+            testCannotRemoveSequencer
+        , testCase
+            "non-member cannot be removed"
+            testCannotRemoveNonMember
         ]
 
 testIntroduceMember :: IO ()
@@ -174,6 +181,28 @@ testNonMemberCannotIntroduce =
                 te
                 (introduceMember nobody user1)
         HC.responseStatus resp @?= status422
+
+testCannotRemoveSequencer :: IO ()
+testCannotRemoveSequencer = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    let seqId = TestId{tidKey = "server-sequencer"}
+
+    _ <- postEvent te (bootstrapAdmin admin1)
+
+    -- Admin tries to remove the sequencer
+    resp <- postEventRaw te (removeMember admin1 seqId)
+    HC.responseStatus resp @?= status422
+
+testCannotRemoveNonMember :: IO ()
+testCannotRemoveNonMember = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    nobody <- newTestId
+
+    _ <- postEvent te (bootstrapAdmin admin1)
+
+    -- Try to remove someone who was never introduced
+    resp <- postEventRaw te (removeMember admin1 nobody)
+    HC.responseStatus resp @?= status422
 
 testDuplicateMember :: IO ()
 testDuplicateMember = withTestEnv $ \te -> do
@@ -382,6 +411,9 @@ eventReplayTests =
         [ testCase
             "GET /events replays from offset"
             testEventReplay
+        , testCase
+            "GET /events returns event as JSON object"
+            testGetEventJsonDecoding
         ]
 
 testEventReplay :: IO ()
@@ -400,6 +432,29 @@ testEventReplay = withTestEnv $ \te -> do
     e1 <- httpGet te "/events?after=0"
     HC.responseStatus e1 @?= status200
 
-    -- Read third event
+    -- No third event (only 2 events exist)
     e2 <- httpGet te "/events?after=1"
-    HC.responseStatus e2 @?= status200
+    HC.responseStatus e2 @?= status404
+
+testGetEventJsonDecoding :: IO ()
+testGetEventJsonDecoding = withTestEnv $ \te -> do
+    admin1 <- newTestId
+
+    -- One bootstrap stores exactly one event
+    sn <- postEvent te (bootstrapAdmin admin1)
+    sn @?= 1
+
+    -- Fetch the first event
+    resp <- httpGet te "/events?after=-1"
+    HC.responseStatus resp @?= status200
+    er <- decodeOrFail (HC.responseBody resp)
+    -- event field must be a JSON object, not a string
+    case erEvent er of
+        Object _ -> pure ()
+        other ->
+            assertFailure $
+                "expected JSON object, got: " <> show other
+
+    -- No second event should exist
+    resp2 <- httpGet te "/events?after=1"
+    HC.responseStatus resp2 @?= status404

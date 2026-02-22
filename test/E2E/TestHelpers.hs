@@ -44,6 +44,7 @@ module E2E.TestHelpers
     , InfoResp (..)
     , ConditionResp (..)
     , ConditionMember (..)
+    , GetEventResp (..)
     ) where
 
 import Control.Concurrent.STM (newBroadcastTChanIO)
@@ -475,3 +476,18 @@ instance FromJSON ConditionResp where
             <*> o .: "members"
             <*> o .: "proposals"
             <*> o .: "nextSeq"
+
+-- | Decoded GET /events response.
+data GetEventResp = GetEventResp
+    { erSigner :: Text
+    , erEvent :: Value
+    , erSignature :: Text
+    }
+    deriving stock (Show)
+
+instance FromJSON GetEventResp where
+    parseJSON = withObject "GetEventResp" $ \o ->
+        GetEventResp
+            <$> o .: "signer"
+            <*> o .: "event"
+            <*> o .: "signature"

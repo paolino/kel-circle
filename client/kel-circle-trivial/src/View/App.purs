@@ -402,7 +402,13 @@ fetchAndReplay
   => String
   -> H.HalogenM State Action Slots o m Unit
 fetchAndReplay key = do
+  infoRes <- liftAff $ Fetch.fetch
+    (baseUrl <> "/info")
+    { method: "GET", body: "" }
   let
+    seqId = case parseSequencerId infoRes.body of
+      Right sid -> sid
+      Left _ -> defaultSequencer
     go seqNo fs = do
       res <- liftAff $ Fetch.fetch
         ( baseUrl <> "/events?after=" <> show seqNo
@@ -444,7 +450,7 @@ fetchAndReplay key = do
                   go (seqNo + 1) fs'
         _ ->
           H.modify_ _ { error = Just ("Fetch failed: " <> show res.status) }
-  go (-1) (initFullState defaultSequencer unit)
+  go (-1) (initFullState seqId unit)
 
 -- | Fetch new events since our last known position.
 fetchNewEvents
@@ -539,3 +545,11 @@ parseInfoResponse
 parseInfoResponse s = do
   json <- lmap show (jsonParser s)
   lmap printJsonDecodeError (decodeInfoResponse json)
+
+-- | Parse the sequencer ID from a GET /info response.
+parseSequencerId :: String -> Either String MemberId
+parseSequencerId s = do
+  json <- lmap show (jsonParser s)
+  lmap printJsonDecodeError do
+    obj <- decodeJson json
+    obj .: "sequencerId"
