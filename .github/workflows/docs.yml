@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
     paths: [docs/**]
+  pull_request:
+    paths: [docs/**, lean/**]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -10,6 +12,7 @@ concurrency:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   deploy:
@@ -19,5 +22,47 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - run: pip install mkdocs-material
-      - run: mkdocs gh-deploy --force --config-file docs/mkdocs.yml
+      - run: pip install mkdocs-material pymdownx-superfences
+
+      # Main branch: deploy to root
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: mkdocs gh-deploy --force --config-file docs/mkdocs.yml
+
+      # PR: build and deploy to pr-preview/<number>/
+      - if: github.event_name == 'pull_request'
+        run: mkdocs build --config-file docs/mkdocs.yml -d /tmp/site
+
+      - if: github.event_name == 'pull_request'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: /tmp/site
+          destination_dir: pr-preview/${{ github.event.number }}
+
+      - if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = `https://paolino.github.io/kel-circle/pr-preview/${context.issue.number}/`;
+            const body = `📖 Docs preview: ${url}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes('Docs preview:'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

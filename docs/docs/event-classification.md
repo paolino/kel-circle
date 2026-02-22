@@ -26,9 +26,9 @@ server validates, the fold updates.
 ### 2. Proposal
 
 A proposal is an event that initiates a coordination round. It
-does not change the fold directly. Instead, it opens a window for
-responses and eventually resolves into a decision (positive or
-negative).
+contributes to the fold like any other sequenced event, and also
+opens a window for responses that eventually resolves into a
+decision (positive or negative).
 
 A proposal carries:
 
@@ -53,7 +53,8 @@ open proposal. Its content is application-defined — the protocol
 does not prescribe what a response looks like, only that it
 references a specific proposal.
 
-Responses do not change the fold. They accumulate until:
+Responses contribute to the fold like any other sequenced
+event. They also accumulate for lifecycle tracking until:
 
 - The threshold gate fires (if present), or
 - The proposer closes the proposal, or
@@ -114,23 +115,31 @@ The server-emitted decision is a regular event in the global
 sequence. Clients can verify its signature against the server's
 KEL just like any other event.
 
-## Only decisions change the fold
+## All event classes contribute to the fold
 
-This is the central simplification compared to kelgroups (which
-had an L1/L2 split):
+All three event classes — decisions, proposals, and responses —
+advance the fold state when sequenced. The fold has two layers:
 
-- **Decisions** (straight or from proposal resolution) are the only
-  events that advance the fold state
-- **Proposals** and **responses** are sequenced (for auditability
-  and lifecycle tracking) but do not affect the fold
-- To compute the current circle state, filter the global sequence
-  to decisions and fold them
+- **Base fold** — extracts membership and role information from all
+  event types. This layer is fixed by the protocol. The base gate
+  uses only the base fold to check membership, roles, and freshness.
+
+- **Application fold** — accumulates domain-specific state from all
+  event types. This layer is pluggable. The application gate uses
+  the full fold (base + application) to validate domain rules.
+
+The event classification still matters for the proposal lifecycle
+(proposals open coordination rounds, responses accumulate within
+them, decisions resolve them) but all three classes feed into the
+fold. A future optimization may allow skipping fully resolved
+proposals during fold replay, but the base model treats every
+sequenced event as a fold input.
 
 This means:
 
 - No separate L1/L2 event logs
 - One global sequence for everything
-- Simple fold: skip non-decisions
+- Every sequenced event advances the fold
 - Full audit trail preserved in the sequence
 
 ## Application parameterization
@@ -155,4 +164,4 @@ The application supplies:
 - A semantic gate function (`FoldState -> Event -> Bool`)
 - An optional threshold gate function per proposal
   (`[ResponseContent] -> Bool`)
-- A fold function that applies decisions to state
+- A fold function that applies events to state
