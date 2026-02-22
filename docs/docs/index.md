@@ -76,7 +76,7 @@ rules while sharing the same coordination infrastructure.
 
 ## Architecture overview
 
-![Kel-Circle Protocol](images/circle.svg)
+![Kel-Circle Protocol](images/circle2.svg)
 
 Five members (teal) each maintain their own KEL with an inception
 event and numbered interaction events. The sequencer (amber, center)
