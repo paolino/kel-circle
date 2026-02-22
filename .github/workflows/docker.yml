@@ -2,7 +2,7 @@ name: Docker
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/event-json-decode]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,6 +35,11 @@ jobs:
           docker load < result
           TAG=$(docker images "$IMAGE" --format '{{.Tag}}' | head -1)
           echo "Loaded image tag: $TAG"
-          docker tag "$IMAGE:$TAG" "$IMAGE:latest"
-          docker push "$IMAGE:$TAG"
-          docker push "$IMAGE:latest"
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            docker tag "$IMAGE:$TAG" "$IMAGE:latest"
+            docker push "$IMAGE:$TAG"
+            docker push "$IMAGE:latest"
+          else
+            docker tag "$IMAGE:$TAG" "$IMAGE:dev"
+            docker push "$IMAGE:dev"
+          fi
