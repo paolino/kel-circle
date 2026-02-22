@@ -24,7 +24,7 @@ what interactions are valid and controls the fold.
 
 Membership is a base-layer concern. The protocol itself tracks who
 is in the circle. The sequencer can always determine the current
-member set by folding the decision history — no application logic
+member set by folding the event history — no application logic
 required.
 
 A member is identified by their KERI prefix (the self-certifying
@@ -111,19 +111,29 @@ circle starts with a controlled onboarding step.
 
 ## Fold computation
 
-The circle's current state is computed by folding only the
-**decisions** in the global sequence. Proposals and responses are
-coordination events — they do not change the fold state.
+The circle's current state is computed by folding **all** events in
+the global sequence. Every sequenced interaction event — decision,
+proposal, or response — contributes to the fold.
+
+The fold has two layers:
+
+- **Base fold** — extracts membership and role information. This
+  layer is fixed by the protocol. The base gate uses only the base
+  fold to check membership, roles, and freshness.
+
+- **Application fold** — accumulates domain-specific state. This
+  layer is pluggable. The application gate uses the full fold
+  (base + application) to validate domain rules.
 
 To compute the current state:
 
 1. Walk the global sequence from index 0
-2. Filter to decisions only
-3. Apply each decision to the fold accumulator
+2. Apply each event to the fold accumulator (both base and
+   application layers)
 
-This means a client that only cares about the current state can
-skip all non-decision events. The full sequence is still available
-for auditability and proposal lifecycle tracking.
+A future optimization may allow skipping fully resolved proposals
+during fold replay, but the base model treats every sequenced event
+as a fold input.
 
 ## Client verification
 
@@ -132,7 +142,7 @@ Any client can independently verify the circle state:
 1. Obtain the global sequence from the server
 2. For each event, resolve the signer's KEL and verify the
    signature against their current key state
-3. Filter to decisions and recompute the fold
+3. Recompute the fold over all events
 4. Compare with the server's reported state
 
 This provides full transparency — the server cannot fabricate

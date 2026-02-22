@@ -56,7 +56,7 @@ and enforces validity before assigning a sequence number.
 A circle is not open. Membership is a **base-layer** concern,
 meaning the protocol itself (not the application) tracks who is in
 the circle and what roles they hold. The sequencer can always
-determine current members and admins by folding the decision
+determine current members and admins by folding the event
 history.
 
 This gives the server the ability to enforce access control at the
@@ -83,9 +83,10 @@ maintain their own KEL. Inception events sit at the outer edge; newer
 events grow inward. Rose curves trace key rotations within a KEL.
 Numbered indigo arrows follow the global sequence across KELs: most
 interactions originate from members, but some (like timeout or
-threshold decisions) are emitted by the sequencer itself. Only
-**decisions** in the sequence advance the fold; proposals and
-responses are coordination machinery.
+threshold decisions) are emitted by the sequencer itself. All
+sequenced interaction events advance the fold. The fold is
+two-layered: a **base fold** (membership and roles, fixed by the
+protocol) and an **application fold** (domain-specific, pluggable).
 
 ## Documentation
 
