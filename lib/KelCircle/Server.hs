@@ -24,6 +24,7 @@ import Control.Concurrent.STM
 import Data.Aeson
     ( FromJSON
     , ToJSON
+    , Value
     , decode
     , encode
     , object
@@ -31,7 +32,6 @@ import Data.Aeson
     )
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder qualified as Builder
-import Data.ByteString.Lazy qualified as LBS
 import Data.Text (Text)
 import Data.Text.Encoding qualified as TE
 import Data.Text.Read qualified as TR
@@ -229,7 +229,17 @@ handleGetEvent cfg req respond =
                             BadRequest
                                 "no event at position"
                 (se : _) ->
-                    respond $
+                    let evtVal :: Value
+                        evtVal = case decode (seEventJson se) of
+                            Just v -> v
+                            Nothing ->
+                                object
+                                    [ "error"
+                                        .= ( "corrupt event"
+                                                :: Text
+                                           )
+                                    ]
+                    in respond $
                         responseLBS
                             status200
                             jsonHeaders
@@ -238,10 +248,7 @@ handleGetEvent cfg req respond =
                                     [ "signer"
                                         .= seSigner se
                                     , "event"
-                                        .= TE.decodeUtf8
-                                            ( LBS.toStrict $
-                                                seEventJson se
-                                            )
+                                        .= evtVal
                                     , "signature"
                                         .= seSignature
                                             se
