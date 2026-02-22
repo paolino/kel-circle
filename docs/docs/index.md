@@ -78,12 +78,14 @@ rules while sharing the same coordination infrastructure.
 
 ![Kel-Circle Protocol](images/circle5.svg)
 
-Five members (teal) each maintain their own KEL with an inception
-event and numbered interaction events. The sequencer (amber, center)
-assigns each interaction a global index, forming the canonical
-sequence. Dashed arrows show which member interaction maps to which
-global sequence slot. Only **decisions** in the sequence advance
-the fold; proposals and responses are coordination machinery.
+Five members — four regular (teal) and one sequencer (amber) — each
+maintain their own KEL. Inception events sit at the outer edge; newer
+events grow inward. Rose curves trace key rotations within a KEL.
+Numbered indigo arrows follow the global sequence across KELs: most
+interactions originate from members, but some (like timeout or
+threshold decisions) are emitted by the sequencer itself. Only
+**decisions** in the sequence advance the fold; proposals and
+responses are coordination machinery.
 
 ## Documentation
 
