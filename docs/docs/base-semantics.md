@@ -246,20 +246,40 @@ key (which may have been rotated since the event was signed). The
 global sequence provides canonical ordering; the KELs provide
 cryptographic identity.
 
-## Verification
+## Server vs client: asymmetric roles
 
-Both the server (on event submission) and clients (on replay) follow
-the same verification procedure over the global sequence and the
-full KELs of all members:
+Both server and clients fold the global sequence and validate
+against full KELs, but their roles are fundamentally asymmetric.
 
-1. Obtain the global sequence
-2. Obtain each member's full KEL (inception through current state)
-3. For each event, resolve the signer's KEL and verify the
-   signature against their key state at the time of signing
-4. Recompute both folds (base + application) over all events
-5. Confirm the resulting state is consistent
+### Server: gatekeeper
 
-The server performs steps 3–4 incrementally as each event arrives.
-Clients can perform the full replay at any time to audit the
-server's behavior. This symmetry — server and clients run the same
-fold and validation logic — is what makes the circle transparent.
+The server processes events **before** they enter the global
+sequence. For each submitted event, it:
+
+1. Resolves the signer's KEL and verifies the signature
+2. **Challenges membership** — confirms the signer is a known
+   member of the circle (from the current base fold)
+3. Applies the **base gate** — sequencer protection, mode-dependent
+   authorization, sequence freshness, timestamp bounds
+4. Applies the **application gate** — domain-specific validation
+5. If all gates pass, assigns the next sequence number
+
+The membership challenge is critical: it happens before any other
+gate logic. An event from an unknown signer is rejected immediately,
+regardless of its content.
+
+### Client: auditor
+
+Clients replay the global sequence **after** events have been
+accepted and sequenced. They:
+
+1. Obtain the global sequence and all member KELs
+2. For each event, verify the signature against the signer's KEL
+3. Recompute both folds (base + application) over all events
+4. Confirm the resulting state matches the server's reported state
+
+Clients do not re-run the gate logic — the server already enforced
+it. Instead, they verify that the server's decisions were consistent:
+every sequenced event has a valid signature from a member who was
+in the circle at the time. If the server accepted an event from a
+non-member, the client's replay would detect the inconsistency.
