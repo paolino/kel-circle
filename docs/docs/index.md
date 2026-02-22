@@ -76,7 +76,7 @@ rules while sharing the same coordination infrastructure.
 
 ## Architecture overview
 
-![Kel-Circle Protocol](images/circle5.svg)
+![Kel-Circle Protocol](images/circle.svg)
 
 Five members — four regular (teal) and one sequencer (amber) — each
 maintain their own KEL. Inception events sit at the outer edge; newer
