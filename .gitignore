@@ -1,0 +1,12 @@
+dist-newstyle/
+result
+.llm/
+WIP.md
+site/
+cabal.project.local
+.direnv/
+lean/.lake/
+client/.spago/
+client/output/
+client/node_modules/
+client/kelgroups-trivial/dist/index.js

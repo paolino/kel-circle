@@ -1,0 +1,42 @@
+cabal-version:   3.0
+name:            kel-circle
+version:         0.1.0.0
+synopsis:        Synchronized multi-KEL circle protocol
+description:
+  A polymorphic Haskell library implementing a synchronized
+  multi-KEL circle protocol. Each member has an independent
+  KERI Key Event Log for identity management, while a global
+  sequence enforces ordering on interaction events. The server
+  acts as sequencer and circle participant, governing access
+  control and event classification (decisions, proposals,
+  responses) via a two-level semantic gate.
+
+license:         Apache-2.0
+license-file:    LICENSE
+copyright:       (c) 2026 Paolo Veronelli
+author:          Paolo Veronelli
+maintainer:      paolo.veronelli@gmail.com
+category:        Cryptography
+build-type:      Simple
+extra-doc-files: README.md
+
+common language
+  default-language:   GHC2021
+  default-extensions:
+    DerivingStrategies
+    LambdaCase
+    OverloadedStrings
+    StrictData
+
+common opts-lib
+  ghc-options:
+    -Wall -Werror -Wunused-imports -Wunused-packages
+    -Wmissing-export-lists -Wname-shadowing -Wredundant-constraints
+
+library
+  import:          language, opts-lib
+  hs-source-dirs:  lib
+  exposed-modules:
+    KelCircle
+  build-depends:
+    , base  >=4.18 && <5
