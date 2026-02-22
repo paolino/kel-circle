@@ -65,7 +65,9 @@ event. They also accumulate for lifecycle tracking until:
 
 **Lean predicates:** `EventClass`, `event_trichotomy`,
 `decision_not_proposal`, `decision_not_response`,
-`proposal_not_response`
+`proposal_not_response`,
+`Resolution`, `ProposalStatus`, `TrackedProposal`,
+`ProposalRegistry`
 
 ## Proposal lifecycle
 
@@ -121,6 +123,41 @@ event. This is why the server is a circle member with its own KEL
 The server-emitted decision is a regular event in the global
 sequence. Clients can verify its signature against the server's
 KEL just like any other event.
+
+### Response validation
+
+A member can respond to an open proposal at most once. The
+protocol tracks respondents per proposal and rejects duplicate
+responses. Only open proposals accept responses — once resolved,
+no further responses are accepted.
+
+### Timeout obligation
+
+Every proposal has a mandatory deadline. The sequencer must
+resolve any open proposal whose deadline has passed. This is a
+**liveness obligation** on the sequencer: as long as the sequencer
+is running, no proposal remains open past its deadline. Resolved
+proposals trivially satisfy this obligation.
+
+### Admin majority as a threshold gate
+
+Admin role changes (promote/demote) use the proposal mechanism
+with **admin majority** as the threshold gate. The threshold
+checks whether the number of admin respondents meets the majority
+threshold for the current circle. A single admin trivially meets
+majority with their own response, which is why a lone admin can
+demote themselves.
+
+**Lean predicates:** `openProposal`, `addResponse`,
+`resolveProposal`, `findProposal`,
+`open_proposal_is_open`, `open_proposal_no_responses`,
+`resolve_resolved_noop`, `resolution_dichotomy`,
+`threshold_is_positive`, `proposer_positive_is_positive`,
+`proposer_negative_is_negative`, `timeout_is_negative`,
+`timeoutObligation`, `resolved_satisfies_obligation`,
+`adminMajorityMet`, `single_admin_majority_self`,
+`hasNotResponded`, `canRespond`,
+`fresh_proposal_accepts_response`
 
 ## All event classes contribute to the fold
 

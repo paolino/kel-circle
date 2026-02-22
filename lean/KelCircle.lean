@@ -8,3 +8,4 @@ import KelCircle.Events
 import KelCircle.Fold
 import KelCircle.Invariants
 import KelCircle.BaseDecisions
+import KelCircle.Proposals
