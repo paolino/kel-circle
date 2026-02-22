@@ -307,10 +307,12 @@ on every connection. Instead, they maintain a **checkpoint** — a
 snapshot of the fold state (both base and application layers) at a
 known sequence index, along with the corresponding KEL states.
 
-To sync, a client presents its checkpoint index to the server and
-requests the delta: all events and KEL updates from that index to
-the current tip. The client applies the delta to its checkpoint,
-advancing to the current state.
+To stay current, clients connect to an **SSE (Server-Sent Events)
+endpoint**. The server pushes notifications whenever new events are
+sequenced. On receiving a notification, the client requests the
+delta from its checkpoint index to the current tip — all new events
+and KEL updates since the checkpoint. The client applies the delta
+to its local state, advancing to the tip.
 
 This is analogous to blockchain light sync: the client trusts its
 own checkpoint (which it previously verified) and only replays the
