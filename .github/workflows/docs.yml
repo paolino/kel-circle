@@ -19,18 +19,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: paolino/dev-assets/setup-nix@v0.0.1
         with:
-          python-version: "3.x"
-      - run: pip install mkdocs-material pymdownx-superfences
+          cachix-auth-token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       # Main branch: deploy to root
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: mkdocs gh-deploy --force --config-file docs/mkdocs.yml
+        run: nix develop --quiet -c mkdocs gh-deploy --force --config-file docs/mkdocs.yml
 
       # PR: build and deploy to pr-preview/<number>/
       - if: github.event_name == 'pull_request'
-        run: mkdocs build --config-file docs/mkdocs.yml -d /tmp/site
+        run: nix develop --quiet -c mkdocs build --config-file docs/mkdocs.yml -d /tmp/site
 
       - if: github.event_name == 'pull_request'
         uses: peaceiris/actions-gh-pages@v4
@@ -44,7 +43,7 @@ jobs:
         with:
           script: |
             const url = `https://paolino.github.io/kel-circle/pr-preview/${context.issue.number}/`;
-            const body = `📖 Docs preview: ${url}`;
+            const body = `Docs preview: ${url}`;
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,

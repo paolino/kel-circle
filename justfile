@@ -8,7 +8,7 @@ test:
 
 # Format Haskell sources
 format:
-    fourmolu -i lib/**/*.hs test/*.hs app/*.hs
+    fourmolu -i lib/**/*.hs
 
 # Lint Haskell sources
 lint:
@@ -42,8 +42,8 @@ lint-client:
 test-client:
     cd client && spago test -p kel-circle-client
 
-# Full CI check
-ci: format cabal-fmt lint build test lean build-client test-client
+# Full CI check (design phase: only Lean proofs and docs)
+ci: lean build-docs
 
 # Build documentation
 build-docs:

@@ -3,6 +3,7 @@ result
 .llm/
 WIP.md
 site/
+docs/site/
 cabal.project.local
 .direnv/
 lean/.lake/
