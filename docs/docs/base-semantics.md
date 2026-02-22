@@ -229,30 +229,37 @@ as a fold input.
 
 ### Dependency on full KELs
 
-Both folds depend on the **full KELs** of all circle members — not
-just the interaction events in the global sequence. Each member's
-KEL includes inception, key rotation, and interaction events per the
-KERI specification. Security validation requires resolving each
-signer's current key state from their KEL to verify signatures.
+Both the server and clients must fold and validate against the
+**full KELs** of all circle members — not just the interaction
+events in the global sequence. Each member's KEL includes inception,
+key rotation, and interaction events per the KERI specification.
 
-Without access to the full KELs, a verifier cannot confirm that a
-signature is valid under the signer's current public key (which may
-have been rotated since the event was signed). The global sequence
-provides canonical ordering; the KELs provide cryptographic identity.
+When the server receives a new event, it resolves the signer's KEL
+to verify the signature against their current key state. Only then
+does it apply the two-level gate and (if accepted) assign a sequence
+number. Clients perform the same verification when replaying the
+global sequence.
 
-## Client verification
+Without access to the full KELs, neither server nor client can
+confirm that a signature is valid under the signer's current public
+key (which may have been rotated since the event was signed). The
+global sequence provides canonical ordering; the KELs provide
+cryptographic identity.
 
-Any client can independently verify the circle state by accessing
-both the global sequence and the full KELs of all members:
+## Verification
 
-1. Obtain the global sequence from the server
+Both the server (on event submission) and clients (on replay) follow
+the same verification procedure over the global sequence and the
+full KELs of all members:
+
+1. Obtain the global sequence
 2. Obtain each member's full KEL (inception through current state)
 3. For each event, resolve the signer's KEL and verify the
    signature against their key state at the time of signing
 4. Recompute both folds (base + application) over all events
-5. Compare with the server's reported state
+5. Confirm the resulting state is consistent
 
-This provides full transparency — the server cannot fabricate
-events because each event carries a signature from the member's
-own KEL, and the member's key state is independently verifiable
-through their full KEL history.
+The server performs steps 3–4 incrementally as each event arrives.
+Clients can perform the full replay at any time to audit the
+server's behavior. This symmetry — server and clients run the same
+fold and validation logic — is what makes the circle transparent.
