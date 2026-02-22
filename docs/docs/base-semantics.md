@@ -253,8 +253,13 @@ against full KELs, but their roles are fundamentally asymmetric.
 
 ### Server: gatekeeper
 
-The server processes events **before** they enter the global
-sequence. For each submitted event, it:
+The server is **always online** and maintains the **source of truth
+for all member KELs**. It holds copies of every member's full KEL
+(inception, key rotations, interactions) so it can resolve key
+state and verify signatures at any time without depending on
+external infrastructure.
+
+For each submitted event, the server:
 
 1. Resolves the signer's KEL and verifies the signature
 2. **Challenges membership** — confirms the signer is a known
