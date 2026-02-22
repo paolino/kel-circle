@@ -308,11 +308,19 @@ snapshot of the fold state (both base and application layers) at a
 known sequence index, along with the corresponding KEL states.
 
 To stay current, clients connect to an **SSE (Server-Sent Events)
-endpoint**. The server pushes notifications whenever new events are
-sequenced. On receiving a notification, the client requests the
-delta from its checkpoint index to the current tip — all new events
-and KEL updates since the checkpoint. The client applies the delta
-to its local state, advancing to the tip.
+endpoint**. The SSE stream continuously provides:
+
+- The **next free sequence number** (tip of the global sequence)
+- The **current server time**
+- Notifications when new events are sequenced
+
+The sequence number and time allow clients to detect when they are
+behind and to construct valid submissions (with a fresh sequence
+number and timestamp within the accuracy window). On receiving a
+notification of new events, the client requests the delta from its
+checkpoint index to the current tip — all new events and KEL
+updates since the checkpoint. The client applies the delta to its
+local state, advancing to the tip.
 
 This is analogous to blockchain light sync: the client trusts its
 own checkpoint (which it previously verified) and only replays the
