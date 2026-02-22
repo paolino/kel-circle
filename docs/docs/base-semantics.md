@@ -94,7 +94,9 @@ admins:
 - **Demote from admin** — change an admin's role to member
 
 Admin role changes affect the power structure of the circle, so
-they require consensus rather than unilateral action.
+they require consensus rather than unilateral action. Note that a
+single remaining admin can demote themselves (majority of one),
+which returns the circle to bootstrap mode.
 
 **Lean predicates:** `BaseDecision`, `applyBaseDecision`,
 `introduce_adds_member`, `introduce_admin_exits_bootstrap`,
@@ -157,7 +159,17 @@ genesis sequence is:
 3. Event 1 — first user self-introduces as admin (passphrase-gated)
 4. Normal mode begins
 
-If all admins are later removed, bootstrap mode resumes.
+### Re-entering bootstrap
+
+If the last admin demotes themselves (via a majority proposal —
+which trivially passes with one admin), the circle returns to
+bootstrap mode. The sequencer remains as a permanent non-admin
+member (event 0 is never undone). A new admin can then
+self-introduce using the passphrase, exactly as during initial
+setup.
+
+This means the circle is never stuck: as long as someone knows the
+passphrase, the admin role can always be recovered.
 
 **Lean predicates:** `isBootstrap`, `isBootstrapB`,
 `empty_is_bootstrap`, `genesis_is_bootstrap`,
