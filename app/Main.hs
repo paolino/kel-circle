@@ -14,6 +14,7 @@ import Control.Concurrent.STM
     )
 import Control.Exception (bracket)
 import Data.Text (Text, pack)
+import Data.Text.IO qualified as TIO
 import KelCircle.Events (BaseDecision)
 import KelCircle.Server (ServerConfig (..), mkApp)
 import KelCircle.Store
@@ -28,6 +29,7 @@ import Network.Wai.Application.Static
     )
 import Network.Wai.Handler.Warp qualified as Warp
 import System.Environment (getArgs)
+import System.IO (hFlush, stderr)
 
 -- | Entry point: parse args and run server.
 main :: IO ()
@@ -50,7 +52,10 @@ runServer port dbPath passphrase =
         closeStore
         $ \(store :: CircleStore () () ()) -> do
             ch <- newBroadcastTChanIO
-            let cfg =
+            let logger msg =
+                    TIO.hPutStrLn stderr msg
+                        >> hFlush stderr
+                cfg =
                     ServerConfig
                         { scStore = store
                         , scAppFold = trivialAppFold
@@ -61,6 +66,7 @@ runServer port dbPath passphrase =
                             trivialProposalGate
                         , scPassphrase = passphrase
                         , scBroadcast = ch
+                        , scLog = logger
                         }
                 staticDir =
                     "client/kel-circle-trivial/dist"
