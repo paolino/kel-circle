@@ -151,10 +151,13 @@ The base gate is fixed by the protocol. It checks:
 ### Level 2: application gate
 
 The application gate is parameterized. Different circles supply
-different validation functions:
+different validation functions. Crucially, the application gate
+receives **only the application fold state** — it does not see the
+base fold state (membership, roles). Each layer sees only its own
+fold:
 
 ```
-applicationGate :: FoldState -> Event -> Bool
+applicationGate :: AppFoldState -> Event -> Bool
 ```
 
 The sequencer applies this function after the base gate passes. If
@@ -168,7 +171,9 @@ resolved).
 
 This separation means the base infrastructure (membership, roles,
 sequencing, proposals) is reusable across applications, while each
-application defines its own domain-specific validity rules.
+application defines its own domain-specific validity rules. The
+strict layer separation — base gate uses base state, app gate uses
+app state — prevents coupling between the two levels.
 
 ## Bootstrap mode
 
