@@ -300,6 +300,23 @@ every sequenced event has a valid signature from a member who was
 in the circle at the time. If the server accepted an event from a
 non-member, the client's replay would detect the inconsistency.
 
+### Checkpoint-based sync
+
+For efficiency, clients do not replay the full history from genesis
+on every connection. Instead, they maintain a **checkpoint** — a
+snapshot of the fold state (both base and application layers) at a
+known sequence index, along with the corresponding KEL states.
+
+To sync, a client presents its checkpoint index to the server and
+requests the delta: all events and KEL updates from that index to
+the current tip. The client applies the delta to its checkpoint,
+advancing to the current state.
+
+This is analogous to blockchain light sync: the client trusts its
+own checkpoint (which it previously verified) and only replays the
+new events. A full replay from genesis is always possible for
+complete re-verification but is not required for normal operation.
+
 ### Trust model: censor but not forge
 
 The server has **full visibility** over all events and **full
