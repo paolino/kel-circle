@@ -34,6 +34,12 @@ common opts-lib
     -Wmissing-export-lists -Wname-shadowing
     -Wredundant-constraints
 
+common opts-test
+  ghc-options:
+    -Wall -Werror -Wunused-imports -Wunused-packages
+    -Wname-shadowing -Wredundant-constraints
+    -threaded -rtsopts -with-rtsopts=-N
+
 library
   import:          language, opts-lib
   hs-source-dirs:  lib
@@ -47,6 +53,28 @@ library
     KelCircle.Sequence
     KelCircle.State
     KelCircle.Types
+    KelCircle.Validate
   build-depends:
     , base  >=4.18 && <5
     , text  >=2.0  && <3
+
+test-suite unit-tests
+  import:         language, opts-test
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is:        Main.hs
+  other-modules:
+    KelCircle.Test.BaseDecisions
+    KelCircle.Test.Gate
+    KelCircle.Test.Generators
+    KelCircle.Test.Processing
+    KelCircle.Test.Proposals
+    KelCircle.Test.Sequence
+  build-depends:
+    , base           >=4.18 && <5
+    , kel-circle
+    , QuickCheck     >=2.14 && <3
+    , tasty          >=1.4  && <2
+    , tasty-hunit    >=0.10 && <1
+    , tasty-quickcheck >=0.10 && <1
+    , text           >=2.0  && <3

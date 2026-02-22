@@ -8,11 +8,11 @@ test:
 
 # Format Haskell sources
 format:
-    fourmolu -i lib/**/*.hs lib/KelCircle.hs
+    fourmolu -i lib/**/*.hs lib/KelCircle.hs test/Main.hs test/KelCircle/Test/*.hs
 
 # Lint Haskell sources
 lint:
-    hlint lib/
+    hlint lib/ test/
 
 # Format cabal file
 cabal-fmt:
@@ -43,11 +43,11 @@ test-client:
     cd client && spago test -p kel-circle-client
 
 # Full CI check
-ci: format-check lint build lean build-docs
+ci: format-check lint build test lean build-docs
 
 # Check Haskell formatting (no modification)
 format-check:
-    fourmolu --mode check lib/**/*.hs lib/KelCircle.hs
+    fourmolu --mode check lib/**/*.hs lib/KelCircle.hs test/Main.hs test/KelCircle/Test/*.hs
 
 # Build documentation
 build-docs:
