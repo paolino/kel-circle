@@ -46,8 +46,12 @@ The sequencer is a permanent, non-admin member:
 
 These protections are enforced unconditionally, regardless of mode.
 
-**Lean predicates:** `genesisState`, `genesis_sequencer_is_member`,
+The sequencer's identity *can* be replaced via a **sequencer
+rotation** — but this requires admin majority (see below).
+
+**Lean predicates:** `genesis`, `genesis_sequencer_is_member`,
 `genesis_sequencer_not_admin`, `genesis_is_bootstrap`,
+`genesis_preserves_sequencer_id`,
 `sequencer_removal_rejected`, `sequencer_admin_promotion_rejected`
 
 ## Membership
@@ -92,15 +96,27 @@ admins:
 
 - **Promote to admin** — change a member's role to admin
 - **Demote from admin** — change an admin's role to member
+- **Rotate sequencer** — replace the sequencer's identity with a
+  new KERI prefix. The old sequencer stays as a regular member;
+  the new one takes over sequencing. This is the only way to
+  change who runs the server.
 
-Admin role changes affect the power structure of the circle, so
-they require consensus rather than unilateral action. Note that a
-single remaining admin can demote themselves (majority of one),
-which returns the circle to bootstrap mode.
+Admin role changes and sequencer rotation affect the power
+structure of the circle, so they require consensus rather than
+unilateral action. Note that a single remaining admin can demote
+themselves (majority of one), which returns the circle to bootstrap
+mode.
 
-**Lean predicates:** `BaseDecision`, `applyBaseDecision`,
+The sequencer rotation is always rejected by the straight decision
+gate — it can only be enacted through a majority proposal.
+
+**Lean predicates:** `BaseDecision`, `applyBaseDecision`, `Circle`,
 `introduce_adds_member`, `introduce_admin_exits_bootstrap`,
-`introduce_preserves_existing`, `baseGate`
+`introduce_preserves_existing`, `baseGate`,
+`rotate_rejected_by_straight_gate`,
+`rotate_new_sequencer_is_member`,
+`rotate_old_sequencer_stays_member`,
+`rotate_updates_sequencer_id`
 
 ## The two-level gate
 
