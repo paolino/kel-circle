@@ -74,6 +74,15 @@ restart port="8080" db="kel-circle.db" pass="bootstrap": bundle-client
     -pkill -f "kel-circle-server"
     cabal run kel-circle-server -O0 -- {{port}} {{db}} {{pass}}
 
+# Build docker image via nix
+docker:
+    nix build --quiet .#docker-image -o result
+    @echo "Image tarball: ./result"
+
+# Load docker image locally
+docker-load: docker
+    docker load < result
+
 # Clean build artifacts
 clean:
     cabal clean
