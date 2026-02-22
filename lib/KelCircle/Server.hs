@@ -224,7 +224,7 @@ handleGetEvent cfg req respond =
             events <-
                 readEventsFrom
                     (scStore cfg)
-                    (after + 1)
+                    (after + 2)
             case events of
                 [] ->
                     respond $

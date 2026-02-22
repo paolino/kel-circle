@@ -33,6 +33,7 @@ import KelCircle.State
     , adminCount
     , isAdmin
     , isBootstrap
+    , isMember
     , majority
     , nameExists
     )
@@ -81,12 +82,23 @@ baseGate
     -> Bool
 baseGate s signer sid d =
     protectsSequencer sid d
+<<<<<<< HEAD
         && hasUniqueName s d
+        && targetExists s d
         && if isBootstrap s
             then case d of
                 IntroduceMember _ _ Admin -> True
                 _ -> False
             else isAdmin s signer && not (requiresMajority d)
+
+{- | Check that the target of a decision exists in
+the circle.
+-}
+targetExists :: CircleState -> BaseDecision -> Bool
+targetExists s = \case
+    RemoveMember mid -> isMember s mid
+    ChangeRole mid _ -> isMember s mid
+    _ -> True
 
 {- | The full gate composes base gate and application
 gate.
