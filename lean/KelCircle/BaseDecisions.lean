@@ -147,6 +147,31 @@ def baseGate (s : CircleState) (signer : MemberId)
   else
     isAdminB s signer && !requiresMajority d
 
+-- The full gate composes base gate and application gate.
+-- The application gate is parameterized: it receives the full
+-- fold state and can reject any event, including base decisions
+-- like member removal.
+def fullGate (s : CircleState) (signer : MemberId)
+    (sequencerId : MemberId) (d : BaseDecision)
+    (appGate : CircleState → BaseDecision → Bool) : Bool :=
+  baseGate s signer sequencerId d && appGate s d
+
+-- If base gate rejects, full gate rejects regardless of app gate
+theorem full_gate_base_rejects (s : CircleState)
+    (signer : MemberId) (sid : MemberId) (d : BaseDecision)
+    (appGate : CircleState → BaseDecision → Bool)
+    (hbase : baseGate s signer sid d = false) :
+    fullGate s signer sid d appGate = false := by
+  simp [fullGate, hbase]
+
+-- If app gate rejects, full gate rejects regardless of base gate
+theorem full_gate_app_rejects (s : CircleState)
+    (signer : MemberId) (sid : MemberId) (d : BaseDecision)
+    (appGate : CircleState → BaseDecision → Bool)
+    (happ : appGate s d = false) :
+    fullGate s signer sid d appGate = false := by
+  simp [fullGate, happ]
+
 -- Bootstrap gate accepts admin introduction (when sequencer safe)
 theorem bootstrap_accepts_admin_intro (s : CircleState)
     (signer : MemberId) (sid : MemberId) (id : MemberId)
