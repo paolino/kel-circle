@@ -88,7 +88,10 @@ These are accepted immediately when the signer is an admin:
   Introducing someone directly as admin is rejected by the straight
   gate — admin role requires a majority proposal.
 - **Remove member** — remove a member from the circle. Removing the
-  sequencer is always rejected.
+  sequencer is always rejected. The application gate also
+  participates: it can reject a removal based on domain state
+  (e.g. a member with frozen funds in an open order cannot be
+  removed until the order resolves).
 - **Rotate sequencer** — replace the sequencer's identity with a
   new KERI prefix. The old sequencer stays as a regular member;
   the new one takes over sequencing.
@@ -156,6 +159,12 @@ applicationGate :: FoldState -> Event -> Bool
 
 The sequencer applies this function after the base gate passes. If
 the application gate rejects the event, it is not sequenced.
+
+The application gate sees **all** events, including base decisions
+like member removal. This allows the application to block removals
+when domain invariants would be violated (e.g. a member with
+active commitments cannot be removed until those commitments are
+resolved).
 
 This separation means the base infrastructure (membership, roles,
 sequencing, proposals) is reusable across applications, while each
