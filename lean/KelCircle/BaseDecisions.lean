@@ -2,6 +2,8 @@
 --
 -- Base decisions are straight decisions that modify the circle's
 -- membership. They are gated by admin role (except in bootstrap).
+-- Event 0 is always the sequencer introducing itself as a non-admin
+-- member. The sequencer can never be removed or promoted to admin.
 
 import KelCircle.Invariants
 
@@ -61,11 +63,50 @@ theorem introduce_preserves_existing
   obtain ⟨mem, hmem, hid⟩ := hm
   exact ⟨mem, .tail _ hmem, hid⟩
 
--- Base gate: checks whether a base decision is allowed
--- In bootstrap mode: only introduceMember with admin role
--- In normal mode: signer must be admin
+-------------------------------------------------------------------
+-- Genesis: event 0 is the sequencer introducing itself
+-------------------------------------------------------------------
+
+-- The genesis state: sequencer is a non-admin member
+def genesisState (sequencerId : MemberId) : CircleState :=
+  applyBaseDecision emptyCircle (.introduceMember sequencerId .member)
+
+-- After genesis, the sequencer is a member
+theorem genesis_sequencer_is_member (sid : MemberId) :
+    isMember (genesisState sid) sid := by
+  exact ⟨⟨sid, .member⟩, .head _, rfl⟩
+
+-- After genesis, the sequencer is NOT an admin
+theorem genesis_sequencer_not_admin (sid : MemberId) :
+    ¬isAdmin (genesisState sid) sid := by
+  intro ⟨mem, hmem, _, hrole⟩
+  simp [genesisState, applyBaseDecision, emptyCircle] at hmem
+  subst hmem
+  simp at hrole
+
+-- After genesis, still in bootstrap mode (no admins)
+theorem genesis_is_bootstrap (sid : MemberId) :
+    isBootstrap (genesisState sid) := by
+  intro ⟨_, mem, hmem, _, hrole⟩
+  simp [genesisState, applyBaseDecision, emptyCircle] at hmem
+  subst hmem
+  simp at hrole
+
+-------------------------------------------------------------------
+-- Sequencer protection: the base gate enforces these
+-------------------------------------------------------------------
+
+-- The sequencer cannot be removed
+def protectsSequencer (sid : MemberId) (d : BaseDecision) : Bool :=
+  match d with
+  | .removeMember id => !(id == sid)
+  | .changeRole id .admin => !(id == sid)
+  | _ => true
+
+-- Base gate with sequencer protection
 def baseGate (s : CircleState) (signer : MemberId)
-    (d : BaseDecision) : Bool :=
+    (sequencerId : MemberId) (d : BaseDecision) : Bool :=
+  protectsSequencer sequencerId d &&
   if isBootstrapB s then
     match d with
     | .introduceMember _ .admin => true
@@ -73,25 +114,38 @@ def baseGate (s : CircleState) (signer : MemberId)
   else
     isAdminB s signer
 
--- Bootstrap gate accepts admin introduction
+-- Bootstrap gate accepts admin introduction (when sequencer safe)
 theorem bootstrap_accepts_admin_intro (s : CircleState)
-    (signer : MemberId) (id : MemberId)
+    (signer : MemberId) (sid : MemberId) (id : MemberId)
     (hboot : isBootstrapB s = true) :
-    baseGate s signer (.introduceMember id .admin) = true := by
-  simp [baseGate, hboot]
+    baseGate s signer sid (.introduceMember id .admin) = true := by
+  simp [baseGate, protectsSequencer, hboot]
 
--- Bootstrap gate rejects member introduction
+-- Sequencer removal is always rejected
+theorem sequencer_removal_rejected (s : CircleState)
+    (signer : MemberId) (sid : MemberId) :
+    baseGate s signer sid (.removeMember sid) = false := by
+  simp [baseGate, protectsSequencer]
+
+-- Sequencer promotion to admin is always rejected
+theorem sequencer_admin_promotion_rejected (s : CircleState)
+    (signer : MemberId) (sid : MemberId) :
+    baseGate s signer sid (.changeRole sid .admin) = false := by
+  simp [baseGate, protectsSequencer]
+
+-- Bootstrap gate rejects member (non-admin) introduction
 theorem bootstrap_rejects_member_intro (s : CircleState)
-    (signer : MemberId) (id : MemberId)
+    (signer : MemberId) (sid : MemberId) (id : MemberId)
     (hboot : isBootstrapB s = true) :
-    baseGate s signer (.introduceMember id .member) = false := by
-  simp [baseGate, hboot]
+    baseGate s signer sid (.introduceMember id .member) = false := by
+  simp [baseGate, protectsSequencer, hboot]
 
 -- Bootstrap gate rejects removal
 theorem bootstrap_rejects_remove (s : CircleState)
-    (signer : MemberId) (id : MemberId)
-    (hboot : isBootstrapB s = true) :
-    baseGate s signer (.removeMember id) = false := by
-  simp [baseGate, hboot]
+    (signer : MemberId) (sid : MemberId) (id : MemberId)
+    (hboot : isBootstrapB s = true)
+    (hne : (id == sid) = false) :
+    baseGate s signer sid (.removeMember id) = false := by
+  simp [baseGate, protectsSequencer, hboot, hne]
 
 end KelCircle
