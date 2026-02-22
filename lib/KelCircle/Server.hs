@@ -33,6 +33,7 @@ import Data.Aeson
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder qualified as Builder
 import Data.Text (Text)
+import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Text.Read qualified as TR
 import KelCircle.Events
@@ -107,6 +108,8 @@ data ServerConfig g d p r = ServerConfig
     -- ^ Bootstrap passphrase
     , scBroadcast :: TChan Int
     -- ^ SSE broadcast channel
+    , scLog :: Text -> IO ()
+    -- ^ Logger function
     }
 
 {- | Build a WAI 'Application' from a 'ServerConfig'.
@@ -239,21 +242,21 @@ handleGetEvent cfg req respond =
                                                 :: Text
                                            )
                                     ]
-                    in respond $
-                        responseLBS
-                            status200
-                            jsonHeaders
-                            ( encode $
-                                object
-                                    [ "signer"
-                                        .= seSigner se
-                                    , "event"
-                                        .= evtVal
-                                    , "signature"
-                                        .= seSignature
-                                            se
-                                    ]
-                            )
+                    in  respond $
+                            responseLBS
+                                status200
+                                jsonHeaders
+                                ( encode $
+                                    object
+                                        [ "signer"
+                                            .= seSigner se
+                                        , "event"
+                                            .= evtVal
+                                        , "signature"
+                                            .= seSignature
+                                                se
+                                        ]
+                                )
 
 -- --------------------------------------------------------
 -- POST /events
@@ -274,16 +277,21 @@ handlePostEvent
 handlePostEvent cfg req respond = do
     body <- strictRequestBody req
     case decode body of
-        Nothing ->
+        Nothing -> do
+            log' "POST /events: invalid JSON"
             respond $
                 jsonResponse status400 $
                     BadRequest "invalid JSON"
         Just sub -> do
+            log' $
+                "POST /events: signer="
+                    <> subSigner sub
             fs <- readFullState (scStore cfg)
             let cs = circleState (fsCircle fs)
                 mode = authMode cs
             case mode of
-                Bootstrap ->
+                Bootstrap -> do
+                    log' "  mode=bootstrap"
                     handleBootstrapPost
                         cfg
                         sub
@@ -291,6 +299,8 @@ handlePostEvent cfg req respond = do
                         respond
                 Normal ->
                     doAppend cfg sub fs respond
+  where
+    log' = scLog cfg
 
 handleBootstrapPost
     :: (ToJSON d, ToJSON p, ToJSON r)
@@ -325,8 +335,12 @@ doAppend
 doAppend cfg sub fs respond = do
     let signer = MemberId (subSigner sub)
         evt = subEvent sub
+        log' = scLog cfg
     case validateCircleEvent cfg fs signer evt of
-        Left ve ->
+        Left ve -> do
+            log' $
+                "  validation error: "
+                    <> T.pack (show ve)
             respond $
                 jsonResponse status422 $
                     ValidationErr ve
@@ -338,6 +352,8 @@ doAppend cfg sub fs respond = do
                     (subSigner sub)
                     (subSignature sub)
                     evt
+            log' $
+                "  appended seq=" <> T.pack (show sn)
             atomically $
                 writeTChan (scBroadcast cfg) sn
             respond $
