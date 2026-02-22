@@ -31,12 +31,22 @@ common language
 common opts-lib
   ghc-options:
     -Wall -Werror -Wunused-imports -Wunused-packages
-    -Wmissing-export-lists -Wname-shadowing -Wredundant-constraints
+    -Wmissing-export-lists -Wname-shadowing
+    -Wredundant-constraints
 
 library
   import:          language, opts-lib
   hs-source-dirs:  lib
   exposed-modules:
     KelCircle
+    KelCircle.Events
+    KelCircle.Fold
+    KelCircle.Gate
+    KelCircle.Processing
+    KelCircle.Proposals
+    KelCircle.Sequence
+    KelCircle.State
+    KelCircle.Types
   build-depends:
     , base  >=4.18 && <5
+    , text  >=2.0  && <3
