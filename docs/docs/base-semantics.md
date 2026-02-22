@@ -279,6 +279,11 @@ The membership challenge is critical: it happens before any other
 gate logic. An event from an unknown signer is rejected immediately,
 regardless of its content.
 
+The server is also responsible for **relaying** all data to clients.
+Clients do not communicate with each other — they receive the global
+sequence and all member KELs exclusively from the server. This makes
+the server the single point of distribution for all circle state.
+
 ### Client: auditor
 
 Clients replay the global sequence **after** events have been
