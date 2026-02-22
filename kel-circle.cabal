@@ -31,14 +31,12 @@ common language
 common opts-lib
   ghc-options:
     -Wall -Werror -Wunused-imports -Wunused-packages
-    -Wmissing-export-lists -Wname-shadowing
-    -Wredundant-constraints
+    -Wmissing-export-lists -Wname-shadowing -Wredundant-constraints
 
 common opts-test
   ghc-options:
-    -Wall -Werror -Wunused-imports -Wunused-packages
-    -Wname-shadowing -Wredundant-constraints
-    -threaded -rtsopts -with-rtsopts=-N
+    -Wall -Werror -Wunused-imports -Wunused-packages -Wname-shadowing
+    -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
 
 library
   import:          language, opts-lib
@@ -51,12 +49,22 @@ library
     KelCircle.Processing
     KelCircle.Proposals
     KelCircle.Sequence
+    KelCircle.Server
+    KelCircle.Server.JSON
     KelCircle.State
+    KelCircle.Store
     KelCircle.Types
     KelCircle.Validate
+
   build-depends:
-    , base  >=4.18 && <5
-    , text  >=2.0  && <3
+    , aeson          >=2.1  && <3
+    , base           >=4.18 && <5
+    , bytestring     >=0.11 && <1
+    , http-types     >=0.12 && <1
+    , sqlite-simple  >=0.4  && <1
+    , stm            >=2.5  && <3
+    , text           >=2.0  && <3
+    , wai            >=3.2  && <4
 
 test-suite unit-tests
   import:         language, opts-test
@@ -70,11 +78,36 @@ test-suite unit-tests
     KelCircle.Test.Processing
     KelCircle.Test.Proposals
     KelCircle.Test.Sequence
+
   build-depends:
-    , base           >=4.18 && <5
+    , base              >=4.18 && <5
     , kel-circle
-    , QuickCheck     >=2.14 && <3
-    , tasty          >=1.4  && <2
-    , tasty-hunit    >=0.10 && <1
-    , tasty-quickcheck >=0.10 && <1
-    , text           >=2.0  && <3
+    , QuickCheck        >=2.14 && <3
+    , tasty             >=1.4  && <2
+    , tasty-hunit       >=0.10 && <1
+    , tasty-quickcheck  >=0.10 && <1
+    , text              >=2.0  && <3
+
+test-suite e2e-tests
+  import:         language, opts-test
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is:        E2EMain.hs
+  other-modules:
+    E2E.Spec
+    E2E.TestHelpers
+
+  build-depends:
+    , aeson        >=2.1  && <3
+    , base         >=4.18 && <5
+    , bytestring   >=0.11 && <1
+    , directory    >=1.3  && <2
+    , http-client  >=0.7  && <1
+    , http-types   >=0.12 && <1
+    , kel-circle
+    , stm          >=2.5  && <3
+    , tasty        >=1.4  && <2
+    , tasty-hunit  >=0.10 && <1
+    , temporary    >=1.3  && <2
+    , text         >=2.0  && <3
+    , warp         >=3.3  && <4

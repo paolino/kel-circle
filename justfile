@@ -6,9 +6,13 @@ build:
 test:
     cabal test all -O0 --test-show-details=direct
 
+# Run E2E tests
+e2e:
+    cabal test e2e-tests -O0 --test-show-details=direct
+
 # Format Haskell sources
 format:
-    fourmolu -i lib/**/*.hs lib/KelCircle.hs test/Main.hs test/KelCircle/Test/*.hs
+    fourmolu -i lib/**/*.hs lib/KelCircle.hs test/Main.hs test/E2EMain.hs test/KelCircle/Test/*.hs test/E2E/*.hs
 
 # Lint Haskell sources
 lint:
@@ -47,7 +51,7 @@ ci: format-check lint build test lean build-docs
 
 # Check Haskell formatting (no modification)
 format-check:
-    fourmolu --mode check lib/**/*.hs lib/KelCircle.hs test/Main.hs test/KelCircle/Test/*.hs
+    fourmolu --mode check lib/**/*.hs lib/KelCircle.hs test/Main.hs test/E2EMain.hs test/KelCircle/Test/*.hs test/E2E/*.hs
 
 # Build documentation
 build-docs:
