@@ -113,7 +113,30 @@ tests add real Ed25519 keypairs and a challenge endpoint.
 
 ---
 
-## Phase 3 — Protocol completeness
+## Phase 3 — Checkpoint-based event sync
+
+Replace the sequence-number-based `GET /events?after=N` with a
+cryptographic-checkpoint protocol. Instead of trusting a bare integer, the
+client presents a hash of the state it holds; the server locates that
+checkpoint and streams subsequent events.
+
+- **State hash computation** — after each fold step the server computes a
+  cryptographic hash (Blake2b-256 or Blake3) of the current `CircleState`;
+  the hash is stored alongside the event in SQLite
+- **Checkpoint endpoint** — `GET /events?checkpoint=<hash>` returns events
+  strictly after the checkpoint whose state hash matches; 404 if the hash is
+  unknown (client has diverged or is corrupt)
+- **Genesis checkpoint** — a well-known empty-state hash so new clients can
+  request the full log without a magic number
+- **Client-side verification** — the client replays the received events,
+  recomputes the fold hash at each step, and verifies it matches the
+  server-provided hash (detects tampering or divergence)
+- **Backward compatibility** — the old `?after=N` form may be kept as a
+  convenience alias but is not required
+
+---
+
+## Phase 4 — Protocol completeness
 
 Features that the semantics document already specifies but the implementation
 does not yet enforce.
@@ -129,7 +152,7 @@ does not yet enforce.
 
 ---
 
-## Phase 4 — Application layer and production readiness
+## Phase 5 — Application layer and production readiness
 
 The library's polymorphic `(d, p, r)` layer is currently exercised only with
 `Unit` types. This phase demonstrates and hardens real usage.
