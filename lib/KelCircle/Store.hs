@@ -22,6 +22,7 @@ module KelCircle.Store
 
       -- * Operations
     , appendCircleEvent
+    , appendRotationEvent
     , readFullState
     , readEventsFrom
     , storeLength
@@ -288,6 +289,38 @@ readEventsFrom store n = do
 -- | Number of events in the store.
 storeLength :: CircleStore g p r -> IO Int
 storeLength = readTVarIO . csLength
+
+{- | Append a rotation event to a member's KEL.
+Persists to SQLite and updates the in-memory state.
+Returns the new KEL event count for the member.
+-}
+appendRotationEvent
+    :: CircleStore g p r
+    -> MemberId
+    -> KelEvent
+    -> IO Int
+appendRotationEvent store mid ke = do
+    appendSingleKelEvent (csConn store) mid ke
+    atomically $ do
+        st <- readTVar (csState store)
+        let st' =
+                st
+                    { fsMemberKels =
+                        Map.adjust
+                            ( \(MemberKel evts) ->
+                                MemberKel
+                                    (evts ++ [ke])
+                            )
+                            mid
+                            (fsMemberKels st)
+                    }
+        writeTVar (csState store) st'
+        let newCount =
+                case Map.lookup mid (fsMemberKels st') of
+                    Just kel ->
+                        length (mkelEvents kel)
+                    Nothing -> 0
+        pure newCount
 
 -- --------------------------------------------------------
 -- Internal helpers

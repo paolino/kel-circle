@@ -16,6 +16,7 @@ import KelCircle.Test.InteractionVerify qualified
 import KelCircle.Test.MemberKel qualified
 import KelCircle.Test.Processing qualified
 import KelCircle.Test.Proposals qualified
+import KelCircle.Test.RotationVerify qualified
 import KelCircle.Test.Sequence qualified
 import Test.Tasty (defaultMain, testGroup)
 
@@ -32,4 +33,5 @@ main =
             , KelCircle.Test.Crypto.tests
             , KelCircle.Test.MemberKel.tests
             , KelCircle.Test.InteractionVerify.tests
+            , KelCircle.Test.RotationVerify.tests
             ]

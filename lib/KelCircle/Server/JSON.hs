@@ -15,6 +15,7 @@ module KelCircle.Server.JSON
     ( Submission (..)
     , AppendResult (..)
     , ServerError (..)
+    , RotationSubmission (..)
     ) where
 
 import Data.Aeson
@@ -361,6 +362,55 @@ instance ToJSON ValidationError where
             [ "error"
                 .= ("signerHasNoKel" :: Text)
             , "memberId" .= mid
+            ]
+    toJSON (RotationFailed mid reason) =
+        object
+            [ "error"
+                .= ("rotationFailed" :: Text)
+            , "memberId" .= mid
+            , "reason" .= reason
+            ]
+
+-- --------------------------------------------------------
+-- RotationSubmission
+-- --------------------------------------------------------
+
+-- | Rotation submission from a client.
+data RotationSubmission = RotationSubmission
+    { rsNewKeys :: [Text]
+    -- ^ New signing keys (CESR-encoded)
+    , rsNewThreshold :: Int
+    -- ^ New signing threshold
+    , rsNextKeyCommitments :: [Text]
+    -- ^ Pre-rotation commitments for next rotation
+    , rsNextThreshold :: Int
+    -- ^ Next signing threshold
+    , rsSignatures :: [(Int, Text)]
+    -- ^ Indexed signatures (by OLD keys)
+    }
+    deriving stock (Show, Eq)
+
+instance FromJSON RotationSubmission where
+    parseJSON =
+        withObject "RotationSubmission" $ \o ->
+            RotationSubmission
+                <$> o .: "newKeys"
+                <*> o .: "newThreshold"
+                <*> o .: "nextKeyCommitments"
+                <*> o .: "nextThreshold"
+                <*> o .: "signatures"
+
+instance ToJSON RotationSubmission where
+    toJSON rs =
+        object
+            [ "newKeys" .= rsNewKeys rs
+            , "newThreshold"
+                .= rsNewThreshold rs
+            , "nextKeyCommitments"
+                .= rsNextKeyCommitments rs
+            , "nextThreshold"
+                .= rsNextThreshold rs
+            , "signatures" .= rsSignatures rs
             ]
 
 -- --------------------------------------------------------

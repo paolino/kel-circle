@@ -49,6 +49,7 @@ import KelCircle.InteractionVerify
     )
 import KelCircle.MemberKel
     ( KelEvent
+    , KelKeyState (..)
     , MemberKel
     , kelEventCount
     , kelFromInception
@@ -57,8 +58,10 @@ import KelCircle.MemberKel
     , validateInception
     )
 import KelCircle.Processing (FullState (..))
+import KelCircle.RotationVerify qualified as RV
 import KelCircle.Server.JSON
     ( AppendResult (..)
+    , RotationSubmission (..)
     , ServerError (..)
     , Submission (..)
     )
@@ -72,6 +75,7 @@ import KelCircle.Store
     ( CircleStore (..)
     , StoredEvent (..)
     , appendCircleEvent
+    , appendRotationEvent
     , readEventsFrom
     , readFullState
     )
@@ -130,7 +134,8 @@ data ServerConfig g d p r = ServerConfig
 
 {- | Build a WAI 'Application' from a 'ServerConfig'.
 Routes: GET /info, GET /condition, GET /events?after=N,
-POST /events, GET /stream, GET /members/:id/kel.
+POST /events, GET /stream, GET /members/:id/kel,
+POST /members/:id/rotate.
 Unmatched routes are passed to the optional fallback
 application, or return 404.
 -}
@@ -160,6 +165,8 @@ mkApp cfg mFallback req respond =
             handleStream cfg respond
         ("GET", ["members", midText, "kel"]) ->
             handleGetMemberKel cfg midText respond
+        ("POST", ["members", midText, "rotate"]) ->
+            handleRotate cfg midText req respond
         _ -> case mFallback of
             Just fallback ->
                 fallback req respond
@@ -603,6 +610,110 @@ handleGetMemberKel cfg midText respond = do
                                 .= midText
                             , "eventCount"
                                 .= kelEventCount kel
+                            ]
+                    )
+
+-- --------------------------------------------------------
+-- POST /members/:id/rotate
+-- --------------------------------------------------------
+
+handleRotate
+    :: ServerConfig g d p r
+    -> Text
+    -> Request
+    -> (Response -> IO a)
+    -> IO a
+handleRotate cfg midText req respond = do
+    body <- strictRequestBody req
+    let mid = MemberId midText
+        log' = scLog cfg
+    case decode body of
+        Nothing -> do
+            log' "POST /rotate: invalid JSON"
+            respond $
+                jsonResponse status400 $
+                    BadRequest "invalid JSON"
+        Just rotSub -> do
+            log' $
+                "POST /rotate: member="
+                    <> midText
+            fs <- readFullState (scStore cfg)
+            case Map.lookup mid (fsMemberKels fs) of
+                Nothing -> do
+                    log' "  member KEL not found"
+                    respond $
+                        jsonResponse status404 $
+                            BadRequest
+                                "member KEL not found"
+                Just kel ->
+                    case kelKeyState kel of
+                        Left err -> do
+                            log' $
+                                "  key state error: "
+                                    <> err
+                            respond
+                                $ jsonResponse
+                                    status422
+                                $ ValidationErr
+                                $ RotationFailed
+                                    mid
+                                    err
+                        Right kks ->
+                            doRotation
+                                cfg
+                                mid
+                                kks
+                                rotSub
+                                respond
+
+doRotation
+    :: ServerConfig g d p r
+    -> MemberId
+    -> KelKeyState
+    -> RotationSubmission
+    -> (Response -> IO a)
+    -> IO a
+doRotation cfg mid kks rotSub respond = do
+    let log' = scLog cfg
+    case RV.verifyRotation
+        kks
+        (rsNewKeys rotSub)
+        (rsNewThreshold rotSub)
+        (rsNextKeyCommitments rotSub)
+        (rsNextThreshold rotSub)
+        (rsSignatures rotSub) of
+        Left err -> do
+            log' $ "  rotation error: " <> err
+            respond $
+                jsonResponse status422 $
+                    ValidationErr $
+                        RotationFailed mid err
+        Right (RV.RotationFailed reason) -> do
+            log' $
+                "  rotation failed: " <> reason
+            respond $
+                jsonResponse status422 $
+                    ValidationErr $
+                        RotationFailed mid reason
+        Right (RV.RotationVerified ke) -> do
+            newCount <-
+                appendRotationEvent
+                    (scStore cfg)
+                    mid
+                    ke
+            log' $
+                "  rotation ok, kel events="
+                    <> T.pack (show newCount)
+            respond $
+                responseLBS
+                    status200
+                    jsonHeaders
+                    ( encode $
+                        object
+                            [ "memberId"
+                                .= mid
+                            , "eventCount"
+                                .= newCount
                             ]
                     )
 

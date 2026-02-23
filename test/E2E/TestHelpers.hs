@@ -29,6 +29,10 @@ module E2E.TestHelpers
       -- * KEL state tracking
     , KelState (..)
 
+      -- * Rotation helpers
+    , postRotation
+    , postRotationRaw
+
       -- * Submission builders
     , TestSub (..)
     , testPass
@@ -46,6 +50,9 @@ module E2E.TestHelpers
 
       -- * Signing
     , signSubmission
+
+      -- * URL helpers
+    , urlEncode
 
       -- * Response decoders
     , InfoResp (..)
@@ -69,6 +76,7 @@ import Data.Aeson qualified as Aeson
 import Data.ByteString.Lazy qualified as LBS
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Text (Text)
+import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import KelCircle.Events
     ( BaseDecision (..)
@@ -76,9 +84,14 @@ import KelCircle.Events
     , Resolution
     )
 import KelCircle.InteractionVerify (buildInteractionBytes)
+import KelCircle.RotationVerify
+    ( buildRotationBytes
+    , rotationEventDigest
+    )
 import KelCircle.Server (ServerConfig (..), mkApp)
 import KelCircle.Server.JSON
     ( AppendResult (..)
+    , RotationSubmission (..)
     , Submission (..)
     )
 import KelCircle.Store
@@ -151,6 +164,8 @@ data TestId = TestId
     -- ^ The underlying Ed25519 keypair
     , tidKelState :: IORef (Maybe KelState)
     -- ^ Tracked KEL state (set after inception)
+    , tidNextKeyPair :: IORef (Maybe KeyPair)
+    -- ^ Next keypair for pre-rotation commitment
     }
 
 instance Show TestId where
@@ -172,11 +187,13 @@ newTestId = do
                     , raw = publicKeyBytes (publicKey kp)
                     }
     ref <- newIORef Nothing
+    nextRef <- newIORef Nothing
     pure
         TestId
             { tidKey = cesrKey
             , tidKeyPair = kp
             , tidKelState = ref
+            , tidNextKeyPair = nextRef
             }
 
 {- | Create a test identity with a non-CESR key
@@ -187,11 +204,13 @@ mkBadTestId :: Text -> IO TestId
 mkBadTestId badKey = do
     kp <- generateKeyPair
     ref <- newIORef Nothing
+    nextRef <- newIORef Nothing
     pure
         TestId
             { tidKey = badKey
             , tidKeyPair = kp
             , tidKelState = ref
+            , tidNextKeyPair = nextRef
             }
 
 -- --------------------------------------------------------
@@ -253,6 +272,8 @@ mkInceptionFor tid = do
                         , ksLastDigest = digest
                         }
                 )
+            -- Store next keypair for rotation
+            writeIORef (tidNextKeyPair tid) (Just nextKp)
             pure $
                 object
                     [ "event" .= evtText
@@ -662,6 +683,171 @@ resolveProposal signer pid res =
         , tsInception = Nothing
         , tsSignerExempt = True
         }
+
+-- --------------------------------------------------------
+-- Rotation helpers
+-- --------------------------------------------------------
+
+{- | POST a rotation and expect 200. Returns the new
+KEL event count and a fresh 'TestId' with the rotated
+keys (old TestId should not be used afterward).
+-}
+postRotation :: TestEnv -> TestId -> IO (Int, TestId)
+postRotation te tid = do
+    (body, newTid) <- mkRotationBody tid
+    resp <-
+        httpPost
+            te
+            ( "/members/"
+                <> urlEncode (tidKey tid)
+                <> "/rotate"
+            )
+            body
+    assertEqual
+        "POST rotate status"
+        status200
+        (HC.responseStatus resp)
+    kr <- decodeOrFail (HC.responseBody resp)
+    pure (kelRotRespEventCount kr, newTid)
+
+{- | POST a rotation and return raw response for
+error-case tests.
+-}
+postRotationRaw
+    :: TestEnv
+    -> TestId
+    -> IO (HC.Response LBS.ByteString)
+postRotationRaw te tid = do
+    (body, _) <- mkRotationBody tid
+    httpPost
+        te
+        ( "/members/"
+            <> urlEncode (tidKey tid)
+            <> "/rotate"
+        )
+        body
+
+{- | Build a rotation submission body. Returns the JSON
+body and a new 'TestId' with updated keys/KEL state.
+-}
+mkRotationBody
+    :: TestId -> IO (LBS.ByteString, TestId)
+mkRotationBody tid = do
+    mKs <- readIORef (tidKelState tid)
+    mNextKp <- readIORef (tidNextKeyPair tid)
+    case (mKs, mNextKp) of
+        (Just ks, Just nextKp) -> do
+            -- The new signing key is the pre-committed one
+            let newCesr =
+                    Keri.Cesr.Encode.encode $
+                        Primitive
+                            { code = Ed25519PubKey
+                            , raw =
+                                publicKeyBytes
+                                    (publicKey nextKp)
+                            }
+            -- Generate fresh next-next keypair
+            nextNextKp <- generateKeyPair
+            let nextNextCesr =
+                    Keri.Cesr.Encode.encode $
+                        Primitive
+                            { code = Ed25519PubKey
+                            , raw =
+                                publicKeyBytes
+                                    (publicKey nextNextKp)
+                            }
+            case commitKey nextNextCesr of
+                Left err ->
+                    error $
+                        "commitKey failed: " <> err
+                Right commitment -> do
+                    let nextSeq = ksSeqNum ks + 1
+                        rotBytes =
+                            buildRotationBytes
+                                (ksPrefix ks)
+                                nextSeq
+                                (ksLastDigest ks)
+                                [newCesr]
+                                1
+                                [commitment]
+                                1
+                        -- OLD keys sign the rotation
+                        sigBytes =
+                            sign
+                                (tidKeyPair tid)
+                                rotBytes
+                        sigCesr =
+                            Keri.Cesr.Encode.encode $
+                                Primitive
+                                    { code = Ed25519Sig
+                                    , raw = sigBytes
+                                    }
+                        rotSub =
+                            RotationSubmission
+                                { rsNewKeys = [newCesr]
+                                , rsNewThreshold = 1
+                                , rsNextKeyCommitments =
+                                    [commitment]
+                                , rsNextThreshold = 1
+                                , rsSignatures =
+                                    [(0, sigCesr)]
+                                }
+                        -- Compute rotation digest
+                        newDigest =
+                            rotationEventDigest
+                                (ksPrefix ks)
+                                nextSeq
+                                (ksLastDigest ks)
+                                [newCesr]
+                                1
+                                [commitment]
+                                1
+                    -- Build new TestId with rotated keys
+                    kelRef <-
+                        newIORef $
+                            Just
+                                ks
+                                    { ksSeqNum = nextSeq
+                                    , ksLastDigest =
+                                        newDigest
+                                    }
+                    nextRef <-
+                        newIORef (Just nextNextKp)
+                    let newTid =
+                            TestId
+                                { tidKey = tidKey tid
+                                , tidKeyPair = nextKp
+                                , tidKelState = kelRef
+                                , tidNextKeyPair =
+                                    nextRef
+                                }
+                    pure
+                        ( Aeson.encode rotSub
+                        , newTid
+                        )
+        _ ->
+            error
+                "mkRotationBody: no KEL state \
+                \or next keypair"
+
+-- | URL-encode text for path segments.
+urlEncode :: Text -> String
+urlEncode = concatMap encodeChar . T.unpack
+  where
+    encodeChar '+' = "%2B"
+    encodeChar '/' = "%2F"
+    encodeChar '=' = "%3D"
+    encodeChar c = [c]
+
+-- | Decoded rotation response.
+newtype KelRotResp = KelRotResp
+    { kelRotRespEventCount :: Int
+    }
+    deriving stock (Show)
+
+instance FromJSON KelRotResp where
+    parseJSON = withObject "KelRotResp" $ \o ->
+        KelRotResp <$> o .: "eventCount"
 
 -- --------------------------------------------------------
 -- Response decoders

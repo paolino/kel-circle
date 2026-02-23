@@ -59,6 +59,8 @@ data ValidationError
       InteractionVerifyFailed MemberId Text
     | -- | Signer has no KEL (not yet introduced)
       SignerHasNoKel MemberId
+    | -- | Key rotation failed
+      RotationFailed MemberId Text
     deriving stock (Show, Eq)
 
 -- | Validate a base decision submission.
