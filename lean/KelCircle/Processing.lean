@@ -7,6 +7,7 @@
 -- registry.
 
 import KelCircle.Proposals
+import KelCircle.MemberKel
 
 namespace KelCircle
 
@@ -38,18 +39,20 @@ inductive CircleEvent (δ π ρ : Type) where
 
 -- The complete state maintained by the sequencer
 structure FullState (γ π ρ : Type) where
-  circle    : Circle              -- base state + sequencer id
-  appState  : γ                   -- application fold state
-  proposals : ProposalRegistry π ρ  -- tracked proposals
-  nextSeq   : Nat                 -- next sequence number
+  circle     : Circle              -- base state + sequencer id
+  appState   : γ                   -- application fold state
+  proposals  : ProposalRegistry π ρ  -- tracked proposals
+  nextSeq    : Nat                 -- next sequence number
+  memberKels : MemberKels          -- per-member KELs
 
 -- Initial state for a circle
 def initFullState {γ π ρ : Type}
     (sid : MemberId) (initApp : γ) : FullState γ π ρ :=
-  { circle    := genesis sid
-  , appState  := initApp
-  , proposals := []
-  , nextSeq   := 1  -- event 0 was genesis
+  { circle     := genesis sid
+  , appState   := initApp
+  , proposals  := []
+  , nextSeq    := 1  -- event 0 was genesis
+  , memberKels := []
   }
 
 -------------------------------------------------------------------
@@ -252,5 +255,51 @@ theorem init_sequencer_is_member {γ π ρ : Type}
     (sid : MemberId) (initApp : γ) :
     isMember (initFullState sid initApp : FullState γ π ρ).circle.state sid := by
   exact genesis_sequencer_is_member sid
+
+-------------------------------------------------------------------
+-- Member KEL preservation
+-------------------------------------------------------------------
+
+-- All apply functions preserve the memberKels field because
+-- they only modify circle, appState, proposals, and nextSeq.
+
+-- Base decisions preserve memberKels
+theorem applyBase_preserves_kels {γ π ρ : Type}
+    (s : FullState γ π ρ) (d : BaseDecision) :
+    (applyBase s d).memberKels = s.memberKels := by
+  simp [applyBase]
+
+-- Application decisions preserve memberKels
+theorem applyAppDecision_preserves_kels {γ δ π ρ : Type}
+    (s : FullState γ π ρ) (content : δ) (fApp : γ → δ → γ) :
+    (applyAppDecision s content fApp).memberKels = s.memberKels := by
+  simp [applyAppDecision]
+
+-- Proposals preserve memberKels
+theorem applyProposal_preserves_kels {γ π ρ : Type}
+    (s : FullState γ π ρ) (content : π)
+    (proposer : MemberId) (deadline : Timestamp) :
+    (applyProposal s content proposer deadline).memberKels = s.memberKels := by
+  simp [applyProposal]
+
+-- Responses preserve memberKels
+theorem applyResponse_preserves_kels {γ π ρ : Type}
+    (s : FullState γ π ρ) (content : ρ)
+    (responder : MemberId) (proposalId : ProposalId) :
+    (applyResponse s content responder proposalId).memberKels = s.memberKels := by
+  simp [applyResponse]
+
+-- Resolutions preserve memberKels
+theorem applyResolve_preserves_kels {γ π ρ : Type}
+    (s : FullState γ π ρ) (proposalId : ProposalId)
+    (r : Resolution) :
+    (applyResolve s proposalId r).memberKels = s.memberKels := by
+  simp [applyResolve]
+
+-- The initial state has empty memberKels
+theorem init_no_kels {γ π ρ : Type}
+    (sid : MemberId) (initApp : γ) :
+    (initFullState sid initApp : FullState γ π ρ).memberKels = [] := by
+  simp [initFullState]
 
 end KelCircle

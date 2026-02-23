@@ -32,6 +32,7 @@ import Data.Aeson
     )
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder qualified as Builder
+import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
@@ -40,6 +41,13 @@ import KelCircle.Crypto (validateCesrPrefix)
 import KelCircle.Events
     ( BaseDecision (..)
     , CircleEvent (..)
+    )
+import KelCircle.MemberKel
+    ( MemberKel
+    , kelEventCount
+    , kelFromInception
+    , parseInceptionValue
+    , validateInception
     )
 import KelCircle.Processing (FullState (..))
 import KelCircle.Server.JSON
@@ -115,8 +123,9 @@ data ServerConfig g d p r = ServerConfig
 
 {- | Build a WAI 'Application' from a 'ServerConfig'.
 Routes: GET /info, GET /condition, GET /events?after=N,
-POST /events, GET /stream. Unmatched routes are passed
-to the optional fallback application, or return 404.
+POST /events, GET /stream, GET /members/:id/kel.
+Unmatched routes are passed to the optional fallback
+application, or return 404.
 -}
 mkApp
     :: ( FromJSON d
@@ -142,6 +151,8 @@ mkApp cfg mFallback req respond =
             handlePostEvent cfg req respond
         ("GET", ["stream"]) ->
             handleStream cfg respond
+        ("GET", ["members", midText, "kel"]) ->
+            handleGetMemberKel cfg midText respond
         _ -> case mFallback of
             Just fallback ->
                 fallback req respond
@@ -346,22 +357,81 @@ doAppend cfg sub fs respond = do
                 jsonResponse status422 $
                     ValidationErr ve
         Right () -> do
-            sn <-
-                appendCircleEvent
-                    (scStore cfg)
-                    (scAppFold cfg)
-                    (subSigner sub)
-                    (subSignature sub)
+            -- Validate inception for IntroduceMember
+            mKel <-
+                validateAndBuildKel
+                    log'
                     evt
-            log' $
-                "  appended seq=" <> T.pack (show sn)
-            atomically $
-                writeTChan (scBroadcast cfg) sn
-            respond $
-                responseLBS
-                    status200
-                    jsonHeaders
-                    (encode $ AppendResult sn)
+                    (subInception sub)
+            case mKel of
+                Left ve -> do
+                    log' $
+                        "  inception error: "
+                            <> T.pack (show ve)
+                    respond $
+                        jsonResponse status422 $
+                            ValidationErr ve
+                Right kelData -> do
+                    sn <-
+                        appendCircleEvent
+                            (scStore cfg)
+                            (scAppFold cfg)
+                            (subSigner sub)
+                            (subSignature sub)
+                            evt
+                            kelData
+                    log' $
+                        "  appended seq="
+                            <> T.pack (show sn)
+                    atomically $
+                        writeTChan
+                            (scBroadcast cfg)
+                            sn
+                    respond $
+                        responseLBS
+                            status200
+                            jsonHeaders
+                            ( encode $
+                                AppendResult sn
+                            )
+
+{- | Validate and build KEL data for IntroduceMember.
+Returns @Right Nothing@ for non-IntroduceMember events,
+@Right (Just (mid, kel))@ on success, or
+@Left ValidationError@ on failure.
+-}
+validateAndBuildKel
+    :: (Text -> IO ())
+    -> CircleEvent d p r
+    -> Maybe Value
+    -> IO
+        ( Either
+            ValidationError
+            (Maybe (MemberId, MemberKel))
+        )
+validateAndBuildKel _ (CEBaseDecision (IntroduceMember mid _ _)) Nothing =
+    pure $ Left (MissingInception mid)
+validateAndBuildKel _ (CEBaseDecision (IntroduceMember mid _ _)) (Just inceptionVal) =
+    case parseInceptionValue inceptionVal of
+        Left err ->
+            pure $
+                Left (InvalidInception mid err)
+        Right inception ->
+            case validateInception mid inception of
+                Left err ->
+                    pure $
+                        Left
+                            (InvalidInception mid err)
+                Right () ->
+                    pure $
+                        Right $
+                            Just
+                                ( mid
+                                , kelFromInception
+                                    inception
+                                )
+validateAndBuildKel _ _ _ =
+    pure $ Right Nothing
 
 {- | Validate a circle event through the appropriate
 gate.
@@ -410,6 +480,37 @@ validateMemberIdCesr = \case
                 Left (InvalidMemberId mid reason)
             Right () -> Right ()
     _ -> Right ()
+
+-- --------------------------------------------------------
+-- GET /members/:id/kel
+-- --------------------------------------------------------
+
+handleGetMemberKel
+    :: ServerConfig g d p r
+    -> Text
+    -> (Response -> IO a)
+    -> IO a
+handleGetMemberKel cfg midText respond = do
+    fs <- readFullState (scStore cfg)
+    let mid = MemberId midText
+    case Map.lookup mid (fsMemberKels fs) of
+        Nothing ->
+            respond $
+                jsonResponse status404 $
+                    BadRequest "member KEL not found"
+        Just kel ->
+            respond $
+                responseLBS
+                    status200
+                    jsonHeaders
+                    ( encode $
+                        object
+                            [ "memberId"
+                                .= midText
+                            , "eventCount"
+                                .= kelEventCount kel
+                            ]
+                    )
 
 -- --------------------------------------------------------
 -- GET /stream (SSE)

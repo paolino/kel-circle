@@ -51,6 +51,10 @@ data ValidationError
       NotSequencer MemberId
     | -- | MemberId is not a valid CESR Ed25519 prefix
       InvalidMemberId MemberId Text
+    | -- | IntroduceMember without inception event
+      MissingInception MemberId
+    | -- | Inception event validation failed
+      InvalidInception MemberId Text
     deriving stock (Show, Eq)
 
 -- | Validate a base decision submission.
