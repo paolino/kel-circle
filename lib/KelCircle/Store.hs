@@ -183,6 +183,8 @@ for validation before calling this.
 
 When the event is 'IntroduceMember', the optional
 'MemberKel' is inserted into the member_kels table.
+When an interaction 'KelEvent' is provided, it is
+appended to the signer's existing KEL.
 -}
 appendCircleEvent
     :: (ToJSON d, ToJSON p, ToJSON r)
@@ -197,9 +199,17 @@ appendCircleEvent
     -- ^ The event to store
     -> Maybe (MemberId, MemberKel)
     -- ^ Optional: member KEL for IntroduceMember
+    -> Maybe (MemberId, KelEvent)
+    -- ^ Optional: interaction event to append
     -> IO Int
-appendCircleEvent store appFold signer sig evt mKel =
-    do
+appendCircleEvent
+    store
+    appFold
+    signer
+    sig
+    evt
+    mKel
+    mIxn = do
         let eventJson = encode evt
         -- Persist circle event
         execute
@@ -216,6 +226,14 @@ appendCircleEvent store appFold signer sig evt mKel =
                     mid
                     kel
             Nothing -> pure ()
+        -- Persist interaction KEL event if provided
+        case mIxn of
+            Just (mid, ke) ->
+                appendSingleKelEvent
+                    (csConn store)
+                    mid
+                    ke
+            Nothing -> pure ()
         -- Delete KEL on member removal
         case evt of
             CEBaseDecision (RemoveMember mid) ->
@@ -230,7 +248,9 @@ appendCircleEvent store appFold signer sig evt mKel =
                         st
                         (MemberId signer)
                         evt
-                st'' = updateKels evt mKel st'
+                st'' =
+                    appendIxnKel mIxn $
+                        updateKels evt mKel st'
             writeTVar (csState store) st''
             n <- readTVar (csLength store)
             let n' = n + 1
@@ -334,6 +354,44 @@ replayKelRows = foldl addKelRow Map.empty
                 MemberKel
                     (mkelEvents existing ++ [ke])
         in  Map.insert mid updated acc
+
+-- | Append a single KEL event to an existing member.
+appendSingleKelEvent
+    :: Connection -> MemberId -> KelEvent -> IO ()
+appendSingleKelEvent conn (MemberId mid) ke = do
+    [Only seqNum] <-
+        query
+            conn
+            "SELECT COALESCE(MAX(seq_num), -1) + 1 \
+            \FROM member_kels WHERE member_id = ?"
+            (Only mid)
+    execute
+        conn
+        "INSERT INTO member_kels \
+        \(member_id, seq_num, event_json \
+        \, signatures_json) VALUES (?, ?, ?, ?)"
+        ( mid
+        , seqNum :: Int
+        , TE.decodeUtf8 (keEventBytes ke)
+        , encode (keSignatures ke)
+        )
+
+-- | Append interaction event to in-memory KEL map.
+appendIxnKel
+    :: Maybe (MemberId, KelEvent)
+    -> FullState g p r
+    -> FullState g p r
+appendIxnKel Nothing st = st
+appendIxnKel (Just (mid, ke)) st =
+    st
+        { fsMemberKels =
+            Map.adjust
+                ( \(MemberKel evts) ->
+                    MemberKel (evts ++ [ke])
+                )
+                mid
+                (fsMemberKels st)
+        }
 
 -- | Store all events in a member KEL.
 storeMemberKelEvents

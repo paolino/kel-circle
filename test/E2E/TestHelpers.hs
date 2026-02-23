@@ -26,6 +26,9 @@ module E2E.TestHelpers
     , newTestId
     , mkBadTestId
 
+      -- * KEL state tracking
+    , KelState (..)
+
       -- * Submission builders
     , TestSub (..)
     , testPass
@@ -54,6 +57,7 @@ module E2E.TestHelpers
 import Control.Concurrent.STM (newBroadcastTChanIO)
 import Data.Aeson
     ( FromJSON (..)
+    , ToJSON (..)
     , Value
     , decode
     , object
@@ -63,6 +67,7 @@ import Data.Aeson
     )
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Lazy qualified as LBS
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Text (Text)
 import Data.Text.Encoding qualified as TE
 import KelCircle.Events
@@ -70,6 +75,7 @@ import KelCircle.Events
     , CircleEvent (..)
     , Resolution
     )
+import KelCircle.InteractionVerify (buildInteractionBytes)
 import KelCircle.Server (ServerConfig (..), mkApp)
 import KelCircle.Server.JSON
     ( AppendResult (..)
@@ -95,9 +101,17 @@ import Keri.Crypto.Ed25519
     , publicKeyBytes
     , sign
     )
+import Keri.Event
+    ( eventDigest
+    , eventPrefix
+    )
 import Keri.Event.Inception
     ( InceptionConfig (..)
     , mkInception
+    )
+import Keri.Event.Interaction
+    ( InteractionConfig (..)
+    , mkInteraction
     )
 import Keri.Event.Serialize (serializeEvent)
 import Keri.KeyState.PreRotation (commitKey)
@@ -112,14 +126,31 @@ import Test.Tasty.HUnit (assertEqual)
 -- Test identities
 -- --------------------------------------------------------
 
+{- | Tracked KEL state for a test identity.
+Updated after inception and each interaction event.
+-}
+data KelState = KelState
+    { ksPrefix :: Text
+    -- ^ KERI AID prefix (SAID)
+    , ksSeqNum :: Int
+    -- ^ Current last sequence number
+    , ksLastDigest :: Text
+    -- ^ SAID of last event
+    }
+    deriving stock (Show)
+
 {- | A test identity backed by a real Ed25519 keypair.
 The 'tidKey' is the CESR-encoded public key prefix.
+'tidKelState' tracks the signer's KEL for building
+interaction events.
 -}
 data TestId = TestId
     { tidKey :: Text
     -- ^ CESR-encoded Ed25519 public key prefix
     , tidKeyPair :: KeyPair
     -- ^ The underlying Ed25519 keypair
+    , tidKelState :: IORef (Maybe KelState)
+    -- ^ Tracked KEL state (set after inception)
     }
 
 instance Show TestId where
@@ -140,10 +171,12 @@ newTestId = do
                     { code = Ed25519PubKey
                     , raw = publicKeyBytes (publicKey kp)
                     }
+    ref <- newIORef Nothing
     pure
         TestId
             { tidKey = cesrKey
             , tidKeyPair = kp
+            , tidKelState = ref
             }
 
 {- | Create a test identity with a non-CESR key
@@ -153,10 +186,12 @@ real keypair internally (the key text is overridden).
 mkBadTestId :: Text -> IO TestId
 mkBadTestId badKey = do
     kp <- generateKeyPair
+    ref <- newIORef Nothing
     pure
         TestId
             { tidKey = badKey
             , tidKeyPair = kp
+            , tidKelState = ref
             }
 
 -- --------------------------------------------------------
@@ -165,7 +200,8 @@ mkBadTestId badKey = do
 
 {- | Create a signed inception event for a test
 identity. Returns a JSON 'Value' suitable for the
-@inception@ field in a 'Submission'.
+@inception@ field in a 'Submission'. Also initializes
+the signer's KEL state (prefix, seqnum 0, digest).
 -}
 mkInceptionFor :: TestId -> IO Value
 mkInceptionFor tid = do
@@ -205,6 +241,18 @@ mkInceptionFor tid = do
                             , raw = sigBytes
                             }
                 evtText = TE.decodeUtf8 evtBytes
+                prefix' = eventPrefix evt
+                digest = eventDigest evt
+            -- Initialize KEL state for this identity
+            writeIORef
+                (tidKelState tid)
+                ( Just
+                    KelState
+                        { ksPrefix = prefix'
+                        , ksSeqNum = 0
+                        , ksLastDigest = digest
+                        }
+                )
             pure $
                 object
                     [ "event" .= evtText
@@ -401,25 +449,91 @@ data TestSub = TestSub
     , tsEvent :: CircleEvent () () ()
     , tsInception :: Maybe (IO Value)
     -- ^ Deferred inception builder (needs IO)
+    , tsSignerExempt :: Bool
+    -- ^ Sequencer is exempt from interaction signing
     }
 
 {- | Sign a test submission. Builds the inception
-event if one is configured.
+event if one is configured, and signs the circle
+event as a KERI interaction event against the
+signer's current KEL state.
 -}
 signSubmission :: TestSub -> IO (Submission () () ())
 signSubmission ts = do
     mInception <- case tsInception ts of
         Nothing -> pure Nothing
         Just mkInc -> Just <$> mkInc
+    sig <-
+        if tsSignerExempt ts
+            then
+                pure $
+                    "dummy:" <> tidKey (tsSigner ts)
+            else
+                signInteraction
+                    (tsSigner ts)
+                    (tsEvent ts)
     pure
         Submission
             { subPassphrase = tsPassphrase ts
             , subSigner = tidKey (tsSigner ts)
-            , subSignature =
-                "sig:" <> tidKey (tsSigner ts)
+            , subSignature = sig
             , subEvent = tsEvent ts
             , subInception = mInception
             }
+
+{- | Sign the circle event as a KERI interaction
+event. Reads the signer's KEL state, builds the
+interaction bytes, signs with Ed25519, and updates
+the KEL state with the new seqnum/digest.
+-}
+signInteraction
+    :: TestId -> CircleEvent () () () -> IO Text
+signInteraction tid evt = do
+    mKs <- readIORef (tidKelState tid)
+    case mKs of
+        Nothing ->
+            -- No KEL state: signer was never introduced.
+            -- Produce a dummy signature; the server will
+            -- reject for missing KEL or non-membership.
+            pure $ "dummy:" <> tidKey tid
+        Just ks -> do
+            let nextSeq = ksSeqNum ks + 1
+                anchor = toJSON evt
+                ixnBytes =
+                    buildInteractionBytes
+                        (ksPrefix ks)
+                        nextSeq
+                        (ksLastDigest ks)
+                        anchor
+                sigBytes =
+                    sign (tidKeyPair tid) ixnBytes
+                sigCesr =
+                    Keri.Cesr.Encode.encode $
+                        Primitive
+                            { code = Ed25519Sig
+                            , raw = sigBytes
+                            }
+                -- Compute the new digest
+                ixnEvt =
+                    mkInteraction
+                        InteractionConfig
+                            { ixPrefix = ksPrefix ks
+                            , ixSequenceNumber =
+                                nextSeq
+                            , ixPriorDigest =
+                                ksLastDigest ks
+                            , ixAnchors = [anchor]
+                            }
+                newDigest = eventDigest ixnEvt
+            writeIORef
+                (tidKelState tid)
+                ( Just
+                    ks
+                        { ksSeqNum = nextSeq
+                        , ksLastDigest = newDigest
+                        }
+                )
+            pure sigCesr
 
 -- --------------------------------------------------------
 -- Submission builders
@@ -441,6 +555,7 @@ bootstrapAdmin tid =
                     Admin
         , tsInception =
             Just (mkInceptionFor tid)
+        , tsSignerExempt = False
         }
 
 {- | Introduce a regular member. The introducing
@@ -459,6 +574,7 @@ introduceMember signer newMember =
                     Member
         , tsInception =
             Just (mkInceptionFor newMember)
+        , tsSignerExempt = False
         }
 
 -- | Introduce a new admin.
@@ -475,6 +591,7 @@ introduceAdmin signer newAdmin =
                     Admin
         , tsInception =
             Just (mkInceptionFor newAdmin)
+        , tsSignerExempt = False
         }
 
 -- | Remove a member.
@@ -488,6 +605,7 @@ removeMember signer target =
                 RemoveMember
                     (MemberId $ tidKey target)
         , tsInception = Nothing
+        , tsSignerExempt = False
         }
 
 -- | Change a member's role.
@@ -503,6 +621,7 @@ changeRole signer target role =
                     (MemberId $ tidKey target)
                     role
         , tsInception = Nothing
+        , tsSignerExempt = False
         }
 
 -- | Submit a proposal (trivial Unit content).
@@ -514,6 +633,7 @@ submitProposal signer deadline =
         , tsPassphrase = Nothing
         , tsEvent = CEProposal () deadline
         , tsInception = Nothing
+        , tsSignerExempt = False
         }
 
 -- | Respond to a proposal (trivial Unit content).
@@ -525,6 +645,7 @@ respondToProposal signer pid =
         , tsPassphrase = Nothing
         , tsEvent = CEResponse () pid
         , tsInception = Nothing
+        , tsSignerExempt = False
         }
 
 -- | Resolve a proposal (sequencer only).
@@ -539,6 +660,7 @@ resolveProposal signer pid res =
         , tsPassphrase = Nothing
         , tsEvent = CEResolveProposal pid res
         , tsInception = Nothing
+        , tsSignerExempt = True
         }
 
 -- --------------------------------------------------------

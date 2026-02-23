@@ -14,6 +14,10 @@ module KelCircle.MemberKel
     , KelEvent (..)
     , kelEventCount
 
+      -- * Key state extraction
+    , KelKeyState (..)
+    , kelKeyState
+
       -- * Inception parsing
     , InceptionSubmission (..)
     , parseInceptionValue
@@ -49,6 +53,7 @@ import Keri.Cesr.Decode qualified as Cesr
 import Keri.Cesr.DerivationCode (DerivationCode (..))
 import Keri.Cesr.Primitive (Primitive (..))
 import Keri.KeyState.Verify (verifySignatures)
+import Numeric (readHex)
 
 -- --------------------------------------------------------
 -- KEL types
@@ -72,6 +77,84 @@ newtype MemberKel = MemberKel
 -- | Number of events in a member's KEL.
 kelEventCount :: MemberKel -> Int
 kelEventCount = length . mkelEvents
+
+-- --------------------------------------------------------
+-- Key state extraction
+-- --------------------------------------------------------
+
+{- | Current key state extracted from a member's KEL.
+Used for verifying interaction event signatures.
+-}
+data KelKeyState = KelKeyState
+    { kksPrefix :: Text
+    -- ^ KERI AID prefix (SAID, from inception "i" field)
+    , kksSeqNum :: Int
+    -- ^ Last event's sequence number
+    , kksLastDigest :: Text
+    -- ^ SAID of last event ("d" field)
+    , kksKeys :: [Text]
+    -- ^ Current signing keys ("k" from inception)
+    , kksThreshold :: Int
+    -- ^ Signing threshold ("kt" from inception)
+    }
+    deriving stock (Show, Eq)
+
+{- | Extract the current key state from a member's KEL.
+Parses the inception (first event) for prefix, keys, and
+threshold, and the last event for sequence number and
+digest.
+-}
+kelKeyState :: MemberKel -> Either Text KelKeyState
+kelKeyState (MemberKel []) =
+    Left "empty KEL"
+kelKeyState (MemberKel (inception : rest)) = do
+    let lastEvt = lastOf inception rest
+        lastOf x [] = x
+        lastOf _ (y : ys) = lastOf y ys
+    icpObj <- parseEventJson (keEventBytes inception)
+    lastObj <- parseEventJson (keEventBytes lastEvt)
+    prefix' <- extractPrefix icpObj
+    keys <- extractKeys icpObj
+    threshold <- extractThreshold icpObj
+    seqNum <- extractSeqNumHex lastObj
+    digest <- extractDigest lastObj
+    Right
+        KelKeyState
+            { kksPrefix = prefix'
+            , kksSeqNum = seqNum
+            , kksLastDigest = digest
+            , kksKeys = keys
+            , kksThreshold = threshold
+            }
+
+-- | Extract the prefix ("i" field) from a KERI event.
+extractPrefix :: Value -> Either Text Text
+extractPrefix val =
+    case lookupField "i" val of
+        Just (String p) -> Right p
+        _ -> Left "missing or invalid prefix field"
+
+{- | Extract the sequence number ("s" field) as hex.
+KERI encodes sequence numbers as hex strings.
+-}
+extractSeqNumHex :: Value -> Either Text Int
+extractSeqNumHex val =
+    case lookupField "s" val of
+        Just (String s) ->
+            case readHex (T.unpack s) of
+                [(n, "")] -> Right n
+                _ ->
+                    Left $
+                        "invalid hex sequence: " <> s
+        _ ->
+            Left "missing or invalid sequence field"
+
+-- | Extract the digest ("d" field) from a KERI event.
+extractDigest :: Value -> Either Text Text
+extractDigest val =
+    case lookupField "d" val of
+        Just (String d) -> Right d
+        _ -> Left "missing or invalid digest field"
 
 -- --------------------------------------------------------
 -- Inception submission parsing

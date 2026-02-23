@@ -347,6 +347,21 @@ instance ToJSON ValidationError where
             , "memberId" .= mid
             , "reason" .= reason
             ]
+    toJSON (InteractionVerifyFailed mid reason) =
+        object
+            [ "error"
+                .= ( "interactionVerifyFailed"
+                        :: Text
+                   )
+            , "memberId" .= mid
+            , "reason" .= reason
+            ]
+    toJSON (SignerHasNoKel mid) =
+        object
+            [ "error"
+                .= ("signerHasNoKel" :: Text)
+            , "memberId" .= mid
+            ]
 
 -- --------------------------------------------------------
 -- Submission

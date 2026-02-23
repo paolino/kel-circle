@@ -28,6 +28,7 @@ import Data.Aeson
     , decode
     , encode
     , object
+    , toJSON
     , (.=)
     )
 import Data.ByteString (ByteString)
@@ -42,10 +43,16 @@ import KelCircle.Events
     ( BaseDecision (..)
     , CircleEvent (..)
     )
+import KelCircle.InteractionVerify
+    ( VerifyResult (..)
+    , verifyInteraction
+    )
 import KelCircle.MemberKel
-    ( MemberKel
+    ( KelEvent
+    , MemberKel
     , kelEventCount
     , kelFromInception
+    , kelKeyState
     , parseInceptionValue
     , validateInception
     )
@@ -348,6 +355,7 @@ doAppend cfg sub fs respond = do
     let signer = MemberId (subSigner sub)
         evt = subEvent sub
         log' = scLog cfg
+        sid = sequencerId (fsCircle fs)
     case validateCircleEvent cfg fs signer evt of
         Left ve -> do
             log' $
@@ -372,28 +380,49 @@ doAppend cfg sub fs respond = do
                         jsonResponse status422 $
                             ValidationErr ve
                 Right kelData -> do
-                    sn <-
-                        appendCircleEvent
-                            (scStore cfg)
-                            (scAppFold cfg)
-                            (subSigner sub)
-                            (subSignature sub)
-                            evt
-                            kelData
-                    log' $
-                        "  appended seq="
-                            <> T.pack (show sn)
-                    atomically $
-                        writeTChan
-                            (scBroadcast cfg)
-                            sn
-                    respond $
-                        responseLBS
-                            status200
-                            jsonHeaders
-                            ( encode $
-                                AppendResult sn
-                            )
+                    -- Verify interaction signature
+                    let evtJson = toJSON evt
+                    case verifyInteractionSig
+                        signer
+                        (subSignature sub)
+                        evtJson
+                        (fsMemberKels fs)
+                        kelData
+                        sid of
+                        Left ve -> do
+                            log' $
+                                "  ixn verify error: "
+                                    <> T.pack (show ve)
+                            respond
+                                $ jsonResponse
+                                    status422
+                                $ ValidationErr ve
+                        Right mIxn -> do
+                            sn <-
+                                appendCircleEvent
+                                    (scStore cfg)
+                                    (scAppFold cfg)
+                                    (subSigner sub)
+                                    (subSignature sub)
+                                    evt
+                                    kelData
+                                    mIxn
+                            log' $
+                                "  appended seq="
+                                    <> T.pack
+                                        (show sn)
+                            atomically $
+                                writeTChan
+                                    (scBroadcast cfg)
+                                    sn
+                            respond $
+                                responseLBS
+                                    status200
+                                    jsonHeaders
+                                    ( encode $
+                                        AppendResult
+                                            sn
+                                    )
 
 {- | Validate and build KEL data for IntroduceMember.
 Returns @Right Nothing@ for non-IntroduceMember events,
@@ -432,6 +461,71 @@ validateAndBuildKel _ (CEBaseDecision (IntroduceMember mid _ _)) (Just inception
                                 )
 validateAndBuildKel _ _ _ =
     pure $ Right Nothing
+
+{- | Verify the interaction event signature for a
+signer. Returns @Right Nothing@ if the signer is the
+sequencer (exempt), @Right (Just (mid, kelEvent))@ on
+success, or @Left ValidationError@ on failure.
+-}
+verifyInteractionSig
+    :: MemberId
+    -- ^ Signer
+    -> Text
+    -- ^ Signature (CESR-encoded)
+    -> Value
+    -- ^ Circle event as JSON (anchor)
+    -> Map.Map MemberId MemberKel
+    -- ^ Current KEL map
+    -> Maybe (MemberId, MemberKel)
+    -- ^ Inception KEL (bootstrap self-intro)
+    -> MemberId
+    -- ^ Sequencer ID
+    -> Either
+        ValidationError
+        (Maybe (MemberId, KelEvent))
+verifyInteractionSig
+    signer
+    sig
+    evtJson
+    memberKels
+    mKelData
+    sid
+        | signer == sid = Right Nothing
+        | otherwise =
+            let mKel = case mKelData of
+                    Just (mid, kel)
+                        | mid == signer -> Just kel
+                    _ ->
+                        Map.lookup signer memberKels
+            in  case mKel of
+                    Nothing ->
+                        Left (SignerHasNoKel signer)
+                    Just kel ->
+                        case kelKeyState kel of
+                            Left err ->
+                                Left $
+                                    InteractionVerifyFailed
+                                        signer
+                                        err
+                            Right kks ->
+                                case verifyInteraction
+                                    kks
+                                    sig
+                                    evtJson of
+                                    Left err ->
+                                        Left $
+                                            InteractionVerifyFailed
+                                                signer
+                                                err
+                                    Right (VerifyFailed reason) ->
+                                        Left $
+                                            InteractionVerifyFailed
+                                                signer
+                                                reason
+                                    Right (Verified ke) ->
+                                        Right $
+                                            Just
+                                                (signer, ke)
 
 {- | Validate a circle event through the appropriate
 gate.

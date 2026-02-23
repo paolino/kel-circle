@@ -47,6 +47,7 @@ library
     KelCircle.Events
     KelCircle.Fold
     KelCircle.Gate
+    KelCircle.InteractionVerify
     KelCircle.MemberKel
     KelCircle.Processing
     KelCircle.Proposals
@@ -94,6 +95,7 @@ test-suite unit-tests
     KelCircle.Test.Crypto
     KelCircle.Test.Gate
     KelCircle.Test.Generators
+    KelCircle.Test.InteractionVerify
     KelCircle.Test.MemberKel
     KelCircle.Test.Processing
     KelCircle.Test.Proposals

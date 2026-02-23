@@ -55,6 +55,10 @@ data ValidationError
       MissingInception MemberId
     | -- | Inception event validation failed
       InvalidInception MemberId Text
+    | -- | Interaction signature verification failed
+      InteractionVerifyFailed MemberId Text
+    | -- | Signer has no KEL (not yet introduced)
+      SignerHasNoKel MemberId
     deriving stock (Show, Eq)
 
 -- | Validate a base decision submission.
