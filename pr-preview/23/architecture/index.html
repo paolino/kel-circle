@@ -1,0 +1,1420 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://paolino.github.io/kel-circle/architecture/">
+      
+      
+        <link rel="prev" href="../roadmap/">
+      
+      
+        <link rel="next" href="../base-semantics/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Architecture - kel-circle</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#software-architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="kel-circle" class="md-header__button md-logo" aria-label="kel-circle" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            kel-circle
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/paolino/kel-circle" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    paolino/kel-circle
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="kel-circle" class="md-nav__button md-logo" aria-label="kel-circle" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    kel-circle
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/paolino/kel-circle" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    paolino/kel-circle
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#package-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Package layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-dependency-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module dependency graph
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-type-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core type hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-type-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event type hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-flow-submission-to-state-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event flow: submission to state update
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#two-level-gate-validation-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two-level gate validation pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proposal-lifecycle-state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposal lifecycle state machine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bootstrap-mode-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bootstrap mode lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fold-and-replay-mechanism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fold and replay mechanism
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#persistence-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persistence layer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-http-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server HTTP interface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-sync-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client sync loop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serverclient-trust-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server/client trust boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#apply-functions-event-state-transition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Apply functions: event → state transition
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-majority-voting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin majority voting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sequencer-rotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequencer rotation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing strategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../base-semantics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base Semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#package-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Package layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-dependency-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module dependency graph
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-type-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core type hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-type-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event type hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-flow-submission-to-state-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event flow: submission to state update
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#two-level-gate-validation-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two-level gate validation pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proposal-lifecycle-state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposal lifecycle state machine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bootstrap-mode-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bootstrap mode lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fold-and-replay-mechanism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fold and replay mechanism
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#persistence-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persistence layer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-http-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server HTTP interface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-sync-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client sync loop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serverclient-trust-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server/client trust boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#apply-functions-event-state-transition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Apply functions: event → state transition
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-majority-voting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin majority voting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sequencer-rotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequencer rotation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing strategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="software-architecture">Software Architecture</h1>
+<p>A deep analysis of kel-circle's structure, data flow, and key design
+patterns. Each section focuses on one architectural concern and includes
+a diagram.</p>
+<hr />
+<h2 id="package-layout">Package layout</h2>
+<p>The project is a single Cabal package with two test suites and a
+companion PureScript client library.</p>
+<pre class="mermaid"><code>graph TD
+    subgraph Haskell["Haskell — kel-circle.cabal"]
+        LIB["library&lt;br/&gt;13 exposed modules"]
+        SRV["executable&lt;br/&gt;kel-circle-server"]
+        UT["test-suite&lt;br/&gt;unit-tests"]
+        E2E["test-suite&lt;br/&gt;e2e-tests"]
+        SRV --&gt; LIB
+        UT  --&gt; LIB
+        E2E --&gt; LIB
+    end
+
+    subgraph PS["PureScript — client/"]
+        PSLIB["kel-circle-client&lt;br/&gt;API · types · codec · fold"]
+        PSAPP["kel-circle-trivial&lt;br/&gt;demo UI (Halogen)"]
+        PSAPP --&gt; PSLIB
+    end
+
+    PSLIB -. "mirrors logic" .-&gt; LIB</code></pre>
+<hr />
+<h2 id="module-dependency-graph">Module dependency graph</h2>
+<p>Arrows point from importer to importee. Foundation modules have no
+outgoing edges; the server sits at the top.</p>
+<pre class="mermaid"><code>graph BT
+    Types
+    Events --&gt; Types
+    Sequence
+    State --&gt; Types &amp; Events
+    Fold --&gt; Sequence
+    Proposals --&gt; Types &amp; Events
+    Gate --&gt; Types &amp; Events &amp; State
+    Processing --&gt; Types &amp; Events &amp; Gate &amp; State &amp; Proposals
+    Validate --&gt; Types &amp; Events &amp; Processing
+    ServerJSON["Server.JSON"] --&gt; Types &amp; Events &amp; State &amp; Proposals &amp; Validate
+    Store --&gt; Types &amp; Events &amp; Processing &amp; ServerJSON
+    Server --&gt; Types &amp; Events &amp; State &amp; Processing &amp; Validate &amp; ServerJSON &amp; Store</code></pre>
+<hr />
+<h2 id="core-type-hierarchy">Core type hierarchy</h2>
+<pre class="mermaid"><code>classDiagram
+    class MemberId {
+        +unMemberId : Text
+    }
+    class Role {
+        &lt;&lt;enumeration&gt;&gt;
+        Admin
+        Member
+    }
+    class Member {
+        +memberId : MemberId
+        +memberRole : Role
+        +memberName : Text
+    }
+    class CircleState {
+        +members : List Member
+    }
+    class Circle {
+        +circleState : CircleState
+        +sequencerId : MemberId
+    }
+    class AuthMode {
+        &lt;&lt;enumeration&gt;&gt;
+        Bootstrap
+        Normal
+    }
+    class FullState~g,p,r~ {
+        +fsCircle : Circle
+        +fsAppState : g
+        +fsProposals : ProposalRegistry~p,r~
+        +fsNextSeq : Int
+    }
+    class TrackedProposal~p,r~ {
+        +tpProposalId : ProposalId
+        +tpContent : p
+        +tpProposer : MemberId
+        +tpDeadline : Timestamp
+        +tpResponses : List r
+        +tpRespondents : List MemberId
+        +tpStatus : ProposalStatus
+    }
+    class ProposalStatus {
+        &lt;&lt;enumeration&gt;&gt;
+        Open
+        Resolved
+    }
+    class Resolution {
+        &lt;&lt;enumeration&gt;&gt;
+        ThresholdReached
+        ProposerPositive
+        ProposerNegative
+        Timeout
+    }
+
+    Member "1" --&gt; "1" MemberId
+    Member "1" --&gt; "1" Role
+    CircleState "1" o-- "0..*" Member
+    Circle "1" --&gt; "1" CircleState
+    Circle "1" --&gt; "1" MemberId : sequencerId
+    FullState "1" --&gt; "1" Circle
+    FullState "1" o-- "0..*" TrackedProposal
+    TrackedProposal "1" --&gt; "1" ProposalStatus
+    ProposalStatus --&gt; Resolution : when Resolved
+    AuthMode ..&gt; CircleState : derived from adminCount</code></pre>
+<hr />
+<h2 id="event-type-hierarchy">Event type hierarchy</h2>
+<pre class="mermaid"><code>classDiagram
+    class CircleEvent~d,p,r~ {
+        &lt;&lt;union&gt;&gt;
+        CEBaseDecision BaseDecision
+        CEAppDecision d
+        CEProposal p Timestamp
+        CEResponse r ProposalId
+        CEResolveProposal ProposalId Resolution
+    }
+    class BaseDecision {
+        &lt;&lt;union&gt;&gt;
+        IntroduceMember MemberId Text Role
+        RemoveMember MemberId
+        ChangeRole MemberId Role
+        RotateSequencer MemberId
+    }
+    class EventClass~d,p,r~ {
+        &lt;&lt;union&gt;&gt;
+        Decision d
+        Proposal p Timestamp MemberId
+        Response r ProposalId MemberId
+    }
+    class SequencedEvent~a~ {
+        +seqIndex : Int
+        +seqTimestamp : Timestamp
+        +seqMember : MemberId
+        +seqPayload : a
+    }
+
+    CircleEvent --&gt; BaseDecision : contains
+    SequencedEvent --&gt; CircleEvent : wraps
+    EventClass ..&gt; CircleEvent : classifies</code></pre>
+<hr />
+<h2 id="event-flow-submission-to-state-update">Event flow: submission to state update</h2>
+<p>The path every event travels from the HTTP boundary to the updated
+in-memory state.</p>
+<pre class="mermaid"><code>flowchart TD
+    CLIENT([Client]) --&gt;|"POST /events&lt;br/&gt;JSON body"| EP["/events endpoint"]
+
+    EP --&gt; DEC{Decode JSON}
+    DEC --&gt;|fail| R400["400 Bad Request"]
+    DEC --&gt;|ok| MODE{AuthMode?}
+
+    MODE --&gt;|Bootstrap| PP{"Passphrase&lt;br/&gt;present &amp; correct?"}
+    PP --&gt;|no| R401["401 Unauthorized"]
+    PP --&gt;|yes| GATE
+
+    MODE --&gt;|Normal| GATE
+
+    GATE["Gate validation&lt;br/&gt;baseGate + appGate"] --&gt; GR{Accept?}
+    GR --&gt;|no| R422["422 Unprocessable"]
+    GR --&gt;|yes| SQL[("SQLite&lt;br/&gt;append row")]
+
+    SQL --&gt; APPLY["Apply to FullState&lt;br/&gt;STM TVar update"]
+    APPLY --&gt; BCAST["Broadcast via&lt;br/&gt;SSE channel"]
+    APPLY --&gt; R200["200 OK&lt;br/&gt;{sequenceNumber: N}"]
+
+    BCAST --&gt; SSE([SSE subscribers])</code></pre>
+<hr />
+<h2 id="two-level-gate-validation-pipeline">Two-level gate validation pipeline</h2>
+<p>Every base-level decision passes through a chain of Boolean checks
+before it is accepted.</p>
+<pre class="mermaid"><code>flowchart LR
+    D[BaseDecision] --&gt; PS{protectsSequencer?}
+    PS --&gt;|fail| REJ1["❌ rejected"]
+    PS --&gt;|pass| UN{hasUniqueName?}
+    UN --&gt;|fail| REJ2["❌ rejected"]
+    UN --&gt;|pass| BOOT{isBootstrap?}
+
+    BOOT --&gt;|yes| AI{"IntroduceMember&lt;br/&gt;+ Admin?"}
+    AI --&gt;|no| REJ3["❌ rejected"]
+    AI --&gt;|yes| ACC1["✅ accepted"]
+
+    BOOT --&gt;|no| ADM{signer isAdmin?}
+    ADM --&gt;|no| REJ4["❌ rejected"]
+    ADM --&gt;|yes| MAJ{requiresMajority?}
+    MAJ --&gt;|yes| REJ5["❌ rejected&lt;br/&gt;(needs proposal)"]
+    MAJ --&gt;|no| APPG{"appGate&lt;br/&gt;passes?"}
+    APPG --&gt;|no| REJ6["❌ rejected"]
+    APPG --&gt;|yes| ACC2["✅ accepted"]</code></pre>
+<p>Gates for other event types:</p>
+<pre class="mermaid"><code>flowchart LR
+    subgraph AppDecision
+        AD[AppDecision] --&gt; ADM2{"isMember&lt;br/&gt;signer?"}
+        ADM2 --&gt;|no| R1["❌"]
+        ADM2 --&gt;|yes| AG{appGate?}
+        AG --&gt;|no| R2["❌"]
+        AG --&gt;|yes| A1["✅"]
+    end
+
+    subgraph Response
+        RE[Response] --&gt; IM{"isMember&lt;br/&gt;signer?"}
+        IM --&gt;|no| R3["❌"]
+        IM --&gt;|yes| PO{"proposal&lt;br/&gt;open?"}
+        PO --&gt;|no| R4["❌"]
+        PO --&gt;|yes| HR{"already&lt;br/&gt;responded?"}
+        HR --&gt;|yes| R5["❌"]
+        HR --&gt;|no| A2["✅"]
+    end
+
+    subgraph Resolve
+        RV[Resolve] --&gt; IS{"signer ==&lt;br/&gt;sequencerId?"}
+        IS --&gt;|no| R6["❌"]
+        IS --&gt;|yes| A3["✅"]
+    end</code></pre>
+<hr />
+<h2 id="proposal-lifecycle-state-machine">Proposal lifecycle state machine</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; Open : CEProposal emitted&lt;br/&gt;by any member
+
+    Open --&gt; Open : CEResponse received&lt;br/&gt;(new respondent)
+
+    Open --&gt; Resolved_Threshold : CEResolveProposal&lt;br/&gt;(ThresholdReached)
+    Open --&gt; Resolved_PosProposer : CEResolveProposal&lt;br/&gt;(ProposerPositive)
+    Open --&gt; Resolved_NegProposer : CEResolveProposal&lt;br/&gt;(ProposerNegative)
+    Open --&gt; Resolved_Timeout : CEResolveProposal&lt;br/&gt;(Timeout)
+
+    Resolved_Threshold --&gt; [*]
+    Resolved_PosProposer --&gt; [*]
+    Resolved_NegProposer --&gt; [*]
+    Resolved_Timeout --&gt; [*]
+
+    note right of Open
+        Gate checks:
+        • signer is member
+        • proposal is open
+        • signer has not responded yet
+    end note
+
+    note right of Resolved_Threshold
+        Only the sequencer
+        can emit Resolve events
+    end note</code></pre>
+<hr />
+<h2 id="bootstrap-mode-lifecycle">Bootstrap mode lifecycle</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; Bootstrap : server starts&lt;br/&gt;sequencer added&lt;br/&gt;(Member role, no admins)
+
+    Bootstrap --&gt; Bootstrap : passphrase-gated events&lt;br/&gt;(non-admin intros rejected)
+
+    Bootstrap --&gt; Normal : IntroduceMember _ Admin&lt;br/&gt;(first admin enters circle)
+
+    Normal --&gt; Normal : any base/app/proposal&lt;br/&gt;event under admin gate
+
+    Normal --&gt; Bootstrap : last admin demoted&lt;br/&gt;(adminCount → 0)
+
+    note right of Bootstrap
+        Only IntroduceMember with
+        Admin role is permitted.
+        Passphrase required.
+    end note
+
+    note right of Normal
+        Admin signer required for
+        membership operations.
+        Proposals needed for role
+        changes requiring majority.
+    end note</code></pre>
+<hr />
+<h2 id="fold-and-replay-mechanism">Fold and replay mechanism</h2>
+<p>The same fold function is used both on startup (full replay from
+SQLite) and on each new event (incremental update to the TVar).</p>
+<pre class="mermaid"><code>flowchart TD
+    subgraph Startup
+        DB[("SQLite&lt;br/&gt;events table")] --&gt;|SELECT all rows| ROWS["Ordered rows&lt;br/&gt;oldest → newest"]
+        ROWS --&gt; FOLD["foldAll&lt;br/&gt;applyCircleEvent"]
+        FOLD --&gt; FS0[Initial FullState]
+        FS0 --&gt; TV[(TVar FullState)]
+    end
+
+    subgraph OnNewEvent["On new event"]
+        EV[New event] --&gt; VAL[Gate validation]
+        VAL --&gt; INS[INSERT INTO events]
+        INS --&gt; READ[Read current TVar]
+        READ --&gt; APP[applyCircleEvent]
+        APP --&gt; WRITE["Write TVar&lt;br/&gt;(STM atomic)"]
+    end
+
+    subgraph Query
+        TV2[(TVar FullState)] --&gt;|readTVarIO| RESP["HTTP response&lt;br/&gt;or SSE"]
+    end</code></pre>
+<p>The fold is parameterized — the same infrastructure handles both the
+fixed base fold and any pluggable application fold:</p>
+<pre class="mermaid"><code>graph LR
+    subgraph twoLayerFold
+        BF["baseFold&lt;br/&gt;(membership, roles)"]
+        AF["appFold&lt;br/&gt;(domain-specific g)"]
+    end
+    SEQ["[SequencedEvent (CircleEvent d p r)]"] --&gt; BF &amp; AF
+    BF --&gt; BS["CircleState (base)"]
+    AF --&gt; AS["g (app state)"]</code></pre>
+<hr />
+<h2 id="persistence-layer">Persistence layer</h2>
+<pre class="mermaid"><code>erDiagram
+    EVENTS {
+        int     id          PK
+        text    signer
+        text    event_json
+        text    signature
+    }</code></pre>
+<pre class="mermaid"><code>flowchart LR
+    subgraph Store["CircleStore (runtime)"]
+        TV["TVar FullState&lt;br/&gt;(hot cache)"]
+        CONN["SQLite connection"]
+    end
+
+    W[Write path] --&gt;|1 INSERT| CONN
+    CONN --&gt;|2 apply + atomically writeTVar| TV
+
+    R[Read path] --&gt;|readTVarIO| TV
+
+    CRASH([Server restart]) --&gt;|SELECT * replay| CONN
+    CONN --&gt;|full fold| TV</code></pre>
+<p>The hot TVar ensures O(1) reads; SQLite ensures durability across
+restarts without requiring a separate replay on every query.</p>
+<hr />
+<h2 id="server-http-interface">Server HTTP interface</h2>
+<pre class="mermaid"><code>sequenceDiagram
+    participant C as Client
+    participant S as Server
+    participant DB as SQLite
+    participant CH as SSE channel
+
+    C-&gt;&gt;S: POST /events {signer,event,...}
+    S-&gt;&gt;S: decode + gate validation
+    alt rejected
+        S--&gt;&gt;C: 401 / 422
+    else accepted
+        S-&gt;&gt;DB: INSERT row
+        S-&gt;&gt;S: apply → TVar
+        S-&gt;&gt;CH: broadcast seqN
+        S--&gt;&gt;C: 200 {sequenceNumber: N}
+    end
+
+    C-&gt;&gt;S: GET /events?after=N
+    S-&gt;&gt;DB: SELECT row at N+1
+    alt exists
+        S--&gt;&gt;C: 200 {signer, event, signature}
+    else missing
+        S--&gt;&gt;C: 404
+    end
+
+    C-&gt;&gt;S: GET /stream
+    S--&gt;&gt;C: SSE text/event-stream
+    loop on each new event
+        CH-&gt;&gt;S: seqN
+        S--&gt;&gt;C: "event: new data: {sn: N}"
+    end</code></pre>
+<hr />
+<h2 id="client-sync-loop">Client sync loop</h2>
+<p>The PureScript client never trusts state from the server directly —
+it re-derives state by replaying the event log from its last known
+checkpoint.</p>
+<pre class="mermaid"><code>flowchart TD
+    START([App start]) --&gt; LOAD["Load checkpoint&lt;br/&gt;from localStorage"]
+    LOAD --&gt; CONN["Connect to GET /stream&lt;br/&gt;SSE"]
+
+    CONN --&gt; LISTEN{"SSE event&lt;br/&gt;arrives?"}
+    LISTEN --&gt;|yes: sn=N| CMP{N &gt; checkpoint?}
+    CMP --&gt;|no| LISTEN
+
+    CMP --&gt;|yes| FETCH[GET /events?after=checkpoint]
+    FETCH --&gt; MORE{more events?}
+    MORE --&gt;|yes| APPLY["applyCircleEvent&lt;br/&gt;through fold"]
+    APPLY --&gt; INC[increment checkpoint]
+    INC --&gt; MORE
+    MORE --&gt;|no| SAVE["Save checkpoint&lt;br/&gt;to localStorage"]
+    SAVE --&gt; LISTEN
+
+    USER([User action]) --&gt; SIGN["Sign event&lt;br/&gt;with private key"]
+    SIGN --&gt; POST[POST /events]
+    POST --&gt; OK{200 OK?}
+    OK --&gt;|yes| INC2[update nextSeq]
+    OK --&gt;|no| ERR[Show error]</code></pre>
+<hr />
+<h2 id="serverclient-trust-boundary">Server/client trust boundary</h2>
+<pre class="mermaid"><code>graph LR
+    subgraph SRV["Server — authority"]
+        SEQ["Sequencer identity"] --&gt; ORD["Canonical ordering"]
+        GATE["Gate enforcement"] --&gt; ORD
+        ORD --&gt; DB["SQLite persistence"]
+    end
+
+    subgraph CLI["Client — auditor"]
+        KEY["Private key"] --&gt;|signs| POST["POST /events"]
+        FOLD["Fold replay"] --&gt; CKPT["Local checkpoint"]
+    end
+
+    SRV --&gt;|"signed + ordered event stream"| CLI
+    POST --&gt;|"submit event"| SRV</code></pre>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Server</th>
+<th>Client</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Canonical ordering</td>
+<td>✓</td>
+<td>✗ (audits)</td>
+</tr>
+<tr>
+<td>Gate enforcement</td>
+<td>✓ (binding)</td>
+<td>✓ (UX hint)</td>
+</tr>
+<tr>
+<td>Private key</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>State derivation</td>
+<td>fold + TVar</td>
+<td>fold + checkpoint</td>
+</tr>
+<tr>
+<td>Signature creation</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Signature verification</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="apply-functions-event-state-transition">Apply functions: event → state transition</h2>
+<p>Each event type maps to exactly one apply function that touches a
+specific subset of <code>FullState</code>.</p>
+<pre class="mermaid"><code>flowchart LR
+    subgraph FullState
+        C[fsCircle]
+        G[fsAppState]
+        P[fsProposals]
+        N[fsNextSeq]
+    end
+
+    BD[CEBaseDecision] --&gt;|applyBase| C &amp; N
+    AD[CEAppDecision] --&gt;|applyAppDecision| G &amp; N
+    PR[CEProposal] --&gt;|applyProposal| P &amp; N
+    RS[CEResponse] --&gt;|applyResponse| P &amp; N
+    RV[CEResolveProposal] --&gt;|applyResolve| P &amp; N</code></pre>
+<p><code>fsNextSeq</code> is incremented by every apply function — it is the
+monotonic sequence counter that clients use to detect new events.</p>
+<hr />
+<h2 id="admin-majority-voting">Admin majority voting</h2>
+<p>Role changes requiring admin consensus use the proposal machinery with
+a <code>hasAdminMajority</code> threshold check.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant A as Admin A
+    participant S as Server
+    participant B as Admin B
+    participant C as Admin C
+
+    A-&gt;&gt;S: CEProposal (ChangeRole x Admin) deadline=T
+    S--&gt;&gt;A: sn=5
+
+    B-&gt;&gt;S: CEResponse vote sn=5
+    S--&gt;&gt;B: sn=6
+
+    C-&gt;&gt;S: CEResponse vote sn=5
+    S--&gt;&gt;C: sn=7
+
+    Note over S: adminCount=3, majority=2&lt;br/&gt;2 responses ≥ 2 → threshold met
+
+    S-&gt;&gt;S: CEResolveProposal 5 ThresholdReached
+    Note over S: sn=8, proposal closed</code></pre>
+<p>The majority threshold is <code>adminCount / 2 + 1</code> — with one admin,
+that admin can act alone; with three admins, two are needed.</p>
+<hr />
+<h2 id="sequencer-rotation">Sequencer rotation</h2>
+<p>When the sequencer role moves to a new member, the old sequencer's
+<code>memberName</code> is renamed to its <code>MemberId</code> string to preserve name
+uniqueness.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant Admin
+    participant Server
+
+    Note over Server: sequencerId = "seq-0"&lt;br/&gt;members = [{id:"seq-0",name:"sequencer",...}, ...]
+
+    Admin-&gt;&gt;Server: CEBaseDecision (RotateSequencer "seq-1")
+    Note over Server: rename "seq-0" member → name = "seq-0"&lt;br/&gt;prepend {id:"seq-1", name:"sequencer", role:Member}
+
+    Note over Server: sequencerId = "seq-1"&lt;br/&gt;members = [{id:"seq-1",name:"sequencer"}, {id:"seq-0",name:"seq-0"}, ...]</code></pre>
+<hr />
+<h2 id="testing-strategy">Testing strategy</h2>
+<pre class="mermaid"><code>graph TD
+    subgraph Unit["unit-tests"]
+        GEN["Generators&lt;br/&gt;arbitrary MemberId / Role"]
+        SEQ2["Sequence&lt;br/&gt;invariants"]
+        BD2["BaseDecisions&lt;br/&gt;membership ops"]
+        GT["Gate&lt;br/&gt;two-level checks"]
+        PR2["Proposals&lt;br/&gt;lifecycle"]
+        PR3["Processing&lt;br/&gt;state transitions"]
+    end
+
+    subgraph E2E2["e2e-tests"]
+        HTTP["Real HTTP server&lt;br/&gt;on random port"]
+        SC[Bootstrap scenario]
+        MM[Member management]
+        RL[Role change proposals]
+        RB[Re-bootstrap]
+        REP[Event replay]
+    end
+
+    subgraph Lean["Lean 4 (formalization)"]
+        INV[Invariants]
+        THM[Theorems]
+    end
+
+    GEN --&gt; SEQ2 &amp; BD2 &amp; GT &amp; PR2 &amp; PR3
+    Lean -. "mirrored by" .-&gt; Unit
+    Unit -. "composed into" .-&gt; E2E2</code></pre>
+<p>Properties are named to mirror Lean theorems:
+<code>bootstrap_accepts_admin_intro</code>, <code>full_gate_base_rejects</code>,
+<code>resolution_dichotomy</code>, etc., making the correspondence between the
+formal proof and the executable tests explicit.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="../javascripts/mermaid.mjs" type="module"></script>
+      
+    
+  </body>
+</html>
