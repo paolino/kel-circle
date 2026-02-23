@@ -39,11 +39,61 @@ with KERI.
   connection; the client must sign it with its member key to prove identity
   before submitting events (prevents impersonation by replaying a stolen
   member ID without the private key)
-- **Security E2E tests** — the existing E2E test suite must cover the full
-  cryptographic chain: forged signatures rejected, wrong-key submissions
-  rejected, challenge-response failure blocks access, replayed nonces
-  rejected, key rotation invalidates old keys. Phase 2 is not complete
-  until these scenarios pass end-to-end over HTTP
+- **Security E2E tests** — all scenarios below run over HTTP against a real
+  server instance (same pattern as the existing E2E suite). Phase 2 is not
+  complete until every scenario passes.
+
+### Security E2E scenarios
+
+Each scenario is an HTTP-level property that must hold. The test helpers
+already provide `httpPost`, `postEventRaw`, `signSubmission` etc. — the new
+tests add real Ed25519 keypairs and a challenge endpoint.
+
+**Signature verification:**
+
+1. **Valid signature accepted** — bootstrap an admin with a real Ed25519
+   keypair; POST the introduction event signed with the matching secret key;
+   expect 200.
+2. **Forged signature rejected** — same setup, but replace the signature
+   bytes with random data; expect 422 with a signature-verification error.
+3. **Wrong-key signature rejected** — generate two keypairs A and B; sign
+   A's event with B's secret key; expect 422 (signature does not match the
+   declared signer's public key).
+4. **Tampered payload rejected** — sign a valid event, then mutate one byte
+   of the JSON body before sending; expect 422 (signature over original
+   payload no longer matches).
+
+**Member AID anchoring:**
+
+5. **Introduction anchors public key** — introduce a member whose `MemberId`
+   is a CESR-encoded Ed25519 prefix; GET /condition and verify the member's
+   public key is stored.
+6. **Non-CESR member ID rejected** — attempt to introduce a member whose ID
+   is not a valid CESR prefix; expect 422.
+7. **Subsequent events verified against anchored key** — after introduction,
+   submit an event signed by the anchored key (200), then submit the same
+   event signed by a different key (422).
+
+**Challenge-response:**
+
+8. **Challenge issued on connect** — GET /challenge?key=\<memberId\> returns
+   a fresh nonce.
+9. **Correct challenge response accepted** — POST /challenge with the nonce
+   signed by the member's key; expect 200 and a session token.
+10. **Wrong-key challenge rejected** — sign the nonce with a different key;
+    expect 401.
+11. **Replayed nonce rejected** — use the same signed nonce a second time;
+    expect 401 (nonce already consumed).
+12. **Unauthenticated POST rejected** — POST /events without a valid session
+    token; expect 401.
+
+**Invariants (properties that hold across all scenarios):**
+
+- Every event in the log has a valid signature over its payload, verifiable
+  against the signer's anchored public key (replay the full log via
+  GET /events and verify each signature).
+- The sequencer's events are signed with the sequencer's KERI AID key.
+- No two members share the same public key prefix.
 
 ---
 
