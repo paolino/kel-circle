@@ -60,6 +60,8 @@ data Submission d p r = Submission
     -- ^ CESR-encoded Ed25519 signature
     , subEvent :: CircleEvent d p r
     -- ^ The event to append
+    , subInception :: Maybe Value
+    -- ^ Signed inception event (required for IntroduceMember)
     }
     deriving stock (Show, Eq)
 
@@ -332,6 +334,19 @@ instance ToJSON ValidationError where
             , "memberId" .= mid
             , "reason" .= reason
             ]
+    toJSON (MissingInception mid) =
+        object
+            [ "error"
+                .= ("missingInception" :: Text)
+            , "memberId" .= mid
+            ]
+    toJSON (InvalidInception mid reason) =
+        object
+            [ "error"
+                .= ("invalidInception" :: Text)
+            , "memberId" .= mid
+            , "reason" .= reason
+            ]
 
 -- --------------------------------------------------------
 -- Submission
@@ -347,6 +362,7 @@ instance
             , "signer" .= subSigner s
             , "signature" .= subSignature s
             , "event" .= subEvent s
+            , "inception" .= subInception s
             ]
 
 instance
@@ -359,6 +375,7 @@ instance
             <*> o .: "signer"
             <*> o .: "signature"
             <*> o .: "event"
+            <*> o .:? "inception"
 
 -- --------------------------------------------------------
 -- AppendResult

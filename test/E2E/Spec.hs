@@ -10,12 +10,18 @@ proposals, responses, and resolution.
 -}
 module E2E.Spec (tests) where
 
-import Data.Aeson (Value (..))
+import Data.Aeson (FromJSON (..), Value (..), withObject, (.:))
 import Data.Aeson qualified as Aeson
+import Data.Text (Text)
+import Data.Text qualified as T
 import E2E.TestHelpers
-import KelCircle.Events (Resolution (..))
+import KelCircle.Events
+    ( BaseDecision (..)
+    , CircleEvent (..)
+    , Resolution (..)
+    )
 import KelCircle.Server.JSON (Submission (..))
-import KelCircle.Types (Role (..))
+import KelCircle.Types (MemberId (..), Role (..))
 import Network.HTTP.Client qualified as HC
 import Network.HTTP.Types
     ( status200
@@ -39,6 +45,7 @@ tests =
         , rebootstrapTests
         , eventReplayTests
         , cesrValidationTests
+        , memberKelTests
         ]
 
 -- --------------------------------------------------------
@@ -78,16 +85,16 @@ testBootstrapFirstAdmin = withTestEnv $ \te -> do
 testBootstrapMissingPass :: IO ()
 testBootstrapMissingPass = withTestEnv $ \te -> do
     admin1 <- newTestId
-    let sub = signSubmission (bootstrapAdmin admin1)
-        sub' = sub{subPassphrase = Nothing}
+    sub <- signSubmission (bootstrapAdmin admin1)
+    let sub' = sub{subPassphrase = Nothing}
     resp <- httpPost te "/events" (Aeson.encode sub')
     HC.responseStatus resp @?= status401
 
 testBootstrapWrongPass :: IO ()
 testBootstrapWrongPass = withTestEnv $ \te -> do
     admin1 <- newTestId
-    let sub = signSubmission (bootstrapAdmin admin1)
-        sub' =
+    sub <- signSubmission (bootstrapAdmin admin1)
+    let sub' =
             sub{subPassphrase = Just "wrong"}
     resp <- httpPost te "/events" (Aeson.encode sub')
     HC.responseStatus resp @?= status401
@@ -521,3 +528,137 @@ testBootstrapNonCesrRejected =
                 te
                 (bootstrapAdmin badAdmin)
         HC.responseStatus resp @?= status422
+
+-- --------------------------------------------------------
+-- Member KELs
+-- --------------------------------------------------------
+
+memberKelTests :: TestTree
+memberKelTests =
+    testGroup
+        "Member KELs"
+        [ testCase
+            "bootstrap admin has KEL"
+            testBootstrapAdminHasKel
+        , testCase
+            "introduced member has KEL"
+            testIntroducedMemberHasKel
+        , testCase
+            "IntroduceMember without inception rejected"
+            testMissingInceptionRejected
+        , testCase
+            "inception with wrong key rejected"
+            testWrongKeyInceptionRejected
+        ]
+
+testBootstrapAdminHasKel :: IO ()
+testBootstrapAdminHasKel = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    _ <- postEvent te (bootstrapAdmin admin1)
+
+    -- Check KEL exists via GET endpoint
+    resp <-
+        httpGet
+            te
+            ( "/members/"
+                <> urlEncode (tidKey admin1)
+                <> "/kel"
+            )
+    HC.responseStatus resp @?= status200
+    kelResp <- decodeOrFail (HC.responseBody resp)
+    kelRespEventCount kelResp @?= 1
+
+testIntroducedMemberHasKel :: IO ()
+testIntroducedMemberHasKel =
+    withTestEnv $ \te -> do
+        admin1 <- newTestId
+        user1 <- newTestId
+        _ <- postEvent te (bootstrapAdmin admin1)
+        _ <-
+            postEvent
+                te
+                (introduceMember admin1 user1)
+
+        resp <-
+            httpGet
+                te
+                ( "/members/"
+                    <> urlEncode (tidKey user1)
+                    <> "/kel"
+                )
+        HC.responseStatus resp @?= status200
+        kelResp <-
+            decodeOrFail (HC.responseBody resp)
+        kelRespEventCount kelResp @?= 1
+
+testMissingInceptionRejected :: IO ()
+testMissingInceptionRejected =
+    withTestEnv $ \te -> do
+        admin1 <- newTestId
+        user1 <- newTestId
+        _ <- postEvent te (bootstrapAdmin admin1)
+
+        -- Submit IntroduceMember without inception
+        let noInception =
+                TestSub
+                    { tsSigner = admin1
+                    , tsPassphrase = Nothing
+                    , tsEvent =
+                        CEBaseDecision $
+                            IntroduceMember
+                                (MemberId $ tidKey user1)
+                                (tidKey user1)
+                                Member
+                    , tsInception = Nothing
+                    }
+        resp <- postEventRaw te noInception
+        HC.responseStatus resp @?= status422
+
+testWrongKeyInceptionRejected :: IO ()
+testWrongKeyInceptionRejected =
+    withTestEnv $ \te -> do
+        admin1 <- newTestId
+        user1 <- newTestId
+        wrongUser <- newTestId
+        _ <- postEvent te (bootstrapAdmin admin1)
+
+        -- user1's inception signed by wrongUser's key
+        let wrongInception =
+                TestSub
+                    { tsSigner = admin1
+                    , tsPassphrase = Nothing
+                    , tsEvent =
+                        CEBaseDecision $
+                            IntroduceMember
+                                (MemberId $ tidKey user1)
+                                (tidKey user1)
+                                Member
+                    , tsInception =
+                        Just
+                            (mkInceptionFor wrongUser)
+                    }
+        resp <- postEventRaw te wrongInception
+        HC.responseStatus resp @?= status422
+
+-- --------------------------------------------------------
+-- Helpers
+-- --------------------------------------------------------
+
+-- | URL-encode text for path segments.
+urlEncode :: Text -> String
+urlEncode = concatMap encodeChar . T.unpack
+  where
+    encodeChar '+' = "%2B"
+    encodeChar '/' = "%2F"
+    encodeChar '=' = "%3D"
+    encodeChar c = [c]
+
+-- | Decoded KEL response.
+newtype KelResp = KelResp
+    { kelRespEventCount :: Int
+    }
+    deriving stock (Show)
+
+instance FromJSON KelResp where
+    parseJSON = withObject "KelResp" $ \o ->
+        KelResp <$> o .: "eventCount"

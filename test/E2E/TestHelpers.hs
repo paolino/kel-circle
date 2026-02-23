@@ -38,6 +38,9 @@ module E2E.TestHelpers
     , respondToProposal
     , resolveProposal
 
+      -- * Inception helpers
+    , mkInceptionFor
+
       -- * Signing
     , signSubmission
 
@@ -53,12 +56,15 @@ import Data.Aeson
     ( FromJSON (..)
     , Value
     , decode
+    , object
     , withObject
     , (.:)
+    , (.=)
     )
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Lazy qualified as LBS
 import Data.Text (Text)
+import Data.Text.Encoding qualified as TE
 import KelCircle.Events
     ( BaseDecision (..)
     , CircleEvent (..)
@@ -87,7 +93,14 @@ import Keri.Crypto.Ed25519
     ( KeyPair (..)
     , generateKeyPair
     , publicKeyBytes
+    , sign
     )
+import Keri.Event.Inception
+    ( InceptionConfig (..)
+    , mkInception
+    )
+import Keri.Event.Serialize (serializeEvent)
+import Keri.KeyState.PreRotation (commitKey)
 import Network.HTTP.Client qualified as HC
 import Network.HTTP.Types (status200)
 import Network.Wai.Handler.Warp qualified as Warp
@@ -145,6 +158,63 @@ mkBadTestId badKey = do
             { tidKey = badKey
             , tidKeyPair = kp
             }
+
+-- --------------------------------------------------------
+-- Inception helpers
+-- --------------------------------------------------------
+
+{- | Create a signed inception event for a test
+identity. Returns a JSON 'Value' suitable for the
+@inception@ field in a 'Submission'.
+-}
+mkInceptionFor :: TestId -> IO Value
+mkInceptionFor tid = do
+    -- Next key for pre-rotation commitment
+    nextKp <- generateKeyPair
+    let nextCesr =
+            Keri.Cesr.Encode.encode $
+                Primitive
+                    { code = Ed25519PubKey
+                    , raw =
+                        publicKeyBytes
+                            (publicKey nextKp)
+                    }
+    case commitKey nextCesr of
+        Left err ->
+            error $ "commitKey failed: " <> err
+        Right commitment -> do
+            let cfg =
+                    InceptionConfig
+                        { icKeys = [tidKey tid]
+                        , icSigningThreshold = 1
+                        , icNextKeys = [commitment]
+                        , icNextThreshold = 1
+                        , icConfig = []
+                        , icAnchors = []
+                        }
+                evt = mkInception cfg
+                evtBytes = serializeEvent evt
+                sigBytes =
+                    sign
+                        (tidKeyPair tid)
+                        evtBytes
+                sigCesr =
+                    Keri.Cesr.Encode.encode $
+                        Primitive
+                            { code = Ed25519Sig
+                            , raw = sigBytes
+                            }
+                evtText = TE.decodeUtf8 evtBytes
+            pure $
+                object
+                    [ "event" .= evtText
+                    , "signatures"
+                        .= [
+                               ( 0 :: Int
+                               , sigCesr
+                               )
+                           ]
+                    ]
 
 -- --------------------------------------------------------
 -- Passphrase
@@ -270,7 +340,7 @@ Returns the sequence number.
 -}
 postEvent :: TestEnv -> TestSub -> IO Int
 postEvent te ts = do
-    let sub = signSubmission ts
+    sub <- signSubmission ts
     resp <- httpPost te "/events" (Aeson.encode sub)
     assertEqual
         "POST /events status"
@@ -287,7 +357,7 @@ postEventRaw
     -> TestSub
     -> IO (HC.Response LBS.ByteString)
 postEventRaw te ts = do
-    let sub = signSubmission ts
+    sub <- signSubmission ts
     httpPost te "/events" (Aeson.encode sub)
 
 -- | GET /info and decode.
@@ -329,27 +399,35 @@ data TestSub = TestSub
     { tsSigner :: TestId
     , tsPassphrase :: Maybe Text
     , tsEvent :: CircleEvent () () ()
+    , tsInception :: Maybe (IO Value)
+    -- ^ Deferred inception builder (needs IO)
     }
 
-{- | Sign a test submission. The signature is a
-dummy value for now (no real Ed25519). The server
-does not verify signatures in E2E tests.
+{- | Sign a test submission. Builds the inception
+event if one is configured.
 -}
-signSubmission :: TestSub -> Submission () () ()
-signSubmission ts =
-    Submission
-        { subPassphrase = tsPassphrase ts
-        , subSigner = tidKey (tsSigner ts)
-        , subSignature =
-            "sig:" <> tidKey (tsSigner ts)
-        , subEvent = tsEvent ts
-        }
+signSubmission :: TestSub -> IO (Submission () () ())
+signSubmission ts = do
+    mInception <- case tsInception ts of
+        Nothing -> pure Nothing
+        Just mkInc -> Just <$> mkInc
+    pure
+        Submission
+            { subPassphrase = tsPassphrase ts
+            , subSigner = tidKey (tsSigner ts)
+            , subSignature =
+                "sig:" <> tidKey (tsSigner ts)
+            , subEvent = tsEvent ts
+            , subInception = mInception
+            }
 
 -- --------------------------------------------------------
 -- Submission builders
 -- --------------------------------------------------------
 
--- | Bootstrap the first admin.
+{- | Bootstrap the first admin. The admin provides
+their own signed inception event.
+-}
 bootstrapAdmin :: TestId -> TestSub
 bootstrapAdmin tid =
     TestSub
@@ -361,9 +439,13 @@ bootstrapAdmin tid =
                     (MemberId $ tidKey tid)
                     (tidKey tid)
                     Admin
+        , tsInception =
+            Just (mkInceptionFor tid)
         }
 
--- | Introduce a regular member.
+{- | Introduce a regular member. The introducing
+admin provides the new member's signed inception.
+-}
 introduceMember :: TestId -> TestId -> TestSub
 introduceMember signer newMember =
     TestSub
@@ -375,6 +457,8 @@ introduceMember signer newMember =
                     (MemberId $ tidKey newMember)
                     (tidKey newMember)
                     Member
+        , tsInception =
+            Just (mkInceptionFor newMember)
         }
 
 -- | Introduce a new admin.
@@ -389,6 +473,8 @@ introduceAdmin signer newAdmin =
                     (MemberId $ tidKey newAdmin)
                     (tidKey newAdmin)
                     Admin
+        , tsInception =
+            Just (mkInceptionFor newAdmin)
         }
 
 -- | Remove a member.
@@ -401,6 +487,7 @@ removeMember signer target =
             CEBaseDecision $
                 RemoveMember
                     (MemberId $ tidKey target)
+        , tsInception = Nothing
         }
 
 -- | Change a member's role.
@@ -415,6 +502,7 @@ changeRole signer target role =
                 ChangeRole
                     (MemberId $ tidKey target)
                     role
+        , tsInception = Nothing
         }
 
 -- | Submit a proposal (trivial Unit content).
@@ -425,6 +513,7 @@ submitProposal signer deadline =
         { tsSigner = signer
         , tsPassphrase = Nothing
         , tsEvent = CEProposal () deadline
+        , tsInception = Nothing
         }
 
 -- | Respond to a proposal (trivial Unit content).
@@ -435,6 +524,7 @@ respondToProposal signer pid =
         { tsSigner = signer
         , tsPassphrase = Nothing
         , tsEvent = CEResponse () pid
+        , tsInception = Nothing
         }
 
 -- | Resolve a proposal (sequencer only).
@@ -448,6 +538,7 @@ resolveProposal signer pid res =
         { tsSigner = signer
         , tsPassphrase = Nothing
         , tsEvent = CEResolveProposal pid res
+        , tsInception = Nothing
         }
 
 -- --------------------------------------------------------

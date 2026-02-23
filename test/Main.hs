@@ -12,6 +12,7 @@ module Main (main) where
 import KelCircle.Test.BaseDecisions qualified
 import KelCircle.Test.Crypto qualified
 import KelCircle.Test.Gate qualified
+import KelCircle.Test.MemberKel qualified
 import KelCircle.Test.Processing qualified
 import KelCircle.Test.Proposals qualified
 import KelCircle.Test.Sequence qualified
@@ -28,4 +29,5 @@ main =
             , KelCircle.Test.Proposals.tests
             , KelCircle.Test.Processing.tests
             , KelCircle.Test.Crypto.tests
+            , KelCircle.Test.MemberKel.tests
             ]
