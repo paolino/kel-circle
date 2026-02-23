@@ -12,6 +12,7 @@ module E2E.Spec (tests) where
 
 import Data.Aeson (FromJSON (..), Value (..), withObject, (.:))
 import Data.Aeson qualified as Aeson
+import Data.IORef qualified
 import Data.Text (Text)
 import Data.Text qualified as T
 import E2E.TestHelpers
@@ -46,6 +47,7 @@ tests =
         , eventReplayTests
         , cesrValidationTests
         , memberKelTests
+        , interactionVerificationTests
         ]
 
 -- --------------------------------------------------------
@@ -551,12 +553,34 @@ memberKelTests =
             testWrongKeyInceptionRejected
         ]
 
+interactionVerificationTests :: TestTree
+interactionVerificationTests =
+    testGroup
+        "Interaction verification"
+        [ testCase
+            "valid signature accepted, KEL grows"
+            testValidInteractionSig
+        , testCase
+            "forged signature rejected"
+            testForgedSignatureRejected
+        , testCase
+            "wrong-key signature rejected"
+            testWrongKeySignatureRejected
+        , testCase
+            "tampered payload rejected"
+            testTamperedPayloadRejected
+        , testCase
+            "member KEL grows with each event"
+            testKelGrowsWithEvents
+        ]
+
 testBootstrapAdminHasKel :: IO ()
 testBootstrapAdminHasKel = withTestEnv $ \te -> do
     admin1 <- newTestId
     _ <- postEvent te (bootstrapAdmin admin1)
 
     -- Check KEL exists via GET endpoint
+    -- 2 events: inception (seqnum 0) + interaction (seqnum 1)
     resp <-
         httpGet
             te
@@ -566,7 +590,7 @@ testBootstrapAdminHasKel = withTestEnv $ \te -> do
             )
     HC.responseStatus resp @?= status200
     kelResp <- decodeOrFail (HC.responseBody resp)
-    kelRespEventCount kelResp @?= 1
+    kelRespEventCount kelResp @?= 2
 
 testIntroducedMemberHasKel :: IO ()
 testIntroducedMemberHasKel =
@@ -610,6 +634,7 @@ testMissingInceptionRejected =
                                 (tidKey user1)
                                 Member
                     , tsInception = Nothing
+                    , tsSignerExempt = False
                     }
         resp <- postEventRaw te noInception
         HC.responseStatus resp @?= status422
@@ -636,9 +661,166 @@ testWrongKeyInceptionRejected =
                     , tsInception =
                         Just
                             (mkInceptionFor wrongUser)
+                    , tsSignerExempt = False
                     }
         resp <- postEventRaw te wrongInception
         HC.responseStatus resp @?= status422
+
+-- --------------------------------------------------------
+-- Interaction verification tests
+-- --------------------------------------------------------
+
+testValidInteractionSig :: IO ()
+testValidInteractionSig = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+    _ <- postEvent te (bootstrapAdmin admin1)
+    _ <- postEvent te (introduceMember admin1 user1)
+
+    -- Admin's KEL: inception (0) + bootstrap ixn (1)
+    -- + introduce ixn (2) = 3 events
+    resp <-
+        httpGet
+            te
+            ( "/members/"
+                <> urlEncode (tidKey admin1)
+                <> "/kel"
+            )
+    HC.responseStatus resp @?= status200
+    kelResp <- decodeOrFail (HC.responseBody resp)
+    kelRespEventCount kelResp @?= 3
+
+testForgedSignatureRejected :: IO ()
+testForgedSignatureRejected =
+    withTestEnv $ \te -> do
+        admin1 <- newTestId
+        user1 <- newTestId
+        _ <- postEvent te (bootstrapAdmin admin1)
+        _ <-
+            postEvent
+                te
+                (introduceMember admin1 user1)
+
+        -- User submits with a forged (random) sig
+        let forged =
+                TestSub
+                    { tsSigner = user1
+                    , tsPassphrase = Nothing
+                    , tsEvent = CEProposal () 9999
+                    , tsInception = Nothing
+                    , tsSignerExempt = True
+                    }
+        sub <- signSubmission forged
+        let badSub =
+                sub
+                    { subSignature =
+                        T.replicate 88 "A"
+                    }
+        resp <-
+            httpPost
+                te
+                "/events"
+                (Aeson.encode badSub)
+        HC.responseStatus resp @?= status422
+
+testWrongKeySignatureRejected :: IO ()
+testWrongKeySignatureRejected =
+    withTestEnv $ \te -> do
+        admin1 <- newTestId
+        user1 <- newTestId
+        _ <- postEvent te (bootstrapAdmin admin1)
+        _ <-
+            postEvent
+                te
+                (introduceMember admin1 user1)
+
+        -- Build a valid-looking interaction sig but
+        -- with a different keypair
+        imposter <- newTestId
+        -- Give imposter user1's KEL state
+        mKs <-
+            Data.IORef.readIORef (tidKelState user1)
+        Data.IORef.writeIORef
+            (tidKelState imposter)
+            mKs
+        let wrongKey =
+                TestSub
+                    { tsSigner = imposter
+                    , tsPassphrase = Nothing
+                    , tsEvent = CEProposal () 9999
+                    , tsInception = Nothing
+                    , tsSignerExempt = False
+                    }
+        sub <- signSubmission wrongKey
+        -- Submit as user1 but with imposter's sig
+        let badSub =
+                sub{subSigner = tidKey user1}
+        resp <-
+            httpPost
+                te
+                "/events"
+                (Aeson.encode badSub)
+        HC.responseStatus resp @?= status422
+
+testTamperedPayloadRejected :: IO ()
+testTamperedPayloadRejected =
+    withTestEnv $ \te -> do
+        admin1 <- newTestId
+        user1 <- newTestId
+        _ <- postEvent te (bootstrapAdmin admin1)
+        _ <-
+            postEvent
+                te
+                (introduceMember admin1 user1)
+
+        -- Sign a proposal but submit a different event
+        let original =
+                TestSub
+                    { tsSigner = user1
+                    , tsPassphrase = Nothing
+                    , tsEvent = CEProposal () 9999
+                    , tsInception = Nothing
+                    , tsSignerExempt = False
+                    }
+        sub <- signSubmission original
+        -- Tamper: change the event payload
+        let tampered :: Submission () () ()
+            tampered =
+                sub
+                    { subEvent =
+                        CEProposal () 1234
+                    }
+        resp <-
+            httpPost
+                te
+                "/events"
+                (Aeson.encode tampered)
+        HC.responseStatus resp @?= status422
+
+testKelGrowsWithEvents :: IO ()
+testKelGrowsWithEvents = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+    user2 <- newTestId
+    _ <- postEvent te (bootstrapAdmin admin1)
+    -- KEL: icp(0) + ixn(1) = 2
+    _ <- postEvent te (introduceMember admin1 user1)
+    -- KEL: +ixn(2) = 3
+    _ <- postEvent te (introduceMember admin1 user2)
+    -- KEL: +ixn(3) = 4
+    _ <- postEvent te (removeMember admin1 user2)
+    -- KEL: +ixn(4) = 5
+
+    resp <-
+        httpGet
+            te
+            ( "/members/"
+                <> urlEncode (tidKey admin1)
+                <> "/kel"
+            )
+    HC.responseStatus resp @?= status200
+    kelResp <- decodeOrFail (HC.responseBody resp)
+    kelRespEventCount kelResp @?= 5
 
 -- --------------------------------------------------------
 -- Helpers
