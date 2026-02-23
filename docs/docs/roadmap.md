@@ -35,6 +35,10 @@ with KERI.
   used to verify all subsequent events from that member
 - **Client key generation and storage** — browser-safe Ed25519 keygen,
   passphrase-encrypted local storage, PureScript FFI
+- **Membership challenge-response** — the server issues a nonce challenge on
+  connection; the client must sign it with its member key to prove identity
+  before submitting events (prevents impersonation by replaying a stolen
+  member ID without the private key)
 
 ---
 

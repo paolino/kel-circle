@@ -82,7 +82,6 @@ baseGate
     -> Bool
 baseGate s signer sid d =
     protectsSequencer sid d
-<<<<<<< HEAD
         && hasUniqueName s d
         && targetExists s d
         && if isBootstrap s
