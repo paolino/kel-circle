@@ -10,6 +10,7 @@ preservation theorems.
 module Main (main) where
 
 import KelCircle.Test.BaseDecisions qualified
+import KelCircle.Test.Crypto qualified
 import KelCircle.Test.Gate qualified
 import KelCircle.Test.Processing qualified
 import KelCircle.Test.Proposals qualified
@@ -26,4 +27,5 @@ main =
             , KelCircle.Test.Gate.tests
             , KelCircle.Test.Proposals.tests
             , KelCircle.Test.Processing.tests
+            , KelCircle.Test.Crypto.tests
             ]

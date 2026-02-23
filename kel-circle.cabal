@@ -88,6 +88,7 @@ test-suite unit-tests
   main-is:        Main.hs
   other-modules:
     KelCircle.Test.BaseDecisions
+    KelCircle.Test.Crypto
     KelCircle.Test.Gate
     KelCircle.Test.Generators
     KelCircle.Test.Processing
@@ -97,6 +98,7 @@ test-suite unit-tests
   build-depends:
     , base              >=4.18 && <5
     , kel-circle
+    , keri-hs
     , QuickCheck        >=2.14 && <3
     , tasty             >=1.4  && <2
     , tasty-hunit       >=0.10 && <1
