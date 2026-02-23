@@ -1,0 +1,1194 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://paolino.github.io/kel-circle/roadmap/">
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../architecture/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Roadmap - kel-circle</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#roadmap" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="kel-circle" class="md-header__button md-logo" aria-label="kel-circle" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            kel-circle
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Roadmap
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/paolino/kel-circle" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    paolino/kel-circle
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="kel-circle" class="md-nav__button md-logo" aria-label="kel-circle" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    kel-circle
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/paolino/kel-circle" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    paolino/kel-circle
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#phase-1-foundation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1 — Foundation ✅
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-2-cryptographic-integrity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2 — Cryptographic integrity
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2 — Cryptographic integrity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sub-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sub-roadmap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sub-roadmap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-21-add-keri-hs-dependency-and-cesr-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.1 — Add keri-hs dependency and CESR validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-22-signature-verification-at-the-gate-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.2 — Signature verification at the gate layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-23-anchored-key-verification-for-members" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.3 — Anchored key verification for members
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-24-challenge-response-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.4 — Challenge-response authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-25-purescript-client-crypto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.5 — PureScript client crypto
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-26-sequencer-ordering-e2e-and-cross-cutting-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.6 — Sequencer ordering E2E and cross-cutting invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-e2e-scenarios-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security E2E scenarios (summary)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-cutting-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-cutting invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-3-protocol-completeness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3 — Protocol completeness
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-4-application-layer-and-production-readiness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4 — Application layer and production readiness
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../base-semantics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base Semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#phase-1-foundation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1 — Foundation ✅
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-2-cryptographic-integrity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2 — Cryptographic integrity
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2 — Cryptographic integrity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sub-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sub-roadmap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sub-roadmap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-21-add-keri-hs-dependency-and-cesr-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.1 — Add keri-hs dependency and CESR validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-22-signature-verification-at-the-gate-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.2 — Signature verification at the gate layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-23-anchored-key-verification-for-members" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.3 — Anchored key verification for members
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-24-challenge-response-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.4 — Challenge-response authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-25-purescript-client-crypto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.5 — PureScript client crypto
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-26-sequencer-ordering-e2e-and-cross-cutting-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.6 — Sequencer ordering E2E and cross-cutting invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-e2e-scenarios-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security E2E scenarios (summary)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-cutting-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-cutting invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-3-protocol-completeness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3 — Protocol completeness
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-4-application-layer-and-production-readiness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4 — Application layer and production readiness
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="roadmap">Roadmap</h1>
+<hr />
+<h2 id="phase-1-foundation">Phase 1 — Foundation ✅</h2>
+<p>Core protocol semantics, Lean formalisation, and a running server.</p>
+<ul>
+<li>Global sequence invariants (contiguity, monotone timestamps, no duplicates)</li>
+<li>Two-level gate: fixed base gate + pluggable application gate</li>
+<li>Full membership lifecycle: introduce, remove, change role</li>
+<li>Proposal machinery: open, respond, resolve (manual)</li>
+<li>Sequencer protection and rotation</li>
+<li>Unique member-name invariant</li>
+<li>SQLite persistence with full-replay on restart</li>
+<li>HTTP + SSE server (WAI)</li>
+<li>KERI AID for the sequencer (Ed25519 keypair, CESR prefix, storage invariant)</li>
+<li>PureScript client library mirroring Haskell semantics</li>
+<li>50+ QuickCheck properties, 15+ E2E scenarios</li>
+<li>Lean formalisation of invariants and gate theorems</li>
+</ul>
+<hr />
+<h2 id="phase-2-cryptographic-integrity">Phase 2 — Cryptographic integrity</h2>
+<p>Signatures are currently persisted but <strong>never verified</strong>. Every submitted
+event carries an Ed25519 signature over the payload, but the gate layer
+ignores it. This phase closes that gap and brings members' identities in line
+with KERI.</p>
+<h3 id="current-state">Current state</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Submission</code> carries <code>subSigner :: Text</code> and <code>subSignature :: Text</code></td>
+<td>✅ stored</td>
+</tr>
+<tr>
+<td>SQLite <code>events</code> table has <code>signer</code> and <code>signature</code> columns</td>
+<td>✅ stored</td>
+</tr>
+<tr>
+<td><code>MemberId</code> is a <code>Text</code> newtype — no format validation</td>
+<td>❌ unvalidated</td>
+</tr>
+<tr>
+<td><code>signSubmission</code> in E2E helpers produces dummy <code>"sig:&lt;key&gt;"</code></td>
+<td>❌ not real crypto</td>
+</tr>
+<tr>
+<td>No <code>keri-hs</code> dependency in <code>kel-circle.cabal</code></td>
+<td>❌ missing</td>
+</tr>
+<tr>
+<td>No signature verification anywhere in gate or server</td>
+<td>❌ missing</td>
+</tr>
+<tr>
+<td>No challenge-response endpoints</td>
+<td>❌ missing</td>
+</tr>
+<tr>
+<td>PureScript client has no Ed25519 keygen or signing</td>
+<td>❌ missing</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sub-roadmap">Sub-roadmap</h3>
+<p>Phase 2 is split into six incremental steps. Each step is independently
+buildable and testable; later steps depend on earlier ones.</p>
+<h4 id="step-21-add-keri-hs-dependency-and-cesr-validation">Step 2.1 — Add <code>keri-hs</code> dependency and CESR validation</h4>
+<p>Wire the <code>keri-hs</code> library into kel-circle. Use it to validate that
+<code>MemberId</code> values are well-formed CESR-encoded Ed25519 public key prefixes.</p>
+<p><strong>Changes:</strong></p>
+<ul>
+<li>Add <code>keri-hs</code> to <code>kel-circle.cabal</code> <code>build-depends</code> (and to the Nix
+  flake input if needed)</li>
+<li>New module <code>KelCircle.Crypto</code> that re-exports the subset of <code>keri-hs</code>
+  needed: <code>Keri.Cesr.decode</code>, <code>Keri.Cesr.Primitive</code>,
+  <code>Keri.Cesr.DerivationCode(Ed25519PubKey, Ed25519Sig)</code>,
+  <code>Keri.Crypto.Ed25519.verify</code>, <code>Keri.Crypto.Ed25519.publicKeyFromBytes</code></li>
+<li>Validation function <code>validateCesrPrefix :: Text -&gt; Either Text PublicKey</code>
+  that decodes a CESR text, checks the derivation code is <code>Ed25519PubKey</code>,
+  and returns the parsed public key</li>
+<li><code>IntroduceMember mid name role</code> — the gate rejects if <code>mid</code> is not a
+  valid CESR Ed25519 prefix (call <code>validateCesrPrefix</code>)</li>
+<li>Add <code>InvalidMemberId</code> constructor to <code>ValidationError</code></li>
+<li>E2E test: scenario 6 (non-CESR member ID rejected)</li>
+</ul>
+<p><strong>Done when:</strong> existing tests still pass, and introducing a member with a
+garbage <code>MemberId</code> returns 422.</p>
+<h4 id="step-22-signature-verification-at-the-gate-layer">Step 2.2 — Signature verification at the gate layer</h4>
+<p>Every <code>POST /events</code> must carry a valid Ed25519 signature over the
+JSON-serialized event body, verifiable against the signer's public key.</p>
+<p><strong>Changes:</strong></p>
+<ul>
+<li>New function <code>verifySubmissionSignature :: Text -&gt; Text -&gt; LBS.ByteString
+  -&gt; Either Text ()</code> — decodes the CESR signer prefix to a public key,
+  decodes the CESR signature, and calls <code>Keri.Crypto.Ed25519.verify</code></li>
+<li><strong>What is signed:</strong> the canonical JSON encoding of <code>subEvent</code> (the same
+  bytes the server stores in <code>event_json</code>). The server re-encodes the event
+  to JSON and verifies the signature over those bytes.</li>
+<li>Call <code>verifySubmissionSignature</code> in <code>handlePostEvent</code> (and
+  <code>handleBootstrapPost</code>) <strong>before</strong> gate validation. Return 422 with a new
+  <code>SignatureInvalid</code> error on failure.</li>
+<li>Add <code>SignatureInvalid</code> constructor to <code>ValidationError</code> (or a separate
+  <code>CryptoError</code> type)</li>
+<li>Update E2E <code>TestId</code> to hold a real <code>Keri.Crypto.Ed25519.KeyPair</code>;
+  <code>newTestId</code> calls <code>generateKeyPair</code>, <code>tidKey</code> becomes the CESR-encoded
+  public key prefix</li>
+<li>Update <code>signSubmission</code> to produce a real Ed25519 signature over the
+  JSON-encoded event</li>
+<li>E2E tests: scenarios 1–4 (valid accepted, forged rejected, wrong-key
+  rejected, tampered payload rejected)</li>
+</ul>
+<p><strong>Done when:</strong> all 4 signature E2E scenarios pass, existing E2E tests
+still pass (they now use real signatures).</p>
+<h4 id="step-23-anchored-key-verification-for-members">Step 2.3 — Anchored key verification for members</h4>
+<p>After introduction, all subsequent events from a member must be signed
+with the key that was anchored at introduction time.</p>
+<p><strong>Changes:</strong></p>
+<ul>
+<li><code>Member</code> gains a <code>memberKey :: Text</code> field (the CESR-encoded public key,
+  already stored as the second argument to <code>IntroduceMember</code>)</li>
+<li>On <code>POST /events</code> in normal mode, look up the signer's <code>memberKey</code> from
+  <code>CircleState.members</code> and verify the signature against <strong>that</strong> key (not
+  just against the <code>subSigner</code> text — the signer must match an anchored
+  member)</li>
+<li>Reject if <code>subSigner</code> does not match any member's <code>memberKey</code>, or if the
+  signature doesn't verify against the anchored key</li>
+<li>In bootstrap mode the signer is the new admin being introduced, so the
+  key is self-certifying: the <code>subSigner</code> text <strong>is</strong> the key, and the
+  signature is verified against it</li>
+<li>E2E tests: scenarios 5, 7 (introduction anchors key; subsequent events
+  verified against anchored key)</li>
+</ul>
+<p><strong>Done when:</strong> a member introduced with key A cannot submit events signed
+with key B.</p>
+<h4 id="step-24-challenge-response-authentication">Step 2.4 — Challenge-response authentication</h4>
+<p>Prevent impersonation by requiring clients to prove possession of their
+private key before submitting events.</p>
+<p><strong>Changes:</strong></p>
+<ul>
+<li>New server-side state: <code>TVar (Map MemberId ByteString)</code> for pending
+  nonces, <code>TVar (Map Text MemberId)</code> for session tokens</li>
+<li>New endpoint <code>GET /challenge?member=&lt;memberId&gt;</code> — generate a random
+  32-byte nonce, store it keyed by member ID, return <code>{"nonce": "&lt;hex&gt;"}</code></li>
+<li>New endpoint <code>POST /challenge</code> — body
+  <code>{"member": "&lt;memberId&gt;", "signedNonce": "&lt;CESR sig&gt;"}</code>. Server looks up
+  the pending nonce, verifies the signature against the member's anchored
+  key, and on success: deletes the nonce (one-time use), generates a random
+  session token, stores it in the session map, returns
+  <code>{"token": "&lt;token&gt;"}</code></li>
+<li><code>POST /events</code> requires an <code>Authorization: Bearer &lt;token&gt;</code> header in
+  normal mode. Server looks up the token to find the signer's member ID.
+  The <code>subSigner</code> field must match the token's member ID.</li>
+<li>Bootstrap mode is exempt from challenge-response (no members exist yet
+  to challenge)</li>
+<li>Nonces expire after a configurable TTL (e.g. 60 seconds)</li>
+<li>E2E tests: scenarios 8–12 (challenge issued, correct response accepted,
+  wrong-key rejected, replayed nonce rejected, unauthenticated POST
+  rejected)</li>
+</ul>
+<p><strong>Done when:</strong> all 5 challenge-response E2E scenarios pass.</p>
+<h4 id="step-25-purescript-client-crypto">Step 2.5 — PureScript client crypto</h4>
+<p>Browser-side Ed25519 key generation, signing, and challenge-response
+flow.</p>
+<p><strong>Changes:</strong></p>
+<ul>
+<li>PureScript FFI module wrapping the Web Crypto API (or a JS Ed25519
+  library like <code>@noble/ed25519</code>) for: key generation, signing, CESR
+  encoding of public key and signature</li>
+<li>Key storage in browser <code>localStorage</code>, encrypted with a user-chosen
+  passphrase (AES-GCM via Web Crypto)</li>
+<li>Client codec updated: <code>encodeSubmission</code> takes a <code>KeyPair</code> and signs the
+  JSON-serialized event before encoding</li>
+<li>Challenge-response flow in the client: on connect, call
+  <code>GET /challenge?member=&lt;myId&gt;</code>, sign the nonce, <code>POST /challenge</code>, store
+  the session token, attach it to subsequent <code>POST /events</code> requests</li>
+<li>Halogen UI: key generation on first use, passphrase prompt, visual
+  indicator of authentication state</li>
+</ul>
+<p><strong>Done when:</strong> the Halogen demo can bootstrap an admin, introduce members,
+and submit events — all with real Ed25519 signatures and challenge-response
+auth.</p>
+<h4 id="step-26-sequencer-ordering-e2e-and-cross-cutting-invariants">Step 2.6 — Sequencer ordering E2E and cross-cutting invariants</h4>
+<p>Final verification pass: sequencer ordering properties and cross-cutting
+invariants that must hold across all scenarios.</p>
+<p><strong>Changes:</strong></p>
+<ul>
+<li>E2E tests: scenarios 13–16 (contiguous sequence numbers, monotonically
+  increasing, monotonic timestamps, no duplicates)</li>
+<li>Cross-cutting invariant tests (run after every multi-event scenario):<ul>
+<li>Replay the full log via <code>GET /events</code> and verify every signature
+  against the signer's anchored public key</li>
+<li>Verify the sequencer's events are signed with the sequencer's KERI
+  AID key</li>
+<li>Verify no two members share the same public key prefix</li>
+<li>Verify global sequence invariants (contiguity, monotonicity, no
+  duplicates)</li>
+</ul>
+</li>
+</ul>
+<p><strong>Done when:</strong> all 16 scenarios pass, all cross-cutting invariants hold,
+CI is green.</p>
+<h3 id="security-e2e-scenarios-summary">Security E2E scenarios (summary)</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Category</th>
+<th>Scenario</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Signature</td>
+<td>Valid signature accepted</td>
+<td>200</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Signature</td>
+<td>Forged signature rejected</td>
+<td>422</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Signature</td>
+<td>Wrong-key signature rejected</td>
+<td>422</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Signature</td>
+<td>Tampered payload rejected</td>
+<td>422</td>
+</tr>
+<tr>
+<td>5</td>
+<td>AID anchoring</td>
+<td>Introduction anchors public key</td>
+<td>key in /condition</td>
+</tr>
+<tr>
+<td>6</td>
+<td>AID anchoring</td>
+<td>Non-CESR member ID rejected</td>
+<td>422</td>
+</tr>
+<tr>
+<td>7</td>
+<td>AID anchoring</td>
+<td>Subsequent events verified against anchored key</td>
+<td>200 / 422</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Challenge</td>
+<td>Challenge issued on connect</td>
+<td>nonce returned</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Challenge</td>
+<td>Correct challenge response accepted</td>
+<td>200 + token</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Challenge</td>
+<td>Wrong-key challenge rejected</td>
+<td>401</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Challenge</td>
+<td>Replayed nonce rejected</td>
+<td>401</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Challenge</td>
+<td>Unauthenticated POST rejected</td>
+<td>401</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Ordering</td>
+<td>Sequence numbers are contiguous</td>
+<td>verified</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Ordering</td>
+<td>Sequence numbers are monotonically increasing</td>
+<td>verified</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Ordering</td>
+<td>Timestamps are monotonically non-decreasing</td>
+<td>verified</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Ordering</td>
+<td>No duplicate sequence numbers</td>
+<td>verified</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cross-cutting-invariants">Cross-cutting invariants</h3>
+<ul>
+<li>Every event in the log has a valid signature verifiable against the
+  signer's anchored public key.</li>
+<li>The sequencer's events are signed with the sequencer's KERI AID key.</li>
+<li>No two members share the same public key prefix.</li>
+<li>The event log satisfies global sequence invariants: contiguous,
+  monotonically increasing sequence numbers; monotonically non-decreasing
+  timestamps; no duplicate sequence numbers.</li>
+</ul>
+<hr />
+<h2 id="phase-3-protocol-completeness">Phase 3 — Protocol completeness</h2>
+<p>Features that the semantics document already specifies but the implementation
+does not yet enforce.</p>
+<ul>
+<li><strong>Automatic proposal resolution</strong> — the sequencer emits a
+  <code>CEResolveProposal</code> event automatically when the admin-majority threshold
+  is reached, or when the deadline passes (timeout)</li>
+<li><strong>Sequencer rotation with key migration</strong> — <code>RotateSequencer</code> must carry
+  the new sequencer's public key; both the old and new sequencer sign the
+  rotation event</li>
+<li><strong>Freshness check</strong> — submitted events must reference a recent sequence
+  number; stale events are rejected</li>
+</ul>
+<hr />
+<h2 id="phase-4-application-layer-and-production-readiness">Phase 4 — Application layer and production readiness</h2>
+<p>The library's polymorphic <code>(d, p, r)</code> layer is currently exercised only with
+<code>Unit</code> types. This phase demonstrates and hardens real usage.</p>
+<ul>
+<li><strong>Reference application</strong> — a concrete <code>(d, p, r)</code> instantiation with a
+  non-trivial decision type, serving as documentation and integration test</li>
+<li><strong>Client UI</strong> — extend the Halogen demo to cover the full member lifecycle
+  (join, vote, rotate)</li>
+<li><strong>Deployment guide</strong> and Nix service module</li>
+<li><strong>Hackage publication</strong> — <code>cabal check</code>, bounds, changelog, <code>cabal sdist</code></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="../javascripts/mermaid.mjs" type="module"></script>
+      
+    
+  </body>
+</html>
