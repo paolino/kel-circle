@@ -87,6 +87,18 @@ tests add real Ed25519 keypairs and a challenge endpoint.
 12. **Unauthenticated POST rejected** — POST /events without a valid session
     token; expect 401.
 
+**Sequencer ordering:**
+
+13. **Sequence numbers are contiguous** — after a multi-event workflow, replay
+    the full log via GET /events; sequence numbers must form a gap-free
+    sequence 0, 1, 2, … with no holes.
+14. **Sequence numbers are monotonically increasing** — no event has a sequence
+    number less than or equal to any preceding event in the log.
+15. **Timestamps are monotonically non-decreasing** — every event's timestamp
+    is ≥ the previous event's timestamp (wall-clock ordering).
+16. **No duplicate sequence numbers** — every sequence number in the log is
+    unique.
+
 **Invariants (properties that hold across all scenarios):**
 
 - Every event in the log has a valid signature over its payload, verifiable
@@ -94,6 +106,10 @@ tests add real Ed25519 keypairs and a challenge endpoint.
   GET /events and verify each signature).
 - The sequencer's events are signed with the sequencer's KERI AID key.
 - No two members share the same public key prefix.
+- The event log satisfies the global sequence invariants: contiguous,
+  monotonically increasing sequence numbers; monotonically non-decreasing
+  timestamps; no duplicate sequence numbers (replay the full log via
+  GET /events and verify).
 
 ---
 
