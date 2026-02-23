@@ -325,6 +325,13 @@ instance ToJSON ValidationError where
                 .= ("notSequencer" :: Text)
             , "memberId" .= mid
             ]
+    toJSON (InvalidMemberId mid reason) =
+        object
+            [ "error"
+                .= ("invalidMemberId" :: Text)
+            , "memberId" .= mid
+            , "reason" .= reason
+            ]
 
 -- --------------------------------------------------------
 -- Submission

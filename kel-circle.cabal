@@ -43,6 +43,7 @@ library
   hs-source-dirs:  lib
   exposed-modules:
     KelCircle
+    KelCircle.Crypto
     KelCircle.Events
     KelCircle.Fold
     KelCircle.Gate
@@ -61,6 +62,7 @@ library
     , base           >=4.18 && <5
     , bytestring     >=0.11 && <1
     , http-types     >=0.12 && <1
+    , keri-hs
     , sqlite-simple  >=0.4  && <1
     , stm            >=2.5  && <3
     , text           >=2.0  && <3
@@ -118,6 +120,7 @@ test-suite e2e-tests
     , http-client  >=0.7  && <1
     , http-types   >=0.12 && <1
     , kel-circle
+    , keri-hs
     , stm          >=2.5  && <3
     , tasty        >=1.4  && <2
     , tasty-hunit  >=0.10 && <1

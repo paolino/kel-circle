@@ -10,7 +10,8 @@ proposals, responses, and resolution.
 -}
 module E2E.Spec (tests) where
 
-import Data.Aeson (Value (..), encode)
+import Data.Aeson (Value (..))
+import Data.Aeson qualified as Aeson
 import E2E.TestHelpers
 import KelCircle.Events (Resolution (..))
 import KelCircle.Server.JSON (Submission (..))
@@ -37,6 +38,7 @@ tests =
         , authTests
         , rebootstrapTests
         , eventReplayTests
+        , cesrValidationTests
         ]
 
 -- --------------------------------------------------------
@@ -78,7 +80,7 @@ testBootstrapMissingPass = withTestEnv $ \te -> do
     admin1 <- newTestId
     let sub = signSubmission (bootstrapAdmin admin1)
         sub' = sub{subPassphrase = Nothing}
-    resp <- httpPost te "/events" (encode sub')
+    resp <- httpPost te "/events" (Aeson.encode sub')
     HC.responseStatus resp @?= status401
 
 testBootstrapWrongPass :: IO ()
@@ -87,7 +89,7 @@ testBootstrapWrongPass = withTestEnv $ \te -> do
     let sub = signSubmission (bootstrapAdmin admin1)
         sub' =
             sub{subPassphrase = Just "wrong"}
-    resp <- httpPost te "/events" (encode sub')
+    resp <- httpPost te "/events" (Aeson.encode sub')
     HC.responseStatus resp @?= status401
 
 -- --------------------------------------------------------
@@ -185,7 +187,7 @@ testNonMemberCannotIntroduce =
 testCannotRemoveSequencer :: IO ()
 testCannotRemoveSequencer = withTestEnv $ \te -> do
     admin1 <- newTestId
-    let seqId = TestId{tidKey = "server-sequencer"}
+    seqId <- mkBadTestId "server-sequencer"
 
     _ <- postEvent te (bootstrapAdmin admin1)
 
@@ -312,8 +314,7 @@ testProposalAndResponse = withTestEnv $ \te -> do
 testResolveProposal :: IO ()
 testResolveProposal = withTestEnv $ \te -> do
     -- The sequencer can resolve proposals
-    let seqId =
-            TestId{tidKey = "server-sequencer"}
+    seqId <- mkBadTestId "server-sequencer"
     admin1 <- newTestId
 
     _ <- postEvent te (bootstrapAdmin admin1)
@@ -458,3 +459,65 @@ testGetEventJsonDecoding = withTestEnv $ \te -> do
     -- No second event should exist
     resp2 <- httpGet te "/events?after=1"
     HC.responseStatus resp2 @?= status404
+
+-- --------------------------------------------------------
+-- CESR validation
+-- --------------------------------------------------------
+
+cesrValidationTests :: TestTree
+cesrValidationTests =
+    testGroup
+        "CESR validation"
+        [ testCase
+            "non-CESR member ID rejected"
+            testNonCesrMemberIdRejected
+        , testCase
+            "valid CESR member ID accepted"
+            testValidCesrMemberIdAccepted
+        , testCase
+            "bootstrap with non-CESR admin ID rejected"
+            testBootstrapNonCesrRejected
+        ]
+
+testNonCesrMemberIdRejected :: IO ()
+testNonCesrMemberIdRejected =
+    withTestEnv $ \te -> do
+        admin1 <- newTestId
+        badUser <- mkBadTestId "garbage-not-cesr"
+
+        _ <- postEvent te (bootstrapAdmin admin1)
+
+        -- Try to introduce with non-CESR member ID
+        resp <-
+            postEventRaw
+                te
+                (introduceMember admin1 badUser)
+        HC.responseStatus resp @?= status422
+
+testValidCesrMemberIdAccepted :: IO ()
+testValidCesrMemberIdAccepted =
+    withTestEnv $ \te -> do
+        admin1 <- newTestId
+        user1 <- newTestId
+
+        _ <- postEvent te (bootstrapAdmin admin1)
+        _ <-
+            postEvent
+                te
+                (introduceMember admin1 user1)
+
+        cond <- getCondition te
+        -- sequencer + admin + user
+        length (crMembers cond) @?= 3
+
+testBootstrapNonCesrRejected :: IO ()
+testBootstrapNonCesrRejected =
+    withTestEnv $ \te -> do
+        badAdmin <-
+            mkBadTestId "not-a-cesr-prefix"
+
+        resp <-
+            postEventRaw
+                te
+                (bootstrapAdmin badAdmin)
+        HC.responseStatus resp @?= status422
