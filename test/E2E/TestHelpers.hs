@@ -24,6 +24,7 @@ module E2E.TestHelpers
       -- * Test identities
     , TestId (..)
     , newTestId
+    , mkBadTestId
 
       -- * Submission builders
     , TestSub (..)
@@ -52,18 +53,12 @@ import Data.Aeson
     ( FromJSON (..)
     , Value
     , decode
-    , encode
     , withObject
     , (.:)
     )
+import Data.Aeson qualified as Aeson
 import Data.ByteString.Lazy qualified as LBS
-import Data.IORef
-    ( IORef
-    , atomicModifyIORef'
-    , newIORef
-    )
 import Data.Text (Text)
-import Data.Text qualified as T
 import KelCircle.Events
     ( BaseDecision (..)
     , CircleEvent (..)
@@ -85,45 +80,71 @@ import KelCircle.Types
     , Role (..)
     , Timestamp
     )
+import Keri.Cesr.DerivationCode (DerivationCode (..))
+import Keri.Cesr.Encode qualified
+import Keri.Cesr.Primitive (Primitive (..))
+import Keri.Crypto.Ed25519
+    ( KeyPair (..)
+    , generateKeyPair
+    , publicKeyBytes
+    )
 import Network.HTTP.Client qualified as HC
 import Network.HTTP.Types (status200)
 import Network.Wai.Handler.Warp qualified as Warp
 import System.Directory (removeFile)
 import System.IO.Temp (emptySystemTempFile)
-import System.IO.Unsafe (unsafePerformIO)
 import Test.Tasty.HUnit (assertEqual)
-
--- --------------------------------------------------------
--- Unique key generation
--- --------------------------------------------------------
-
-{-# NOINLINE keyCounter #-}
-keyCounter :: IORef Int
-keyCounter = unsafePerformIO (newIORef 0)
-
--- | Generate a unique key string.
-uniqueKey :: IO Text
-uniqueKey = do
-    n <-
-        atomicModifyIORef'
-            keyCounter
-            (\i -> (i + 1, i))
-    pure $ "test-key-" <> T.pack (show n)
 
 -- --------------------------------------------------------
 -- Test identities
 -- --------------------------------------------------------
 
--- | A test identity with a unique key.
-newtype TestId = TestId
+{- | A test identity backed by a real Ed25519 keypair.
+The 'tidKey' is the CESR-encoded public key prefix.
+-}
+data TestId = TestId
     { tidKey :: Text
-    -- ^ Unique public key string
+    -- ^ CESR-encoded Ed25519 public key prefix
+    , tidKeyPair :: KeyPair
+    -- ^ The underlying Ed25519 keypair
     }
-    deriving stock (Show, Eq)
 
--- | Generate a fresh test identity.
+instance Show TestId where
+    show tid = "TestId " <> show (tidKey tid)
+
+instance Eq TestId where
+    a == b = tidKey a == tidKey b
+
+{- | Generate a fresh test identity with a real
+Ed25519 keypair and CESR-encoded public key prefix.
+-}
 newTestId :: IO TestId
-newTestId = TestId <$> uniqueKey
+newTestId = do
+    kp <- generateKeyPair
+    let cesrKey =
+            Keri.Cesr.Encode.encode $
+                Primitive
+                    { code = Ed25519PubKey
+                    , raw = publicKeyBytes (publicKey kp)
+                    }
+    pure
+        TestId
+            { tidKey = cesrKey
+            , tidKeyPair = kp
+            }
+
+{- | Create a test identity with a non-CESR key
+string, for testing validation rejection. Uses a
+real keypair internally (the key text is overridden).
+-}
+mkBadTestId :: Text -> IO TestId
+mkBadTestId badKey = do
+    kp <- generateKeyPair
+    pure
+        TestId
+            { tidKey = badKey
+            , tidKeyPair = kp
+            }
 
 -- --------------------------------------------------------
 -- Passphrase
@@ -250,7 +271,7 @@ Returns the sequence number.
 postEvent :: TestEnv -> TestSub -> IO Int
 postEvent te ts = do
     let sub = signSubmission ts
-    resp <- httpPost te "/events" (encode sub)
+    resp <- httpPost te "/events" (Aeson.encode sub)
     assertEqual
         "POST /events status"
         status200
@@ -267,7 +288,7 @@ postEventRaw
     -> IO (HC.Response LBS.ByteString)
 postEventRaw te ts = do
     let sub = signSubmission ts
-    httpPost te "/events" (encode sub)
+    httpPost te "/events" (Aeson.encode sub)
 
 -- | GET /info and decode.
 getInfo :: TestEnv -> IO InfoResp

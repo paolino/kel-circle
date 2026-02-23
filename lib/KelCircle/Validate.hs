@@ -20,6 +20,7 @@ module KelCircle.Validate
     , validateResolve
     ) where
 
+import Data.Text (Text)
 import KelCircle.Events (BaseDecision)
 import KelCircle.Processing
     ( FullState (..)
@@ -48,6 +49,8 @@ data ValidationError
       ResponseGateRejected ProposalId
     | -- | Only the sequencer can resolve proposals
       NotSequencer MemberId
+    | -- | MemberId is not a valid CESR Ed25519 prefix
+      InvalidMemberId MemberId Text
     deriving stock (Show, Eq)
 
 -- | Validate a base decision submission.

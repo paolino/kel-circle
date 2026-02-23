@@ -36,8 +36,9 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Text.Read qualified as TR
+import KelCircle.Crypto (validateCesrPrefix)
 import KelCircle.Events
-    ( BaseDecision
+    ( BaseDecision (..)
     , CircleEvent (..)
     )
 import KelCircle.Processing (FullState (..))
@@ -61,7 +62,7 @@ import KelCircle.Store
     )
 import KelCircle.Types (MemberId (..))
 import KelCircle.Validate
-    ( ValidationError
+    ( ValidationError (..)
     , validateAppDecision
     , validateBaseDecision
     , validateProposal
@@ -372,7 +373,8 @@ validateCircleEvent
     -> CircleEvent d p r
     -> Either ValidationError ()
 validateCircleEvent cfg fs signer = \case
-    CEBaseDecision bd ->
+    CEBaseDecision bd -> do
+        validateMemberIdCesr bd
         validateBaseDecision
             fs
             signer
@@ -394,6 +396,20 @@ validateCircleEvent cfg fs signer = \case
         validateResponse fs signer pid
     CEResolveProposal _pid _res ->
         validateResolve fs signer
+
+{- | Validate CESR format of member IDs in base
+decisions. Only @IntroduceMember@ carries a new member
+ID that must be a valid CESR Ed25519 prefix.
+-}
+validateMemberIdCesr
+    :: BaseDecision -> Either ValidationError ()
+validateMemberIdCesr = \case
+    IntroduceMember mid _ _ ->
+        case validateCesrPrefix (unMemberId mid) of
+            Left reason ->
+                Left (InvalidMemberId mid reason)
+            Right () -> Right ()
+    _ -> Right ()
 
 -- --------------------------------------------------------
 -- GET /stream (SSE)
