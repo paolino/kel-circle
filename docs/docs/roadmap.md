@@ -39,6 +39,11 @@ with KERI.
   connection; the client must sign it with its member key to prove identity
   before submitting events (prevents impersonation by replaying a stolen
   member ID without the private key)
+- **Security E2E tests** — the existing E2E test suite must cover the full
+  cryptographic chain: forged signatures rejected, wrong-key submissions
+  rejected, challenge-response failure blocks access, replayed nonces
+  rejected, key rotation invalidates old keys. Phase 2 is not complete
+  until these scenarios pass end-to-end over HTTP
 
 ---
 
