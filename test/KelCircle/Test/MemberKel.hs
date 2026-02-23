@@ -17,10 +17,15 @@ import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import KelCircle.MemberKel
     ( InceptionSubmission (..)
+    , KelEvent (..)
+    , KelKeyState (..)
+    , MemberKel (..)
     , kelEventCount
     , kelFromInception
+    , kelKeyState
     , parseInceptionValue
     , validateInception
+    , validateRotationCommitment
     )
 import KelCircle.Types (MemberId (..))
 import Keri.Cesr.DerivationCode (DerivationCode (..))
@@ -36,6 +41,14 @@ import Keri.Event.Inception
     ( InceptionConfig (..)
     , mkInception
     )
+import Keri.Event.Interaction
+    ( InteractionConfig (..)
+    , mkInteraction
+    )
+import Keri.Event.Rotation
+    ( RotationConfig (..)
+    , mkRotation
+    )
 import Keri.Event.Serialize (serializeEvent)
 import Keri.KeyState.PreRotation (commitKey)
 import Test.Tasty (TestTree, testGroup)
@@ -48,6 +61,8 @@ tests =
         "MemberKel"
         [ testValidateInception
         , testKelFromInception
+        , testRotatedKeyState
+        , testRotationCommitment
         ]
 
 -- --------------------------------------------------------
@@ -210,3 +225,343 @@ testKelCreation = do
     (inception, _prefix) <- mkTestInception kp
     let kel = kelFromInception inception
     kelEventCount kel @?= 1
+
+-- --------------------------------------------------------
+-- Key state after rotation tests
+-- --------------------------------------------------------
+
+testRotatedKeyState :: TestTree
+testRotatedKeyState =
+    testGroup
+        "kelKeyState with rotation"
+        [ testCase
+            "returns new keys after rotation"
+            testKeyStateAfterRotation
+        , testCase
+            "returns rotated keys after ixn"
+            testKeyStateAfterRotationAndIxn
+        ]
+
+{- | Helper: create inception KEL and return everything
+needed for rotation tests.
+-}
+mkTestKelForRotation
+    :: IO (MemberKel, Text, KeyPair, KeyPair, Text)
+    -- ^ (kel, cesrKey, kp, nextKp, nextCommitment)
+mkTestKelForRotation = do
+    kp <- generateKeyPair
+    let cesrKey =
+            Cesr.encode $
+                Primitive
+                    { code = Ed25519PubKey
+                    , raw =
+                        publicKeyBytes (publicKey kp)
+                    }
+    nextKp <- generateKeyPair
+    let nextCesr =
+            Cesr.encode $
+                Primitive
+                    { code = Ed25519PubKey
+                    , raw =
+                        publicKeyBytes
+                            (publicKey nextKp)
+                    }
+    case commitKey nextCesr of
+        Left err -> error $ "commitKey: " <> err
+        Right commitment -> do
+            let cfg =
+                    InceptionConfig
+                        { icKeys = [cesrKey]
+                        , icSigningThreshold = 1
+                        , icNextKeys = [commitment]
+                        , icNextThreshold = 1
+                        , icConfig = []
+                        , icAnchors = []
+                        }
+                evt = mkInception cfg
+                evtBytes = serializeEvent evt
+                sigBytes = sign kp evtBytes
+                sigCesr =
+                    Cesr.encode $
+                        Primitive
+                            { code = Ed25519Sig
+                            , raw = sigBytes
+                            }
+                kel =
+                    MemberKel
+                        [ KelEvent
+                            { keEventBytes = evtBytes
+                            , keSignatures =
+                                [(0, sigCesr)]
+                            }
+                        ]
+            pure
+                (kel, cesrKey, kp, nextKp, nextCesr)
+
+{- | Build a rotation KEL event. The rotation is
+signed by the OLD keypair over the canonical bytes.
+-}
+mkRotationKelEvent
+    :: KeyPair
+    -- ^ OLD keypair (signs the rotation)
+    -> KelKeyState
+    -- ^ Current key state
+    -> Text
+    -- ^ New key (CESR-encoded)
+    -> Text
+    -- ^ New next-key commitment
+    -> KelEvent
+mkRotationKelEvent oldKp kks newKeyCesr commitment =
+    let rotEvt =
+            mkRotation
+                RotationConfig
+                    { rcPrefix = kksPrefix kks
+                    , rcSequenceNumber =
+                        kksSeqNum kks + 1
+                    , rcPriorDigest =
+                        kksLastDigest kks
+                    , rcKeys = [newKeyCesr]
+                    , rcSigningThreshold = 1
+                    , rcNextKeys = [commitment]
+                    , rcNextThreshold = 1
+                    , rcConfig = []
+                    , rcAnchors = []
+                    }
+        rotBytes = serializeEvent rotEvt
+        sigBytes = sign oldKp rotBytes
+        sigCesr =
+            Cesr.encode $
+                Primitive
+                    { code = Ed25519Sig
+                    , raw = sigBytes
+                    }
+    in  KelEvent
+            { keEventBytes = rotBytes
+            , keSignatures = [(0, sigCesr)]
+            }
+
+testKeyStateAfterRotation :: IO ()
+testKeyStateAfterRotation = do
+    ( kel@(MemberKel [icpEvt])
+        , _cesrKey
+        , kp
+        , _nextKp
+        , nextCesr
+        ) <-
+        mkTestKelForRotation
+    case kelKeyState kel of
+        Left err ->
+            error $
+                "kelKeyState failed: "
+                    <> T.unpack err
+        Right kks0 -> do
+            -- Build next-next commitment
+            nextNextKp <- generateKeyPair
+            let nextNextCesr =
+                    Cesr.encode $
+                        Primitive
+                            { code = Ed25519PubKey
+                            , raw =
+                                publicKeyBytes
+                                    ( publicKey
+                                        nextNextKp
+                                    )
+                            }
+            case commitKey nextNextCesr of
+                Left err ->
+                    error $
+                        "commitKey: " <> err
+                Right commitment2 -> do
+                    let rotEvt =
+                            mkRotationKelEvent
+                                kp
+                                kks0
+                                nextCesr
+                                commitment2
+                        rotKel =
+                            MemberKel
+                                [icpEvt, rotEvt]
+                    case kelKeyState rotKel of
+                        Left err ->
+                            error $
+                                "kelKeyState after rot: "
+                                    <> T.unpack err
+                        Right kks1 -> do
+                            kksKeys kks1
+                                @?= [nextCesr]
+                            kksThreshold kks1 @?= 1
+                            kksSeqNum kks1 @?= 1
+
+testKeyStateAfterRotationAndIxn :: IO ()
+testKeyStateAfterRotationAndIxn = do
+    ( kel@(MemberKel [icpEvt])
+        , _cesrKey
+        , kp
+        , nextKp
+        , nextCesr
+        ) <-
+        mkTestKelForRotation
+    case kelKeyState kel of
+        Left err ->
+            error $
+                "kelKeyState failed: "
+                    <> T.unpack err
+        Right kks0 -> do
+            nextNextKp <- generateKeyPair
+            let nextNextCesr =
+                    Cesr.encode $
+                        Primitive
+                            { code = Ed25519PubKey
+                            , raw =
+                                publicKeyBytes
+                                    ( publicKey
+                                        nextNextKp
+                                    )
+                            }
+            case commitKey nextNextCesr of
+                Left err ->
+                    error $
+                        "commitKey: " <> err
+                Right commitment2 -> do
+                    let rotEvt =
+                            mkRotationKelEvent
+                                kp
+                                kks0
+                                nextCesr
+                                commitment2
+                        rotKel =
+                            MemberKel
+                                [icpEvt, rotEvt]
+                    case kelKeyState rotKel of
+                        Left err ->
+                            error $
+                                "after rot: "
+                                    <> T.unpack err
+                        Right kks1 -> do
+                            -- Append an ixn with new key
+                            let anchor =
+                                    object
+                                        [ "test"
+                                            .= ( "data"
+                                                    :: Text
+                                               )
+                                        ]
+                                ixnEvt =
+                                    mkInteraction
+                                        InteractionConfig
+                                            { ixPrefix =
+                                                kksPrefix
+                                                    kks1
+                                            , ixSequenceNumber =
+                                                kksSeqNum kks1
+                                                    + 1
+                                            , ixPriorDigest =
+                                                kksLastDigest
+                                                    kks1
+                                            , ixAnchors =
+                                                [anchor]
+                                            }
+                                ixnBytes =
+                                    serializeEvent ixnEvt
+                                sigBytes =
+                                    sign nextKp ixnBytes
+                                sigCesr =
+                                    Cesr.encode $
+                                        Primitive
+                                            { code =
+                                                Ed25519Sig
+                                            , raw = sigBytes
+                                            }
+                                ixnKe =
+                                    KelEvent
+                                        { keEventBytes =
+                                            ixnBytes
+                                        , keSignatures =
+                                            [(0, sigCesr)]
+                                        }
+                                fullKel =
+                                    MemberKel
+                                        [ icpEvt
+                                        , rotEvt
+                                        , ixnKe
+                                        ]
+                            case kelKeyState fullKel of
+                                Left err ->
+                                    error $
+                                        "after ixn: "
+                                            <> T.unpack err
+                                Right kks2 -> do
+                                    -- Keys still rotated
+                                    kksKeys kks2
+                                        @?= [nextCesr]
+                                    kksSeqNum kks2
+                                        @?= 2
+
+-- --------------------------------------------------------
+-- Rotation commitment tests
+-- --------------------------------------------------------
+
+testRotationCommitment :: TestTree
+testRotationCommitment =
+    testGroup
+        "validateRotationCommitment"
+        [ testCase
+            "matching commitment succeeds"
+            testCommitmentMatch
+        , testCase
+            "mismatched commitment fails"
+            testCommitmentMismatch
+        ]
+
+testCommitmentMatch :: IO ()
+testCommitmentMatch = do
+    kp <- generateKeyPair
+    let cesrKey =
+            Cesr.encode $
+                Primitive
+                    { code = Ed25519PubKey
+                    , raw =
+                        publicKeyBytes (publicKey kp)
+                    }
+    case commitKey cesrKey of
+        Left err ->
+            error $ "commitKey: " <> err
+        Right commitment ->
+            assertBool
+                "matching commitment should succeed"
+                ( isRight $
+                    validateRotationCommitment
+                        [commitment]
+                        [cesrKey]
+                )
+
+testCommitmentMismatch :: IO ()
+testCommitmentMismatch = do
+    kp1 <- generateKeyPair
+    kp2 <- generateKeyPair
+    let key1 =
+            Cesr.encode $
+                Primitive
+                    { code = Ed25519PubKey
+                    , raw =
+                        publicKeyBytes (publicKey kp1)
+                    }
+        key2 =
+            Cesr.encode $
+                Primitive
+                    { code = Ed25519PubKey
+                    , raw =
+                        publicKeyBytes (publicKey kp2)
+                    }
+    case commitKey key1 of
+        Left err ->
+            error $ "commitKey: " <> err
+        Right commitment1 ->
+            -- commitment1 is for key1, but we provide key2
+            assertBool
+                "mismatched commitment should fail"
+                ( isLeft $
+                    validateRotationCommitment
+                        [commitment1]
+                        [key2]
+                )

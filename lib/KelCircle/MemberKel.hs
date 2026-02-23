@@ -24,11 +24,25 @@ module KelCircle.MemberKel
 
       -- * Validation
     , validateInception
+    , validateRotationCommitment
 
       -- * KEL construction
     , kelFromInception
+
+      -- * JSON helpers (re-exported for RotationVerify)
+    , parseEventJson
+    , extractPrefix
+    , extractKeys
+    , extractThreshold
+    , extractNextKeys
+    , extractNextThreshold
+    , extractSeqNumHex
+    , extractDigest
+    , extractEventType
+    , lookupField
     ) where
 
+import Control.Monad (foldM)
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -52,6 +66,7 @@ import KelCircle.Types (MemberId (..))
 import Keri.Cesr.Decode qualified as Cesr
 import Keri.Cesr.DerivationCode (DerivationCode (..))
 import Keri.Cesr.Primitive (Primitive (..))
+import Keri.KeyState.PreRotation (verifyCommitment)
 import Keri.KeyState.Verify (verifySignatures)
 import Numeric (readHex)
 
@@ -83,7 +98,9 @@ kelEventCount = length . mkelEvents
 -- --------------------------------------------------------
 
 {- | Current key state extracted from a member's KEL.
-Used for verifying interaction event signatures.
+Used for verifying interaction and rotation event
+signatures. Walks the full KEL to track key changes
+from rotation events.
 -}
 data KelKeyState = KelKeyState
     { kksPrefix :: Text
@@ -93,39 +110,80 @@ data KelKeyState = KelKeyState
     , kksLastDigest :: Text
     -- ^ SAID of last event ("d" field)
     , kksKeys :: [Text]
-    -- ^ Current signing keys ("k" from inception)
+    -- ^ Current signing keys (updated by rotations)
     , kksThreshold :: Int
-    -- ^ Signing threshold ("kt" from inception)
+    -- ^ Signing threshold (updated by rotations)
+    , kksNextKeys :: [Text]
+    -- ^ Pre-rotation key commitments ("n" field)
+    , kksNextThreshold :: Int
+    -- ^ Next signing threshold ("nt" field)
     }
     deriving stock (Show, Eq)
 
 {- | Extract the current key state from a member's KEL.
-Parses the inception (first event) for prefix, keys, and
-threshold, and the last event for sequence number and
-digest.
+Walks the full event log: inception establishes initial
+keys, rotation events update them, interaction events
+leave keys unchanged.
 -}
 kelKeyState :: MemberKel -> Either Text KelKeyState
 kelKeyState (MemberKel []) =
     Left "empty KEL"
 kelKeyState (MemberKel (inception : rest)) = do
-    let lastEvt = lastOf inception rest
-        lastOf x [] = x
-        lastOf _ (y : ys) = lastOf y ys
-    icpObj <- parseEventJson (keEventBytes inception)
-    lastObj <- parseEventJson (keEventBytes lastEvt)
+    icpObj <-
+        parseEventJson (keEventBytes inception)
     prefix' <- extractPrefix icpObj
     keys <- extractKeys icpObj
     threshold <- extractThreshold icpObj
-    seqNum <- extractSeqNumHex lastObj
-    digest <- extractDigest lastObj
-    Right
-        KelKeyState
-            { kksPrefix = prefix'
-            , kksSeqNum = seqNum
-            , kksLastDigest = digest
-            , kksKeys = keys
-            , kksThreshold = threshold
-            }
+    nextKeys <- extractNextKeys icpObj
+    nextThreshold <- extractNextThreshold icpObj
+    seqNum <- extractSeqNumHex icpObj
+    digest <- extractDigest icpObj
+    let initial =
+            KelKeyState
+                { kksPrefix = prefix'
+                , kksSeqNum = seqNum
+                , kksLastDigest = digest
+                , kksKeys = keys
+                , kksThreshold = threshold
+                , kksNextKeys = nextKeys
+                , kksNextThreshold = nextThreshold
+                }
+    foldM applyStoredEvent initial rest
+
+{- | Apply a stored KEL event to the key state.
+Rotation events update keys; interactions only
+update seqnum and digest.
+-}
+applyStoredEvent
+    :: KelKeyState -> KelEvent -> Either Text KelKeyState
+applyStoredEvent kks ke = do
+    obj <- parseEventJson (keEventBytes ke)
+    evtType <- extractEventType obj
+    seqNum <- extractSeqNumHex obj
+    digest <- extractDigest obj
+    case evtType of
+        "rot" -> do
+            newKeys <- extractKeys obj
+            newThreshold <- extractThreshold obj
+            newNextKeys <- extractNextKeys obj
+            newNextThreshold <-
+                extractNextThreshold obj
+            Right
+                kks
+                    { kksSeqNum = seqNum
+                    , kksLastDigest = digest
+                    , kksKeys = newKeys
+                    , kksThreshold = newThreshold
+                    , kksNextKeys = newNextKeys
+                    , kksNextThreshold =
+                        newNextThreshold
+                    }
+        _ ->
+            Right
+                kks
+                    { kksSeqNum = seqNum
+                    , kksLastDigest = digest
+                    }
 
 -- | Extract the prefix ("i" field) from a KERI event.
 extractPrefix :: Value -> Either Text Text
@@ -155,6 +213,70 @@ extractDigest val =
     case lookupField "d" val of
         Just (String d) -> Right d
         _ -> Left "missing or invalid digest field"
+
+-- | Extract the event type ("t" field) as Text.
+extractEventType :: Value -> Either Text Text
+extractEventType val =
+    case lookupField "t" val of
+        Just (String t) -> Right t
+        _ -> Left "missing or invalid event type"
+
+{- | Extract next-key commitments ("n" field) from
+a KERI event.
+-}
+extractNextKeys :: Value -> Either Text [Text]
+extractNextKeys val =
+    case lookupField "n" val of
+        Just (Array arr) ->
+            Right [t | String t <- V.toList arr]
+        _ ->
+            Left
+                "missing or invalid next-keys field"
+
+{- | Extract next signing threshold ("nt" field)
+from a KERI event.
+-}
+extractNextThreshold :: Value -> Either Text Int
+extractNextThreshold val =
+    case lookupField "nt" val of
+        Just (String t) ->
+            case reads (T.unpack t) of
+                [(n, "")] -> Right n
+                _ ->
+                    Left $
+                        "invalid next threshold: "
+                            <> t
+        Just (Number n) -> Right (round n)
+        _ ->
+            Left
+                "missing or invalid next threshold"
+
+{- | Validate that proposed new keys match the stored
+pre-rotation commitments. Each new key must verify
+against the corresponding commitment.
+-}
+validateRotationCommitment
+    :: [Text] -> [Text] -> Either Text ()
+validateRotationCommitment commitments newKeys
+    | length commitments /= length newKeys =
+        Left
+            "key count mismatch: commitments vs \
+            \new keys"
+    | otherwise =
+        mapM_ checkOne (zip newKeys commitments)
+  where
+    checkOne (newKey, commitment) =
+        case verifyCommitment newKey commitment of
+            Left err ->
+                Left $
+                    "commitment check error: "
+                        <> T.pack err
+            Right False ->
+                Left $
+                    "pre-rotation commitment mismatch \
+                    \for key: "
+                        <> newKey
+            Right True -> Right ()
 
 -- --------------------------------------------------------
 -- Inception submission parsing
@@ -220,7 +342,7 @@ validateInception
     (InceptionSubmission eventText sigs) = do
         let eventBytes = TE.encodeUtf8 eventText
         obj <- parseEventJson eventBytes
-        validateEventType obj
+        validateIcpType obj
         validateSeqNum obj
         keys <- extractKeys obj
         validateKeyPresent keys memberKey
@@ -241,8 +363,8 @@ parseEventJson bs =
         Nothing -> Left "event is not valid JSON"
 
 -- | Check event type is \"icp\".
-validateEventType :: Value -> Either Text ()
-validateEventType val =
+validateIcpType :: Value -> Either Text ()
+validateIcpType val =
     case lookupField "t" val of
         Just (String "icp") -> Right ()
         Just (String t) ->

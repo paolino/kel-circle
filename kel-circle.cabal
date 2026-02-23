@@ -50,6 +50,7 @@ library
     KelCircle.InteractionVerify
     KelCircle.MemberKel
     KelCircle.Processing
+    KelCircle.RotationVerify
     KelCircle.Proposals
     KelCircle.Sequence
     KelCircle.Server
@@ -98,6 +99,7 @@ test-suite unit-tests
     KelCircle.Test.InteractionVerify
     KelCircle.Test.MemberKel
     KelCircle.Test.Processing
+    KelCircle.Test.RotationVerify
     KelCircle.Test.Proposals
     KelCircle.Test.Sequence
 

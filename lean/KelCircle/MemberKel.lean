@@ -14,9 +14,11 @@ namespace KelCircle
 -------------------------------------------------------------------
 
 -- A member's KEL: owner ID + event count (at least 1 for inception)
+-- keyVersion tracks how many rotations have occurred (0 at inception)
 structure MemberKel where
   ownerId : MemberId
   eventCount : Nat
+  keyVersion : Nat
   deriving Repr, DecidableEq
 
 -- The map from member IDs to their KELs
@@ -43,10 +45,10 @@ def kelNonEmpty (kels : MemberKels) : Prop :=
 -- Operations
 -------------------------------------------------------------------
 
--- Insert a new KEL entry (inception creates a KEL with 1 event)
+-- Insert a new KEL entry (inception creates a KEL with 1 event, keyVersion 0)
 def insertKel (kels : MemberKels) (mid : MemberId)
     : MemberKels :=
-  (mid, ⟨mid, 1⟩) :: kels
+  (mid, ⟨mid, 1, 0⟩) :: kels
 
 -- Remove a KEL entry
 def removeKel (kels : MemberKels) (mid : MemberId)
@@ -78,7 +80,7 @@ theorem insert_preserves_allMembersHaveKel
 theorem insert_new_member_has_kel
     (kels : MemberKels) (mid : MemberId) :
     ∃ k, k ∈ insertKel kels mid ∧ k.1 = mid := by
-  exact ⟨(mid, ⟨mid, 1⟩), .head _, rfl⟩
+  exact ⟨(mid, ⟨mid, 1, 0⟩), .head _, rfl⟩
 
 -- Introducing member + KEL atomically preserves the invariant
 theorem introduce_with_kel_preserves_allMembersHaveKel
@@ -130,12 +132,12 @@ theorem insert_preserves_kelNonEmpty
 -- Interaction event append
 -------------------------------------------------------------------
 
--- Append a KEL event (interaction): increment event count
+-- Append a KEL event (interaction): increment event count, preserve keyVersion
 def appendKelEvent (kels : MemberKels) (mid : MemberId)
     : MemberKels :=
   kels.map (fun k =>
     if k.1 = mid
-    then (k.1, ⟨k.2.ownerId, k.2.eventCount + 1⟩)
+    then (k.1, ⟨k.2.ownerId, k.2.eventCount + 1, k.2.keyVersion⟩)
     else k)
 
 -- After append, the member's event count increases by 1
@@ -147,7 +149,7 @@ theorem appendKelEvent_grows
       ∧ k'.1 = mid
       ∧ k'.2.eventCount = k.2.eventCount + 1 := by
   unfold appendKelEvent
-  refine ⟨(k.1, ⟨k.2.ownerId, k.2.eventCount + 1⟩),
+  refine ⟨(k.1, ⟨k.2.ownerId, k.2.eventCount + 1, k.2.keyVersion⟩),
     List.mem_map.mpr ⟨k, hk, ?_⟩, heq, rfl⟩
   simp [heq]
 
@@ -196,6 +198,92 @@ theorem appendKelEvent_preserves_kelNonEmpty
     (h : kelNonEmpty kels) :
     kelNonEmpty (appendKelEvent kels mid) := by
   unfold appendKelEvent kelNonEmpty
+  intro k' hk'
+  obtain ⟨k, hk, hfk⟩ := List.mem_map.mp hk'
+  have h_ne := h k hk
+  by_cases hmid : k.1 = mid
+  · rw [if_pos hmid] at hfk; rw [← hfk]; simp
+  · rw [if_neg hmid] at hfk; rw [← hfk]; exact h_ne
+
+-------------------------------------------------------------------
+-- Rotation event append
+-------------------------------------------------------------------
+
+-- Append a rotation event: increment both event count and keyVersion
+def rotateKelEvent (kels : MemberKels) (mid : MemberId)
+    : MemberKels :=
+  kels.map (fun k =>
+    if k.1 = mid
+    then (k.1, ⟨k.2.ownerId, k.2.eventCount + 1, k.2.keyVersion + 1⟩)
+    else k)
+
+-- Interaction (appendKelEvent) preserves keyVersion
+theorem appendKelEvent_preserves_keyVersion
+    (kels : MemberKels) (mid : MemberId)
+    (k : MemberId × MemberKel) (hk : k ∈ kels) (heq : k.1 = mid) :
+    ∃ k', k' ∈ appendKelEvent kels mid
+      ∧ k'.1 = mid ∧ k'.2.keyVersion = k.2.keyVersion := by
+  unfold appendKelEvent
+  refine ⟨(k.1, ⟨k.2.ownerId, k.2.eventCount + 1, k.2.keyVersion⟩),
+    List.mem_map.mpr ⟨k, hk, ?_⟩, heq, rfl⟩
+  simp [heq]
+
+-- Rotation increments keyVersion
+theorem rotateKelEvent_increments_keyVersion
+    (kels : MemberKels) (mid : MemberId)
+    (k : MemberId × MemberKel) (hk : k ∈ kels) (heq : k.1 = mid) :
+    ∃ k', k' ∈ rotateKelEvent kels mid
+      ∧ k'.1 = mid ∧ k'.2.keyVersion = k.2.keyVersion + 1 := by
+  unfold rotateKelEvent
+  refine ⟨(k.1, ⟨k.2.ownerId, k.2.eventCount + 1, k.2.keyVersion + 1⟩),
+    List.mem_map.mpr ⟨k, hk, ?_⟩, heq, rfl⟩
+  simp [heq]
+
+-- Other members' keyVersions unchanged by rotation
+theorem rotateKelEvent_preserves_others
+    (kels : MemberKels) (mid : MemberId)
+    (k : MemberId × MemberKel)
+    (hk : k ∈ kels) (hne : k.1 ≠ mid) :
+    k ∈ rotateKelEvent kels mid := by
+  unfold rotateKelEvent
+  exact List.mem_map.mpr ⟨k, hk, if_neg hne⟩
+
+-- rotateKelEvent preserves allMembersHaveKel
+theorem rotateKelEvent_preserves_allMembersHaveKel
+    (members : List Member) (kels : MemberKels)
+    (mid : MemberId)
+    (h : allMembersHaveKel members kels) :
+    allMembersHaveKel members
+      (rotateKelEvent kels mid) := by
+  intro m hm
+  obtain ⟨k, hk, heq⟩ := h m hm
+  by_cases hmid : k.1 = mid
+  · obtain ⟨k', hk'mem, hk'eq, _⟩ :=
+      rotateKelEvent_increments_keyVersion kels mid k hk hmid
+    exact ⟨k', hk'mem,
+      hk'eq.trans (hmid.symm.trans heq)⟩
+  · exact ⟨k, rotateKelEvent_preserves_others
+      kels mid k hk hmid, heq⟩
+
+-- rotateKelEvent preserves kelOwnersMatch
+theorem rotateKelEvent_preserves_kelOwnersMatch
+    (kels : MemberKels) (mid : MemberId)
+    (h : kelOwnersMatch kels) :
+    kelOwnersMatch (rotateKelEvent kels mid) := by
+  unfold rotateKelEvent kelOwnersMatch
+  intro k' hk'
+  obtain ⟨k, hk, hfk⟩ := List.mem_map.mp hk'
+  have h_own := h k hk
+  by_cases hmid : k.1 = mid
+  · rw [if_pos hmid] at hfk; rw [← hfk]; exact h_own
+  · rw [if_neg hmid] at hfk; rw [← hfk]; exact h_own
+
+-- rotateKelEvent preserves kelNonEmpty
+theorem rotateKelEvent_preserves_kelNonEmpty
+    (kels : MemberKels) (mid : MemberId)
+    (h : kelNonEmpty kels) :
+    kelNonEmpty (rotateKelEvent kels mid) := by
+  unfold rotateKelEvent kelNonEmpty
   intro k' hk'
   obtain ⟨k, hk, hfk⟩ := List.mem_map.mp hk'
   have h_ne := h k hk

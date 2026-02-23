@@ -10,7 +10,14 @@ proposals, responses, and resolution.
 -}
 module E2E.Spec (tests) where
 
-import Data.Aeson (FromJSON (..), Value (..), withObject, (.:))
+import Data.Aeson
+    ( FromJSON (..)
+    , Value (..)
+    , object
+    , withObject
+    , (.:)
+    , (.=)
+    )
 import Data.Aeson qualified as Aeson
 import Data.IORef qualified
 import Data.Text (Text)
@@ -23,6 +30,14 @@ import KelCircle.Events
     )
 import KelCircle.Server.JSON (Submission (..))
 import KelCircle.Types (MemberId (..), Role (..))
+import Keri.Cesr.DerivationCode (DerivationCode (..))
+import Keri.Cesr.Encode qualified
+import Keri.Cesr.Primitive (Primitive (..))
+import Keri.Crypto.Ed25519
+    ( KeyPair (..)
+    , generateKeyPair
+    , publicKeyBytes
+    )
 import Network.HTTP.Client qualified as HC
 import Network.HTTP.Types
     ( status200
@@ -48,6 +63,7 @@ tests =
         , cesrValidationTests
         , memberKelTests
         , interactionVerificationTests
+        , rotationTests
         ]
 
 -- --------------------------------------------------------
@@ -823,17 +839,131 @@ testKelGrowsWithEvents = withTestEnv $ \te -> do
     kelRespEventCount kelResp @?= 5
 
 -- --------------------------------------------------------
--- Helpers
+-- Key rotation
 -- --------------------------------------------------------
 
--- | URL-encode text for path segments.
-urlEncode :: Text -> String
-urlEncode = concatMap encodeChar . T.unpack
-  where
-    encodeChar '+' = "%2B"
-    encodeChar '/' = "%2F"
-    encodeChar '=' = "%3D"
-    encodeChar c = [c]
+rotationTests :: TestTree
+rotationTests =
+    testGroup
+        "Key rotation"
+        [ testCase
+            "rotate keys, then event with new key accepted"
+            testRotateAndNewKey
+        , testCase
+            "rotate keys, then event with old key rejected"
+            testRotateOldKeyRejected
+        , testCase
+            "rotation with wrong commitment rejected"
+            testBadCommitmentRejected
+        ]
+
+testRotateAndNewKey :: IO ()
+testRotateAndNewKey = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+
+    -- Bootstrap + introduce member
+    _ <- postEvent te (bootstrapAdmin admin1)
+    _ <- postEvent te (introduceMember admin1 user1)
+
+    -- user1 KEL: inception (1 event)
+    resp0 <-
+        httpGet
+            te
+            ( "/members/"
+                <> urlEncode (tidKey user1)
+                <> "/kel"
+            )
+    HC.responseStatus resp0 @?= status200
+    kr0 <- decodeOrFail (HC.responseBody resp0)
+    kelRespEventCount kr0 @?= 1
+
+    -- Rotate user1's keys
+    (rotCount, rotatedUser1) <- postRotation te user1
+    -- KEL: inception + rotation = 2
+    rotCount @?= 2
+
+    -- Submit event signed with NEW key → accepted
+    _ <-
+        postEvent
+            te
+            (submitProposal rotatedUser1 9999)
+
+    -- user1 KEL: inception + rotation + ixn = 3
+    resp1 <-
+        httpGet
+            te
+            ( "/members/"
+                <> urlEncode (tidKey user1)
+                <> "/kel"
+            )
+    HC.responseStatus resp1 @?= status200
+    kr1 <- decodeOrFail (HC.responseBody resp1)
+    kelRespEventCount kr1 @?= 3
+
+testRotateOldKeyRejected :: IO ()
+testRotateOldKeyRejected = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+
+    _ <- postEvent te (bootstrapAdmin admin1)
+    _ <- postEvent te (introduceMember admin1 user1)
+
+    -- Rotate keys
+    _ <- postRotation te user1
+
+    -- Try submitting with the OLD key (user1 still has
+    -- original keypair) → should be rejected because
+    -- user1's KEL state is stale (wrong seqnum)
+    resp <-
+        postEventRaw
+            te
+            (submitProposal user1 9999)
+    HC.responseStatus resp @?= status422
+
+testBadCommitmentRejected :: IO ()
+testBadCommitmentRejected = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+
+    _ <- postEvent te (bootstrapAdmin admin1)
+    _ <- postEvent te (introduceMember admin1 user1)
+
+    -- Manually craft a rotation with wrong keys
+    -- (keys that don't match the pre-rotation commitment)
+    wrongKp <- generateKeyPair
+    let wrongCesr =
+            Keri.Cesr.Encode.encode $
+                Primitive
+                    { code = Ed25519PubKey
+                    , raw =
+                        publicKeyBytes
+                            (publicKey wrongKp)
+                    }
+    -- Build a RotationSubmission with wrong new keys
+    let badRotSub =
+            object
+                [ "newKeys" .= [wrongCesr :: Text]
+                , "newThreshold" .= (1 :: Int)
+                , "nextKeyCommitments"
+                    .= [wrongCesr :: Text]
+                , "nextThreshold" .= (1 :: Int)
+                , "signatures"
+                    .= ([] :: [(Int, Text)])
+                ]
+    resp <-
+        httpPost
+            te
+            ( "/members/"
+                <> urlEncode (tidKey user1)
+                <> "/rotate"
+            )
+            (Aeson.encode badRotSub)
+    HC.responseStatus resp @?= status422
+
+-- --------------------------------------------------------
+-- Helpers
+-- --------------------------------------------------------
 
 -- | Decoded KEL response.
 newtype KelResp = KelResp
