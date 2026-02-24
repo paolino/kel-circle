@@ -21,6 +21,8 @@ import KelCircle.Client.State
   , applyBaseDecision
   , emptyCircle
   )
+import Foreign.Object as FO
+import Keri.KeyState (KeyState)
 import KelCircle.Client.Types (MemberId, Role(..))
 
 -- | The complete state maintained by the fold.
@@ -30,6 +32,7 @@ type FullState g p r =
   , appState :: g
   , proposals :: P.ProposalRegistry p r
   , nextSeq :: Int
+  , memberKeyStates :: FO.Object KeyState
   }
 
 -- | Initial state for a circle after genesis.
@@ -40,6 +43,7 @@ initFullState sid initApp =
   , appState: initApp
   , proposals: []
   , nextSeq: 1
+  , memberKeyStates: FO.empty
   }
 
 -- | Apply a single circle event to the full state.
