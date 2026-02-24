@@ -16,7 +16,11 @@ import Control.Exception (bracket)
 import Data.Text (Text, pack)
 import Data.Text.IO qualified as TIO
 import KelCircle.Events (BaseDecision)
-import KelCircle.Server (ServerConfig (..), mkApp)
+import KelCircle.Server
+    ( SSEMessage
+    , ServerConfig (..)
+    , mkApp
+    )
 import KelCircle.Store
     ( CircleStore
     , closeStore
@@ -51,7 +55,7 @@ runServer port dbPath passphrase =
         (openStore sid () trivialAppFold dbPath)
         closeStore
         $ \(store :: CircleStore () () ()) -> do
-            ch <- newBroadcastTChanIO
+            ch <- newBroadcastTChanIO @SSEMessage
             let logger msg =
                     TIO.hPutStrLn stderr msg
                         >> hFlush stderr

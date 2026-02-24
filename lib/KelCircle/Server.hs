@@ -11,6 +11,7 @@ store.
 -}
 module KelCircle.Server
     ( ServerConfig (..)
+    , SSEMessage (..)
     , mkApp
     ) where
 
@@ -33,7 +34,6 @@ import Data.Aeson
     )
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder qualified as Builder
-import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
@@ -48,9 +48,9 @@ import KelCircle.InteractionVerify
     , verifyInteraction
     )
 import KelCircle.MemberKel
-    ( KelEvent
+    ( KelEvent (..)
     , KelKeyState (..)
-    , MemberKel
+    , MemberKel (..)
     , kelEventCount
     , kelFromInception
     , kelKeyState
@@ -78,6 +78,7 @@ import KelCircle.Store
     , appendRotationEvent
     , readEventsFrom
     , readFullState
+    , readMemberKel
     )
 import KelCircle.Types (MemberId (..))
 import KelCircle.Validate
@@ -110,6 +111,14 @@ import Network.Wai
     , strictRequestBody
     )
 
+-- | SSE message types for the broadcast channel.
+data SSEMessage
+    = -- | Circle event appended (sequence number)
+      CircleEvent Int
+    | -- | Member KEL updated (member id, event count)
+      KelUpdate MemberId Int
+    deriving stock (Show, Eq)
+
 {- | Server configuration, parameterized by application
 types.
 -}
@@ -126,7 +135,7 @@ data ServerConfig g d p r = ServerConfig
     -- ^ App-level gate for proposals
     , scPassphrase :: Text
     -- ^ Bootstrap passphrase
-    , scBroadcast :: TChan Int
+    , scBroadcast :: TChan SSEMessage
     -- ^ SSE broadcast channel
     , scLog :: Text -> IO ()
     -- ^ Logger function
@@ -164,7 +173,11 @@ mkApp cfg mFallback req respond =
         ("GET", ["stream"]) ->
             handleStream cfg respond
         ("GET", ["members", midText, "kel"]) ->
-            handleGetMemberKel cfg midText respond
+            handleGetMemberKel
+                cfg
+                midText
+                req
+                respond
         ("POST", ["members", midText, "rotate"]) ->
             handleRotate cfg midText req respond
         _ -> case mFallback of
@@ -389,13 +402,15 @@ doAppend cfg sub fs respond = do
                 Right kelData -> do
                     -- Verify interaction signature
                     let evtJson = toJSON evt
-                    case verifyInteractionSig
-                        signer
-                        (subSignature sub)
-                        evtJson
-                        (fsMemberKels fs)
-                        kelData
-                        sid of
+                    ixnResult <-
+                        verifyInteractionSig
+                            signer
+                            (subSignature sub)
+                            evtJson
+                            (readMemberKel (scStore cfg))
+                            kelData
+                            sid
+                    case ixnResult of
                         Left ve -> do
                             log' $
                                 "  ixn verify error: "
@@ -405,7 +420,7 @@ doAppend cfg sub fs respond = do
                                     status422
                                 $ ValidationErr ve
                         Right mIxn -> do
-                            sn <-
+                            (sn, kelCount) <-
                                 appendCircleEvent
                                     (scStore cfg)
                                     (scAppFold cfg)
@@ -418,10 +433,36 @@ doAppend cfg sub fs respond = do
                                 "  appended seq="
                                     <> T.pack
                                         (show sn)
+                            -- Broadcast circle event
                             atomically $
                                 writeTChan
                                     (scBroadcast cfg)
-                                    sn
+                                    (CircleEvent sn)
+                            -- Broadcast KEL update
+                            let kelMid =
+                                    case (kelData, mIxn) of
+                                        ( Just (mid, _)
+                                            , _
+                                            ) ->
+                                                Just mid
+                                        ( _
+                                            , Just
+                                                (mid, _)
+                                            ) ->
+                                                Just mid
+                                        _ -> Nothing
+                            case kelMid of
+                                Just mid ->
+                                    atomically $
+                                        writeTChan
+                                            ( scBroadcast
+                                                cfg
+                                            )
+                                            ( KelUpdate
+                                                mid
+                                                kelCount
+                                            )
+                                Nothing -> pure ()
                             respond $
                                 responseLBS
                                     status200
@@ -473,6 +514,7 @@ validateAndBuildKel _ _ _ =
 signer. Returns @Right Nothing@ if the signer is the
 sequencer (exempt), @Right (Just (mid, kelEvent))@ on
 success, or @Left ValidationError@ on failure.
+Uses IO to look up KELs from SQLite.
 -}
 verifyInteractionSig
     :: MemberId
@@ -481,58 +523,59 @@ verifyInteractionSig
     -- ^ Signature (CESR-encoded)
     -> Value
     -- ^ Circle event as JSON (anchor)
-    -> Map.Map MemberId MemberKel
-    -- ^ Current KEL map
+    -> (MemberId -> IO (Maybe MemberKel))
+    -- ^ KEL lookup function
     -> Maybe (MemberId, MemberKel)
     -- ^ Inception KEL (bootstrap self-intro)
     -> MemberId
     -- ^ Sequencer ID
-    -> Either
-        ValidationError
-        (Maybe (MemberId, KelEvent))
+    -> IO
+        ( Either
+            ValidationError
+            (Maybe (MemberId, KelEvent))
+        )
 verifyInteractionSig
     signer
     sig
     evtJson
-    memberKels
+    lookupKel
     mKelData
     sid
-        | signer == sid = Right Nothing
-        | otherwise =
-            let mKel = case mKelData of
-                    Just (mid, kel)
-                        | mid == signer -> Just kel
-                    _ ->
-                        Map.lookup signer memberKels
-            in  case mKel of
-                    Nothing ->
-                        Left (SignerHasNoKel signer)
-                    Just kel ->
-                        case kelKeyState kel of
-                            Left err ->
-                                Left $
-                                    InteractionVerifyFailed
-                                        signer
-                                        err
-                            Right kks ->
-                                case verifyInteraction
-                                    kks
-                                    sig
-                                    evtJson of
-                                    Left err ->
-                                        Left $
-                                            InteractionVerifyFailed
-                                                signer
-                                                err
-                                    Right (VerifyFailed reason) ->
-                                        Left $
-                                            InteractionVerifyFailed
-                                                signer
-                                                reason
-                                    Right (Verified ke) ->
-                                        Right $
-                                            Just
-                                                (signer, ke)
+        | signer == sid = pure $ Right Nothing
+        | otherwise = do
+            mKel <- case mKelData of
+                Just (mid, kel)
+                    | mid == signer -> pure $ Just kel
+                _ -> lookupKel signer
+            pure $ case mKel of
+                Nothing ->
+                    Left (SignerHasNoKel signer)
+                Just kel ->
+                    case kelKeyState kel of
+                        Left err ->
+                            Left $
+                                InteractionVerifyFailed
+                                    signer
+                                    err
+                        Right kks ->
+                            case verifyInteraction
+                                kks
+                                sig
+                                evtJson of
+                                Left err ->
+                                    Left $
+                                        InteractionVerifyFailed
+                                            signer
+                                            err
+                                Right (VerifyFailed reason) ->
+                                    Left $
+                                        InteractionVerifyFailed
+                                            signer
+                                            reason
+                                Right (Verified ke) ->
+                                    Right $
+                                        Just
+                                            (signer, ke)
 
 {- | Validate a circle event through the appropriate
 gate.
@@ -583,35 +626,55 @@ validateMemberIdCesr = \case
     _ -> Right ()
 
 -- --------------------------------------------------------
--- GET /members/:id/kel
+-- GET /members/:id/kel?after=N
 -- --------------------------------------------------------
 
 handleGetMemberKel
     :: ServerConfig g d p r
     -> Text
+    -> Request
     -> (Response -> IO a)
     -> IO a
-handleGetMemberKel cfg midText respond = do
-    fs <- readFullState (scStore cfg)
+handleGetMemberKel cfg midText req respond = do
     let mid = MemberId midText
-    case Map.lookup mid (fsMemberKels fs) of
+    mKel <- readMemberKel (scStore cfg) mid
+    case mKel of
         Nothing ->
             respond $
                 jsonResponse status404 $
                     BadRequest "member KEL not found"
         Just kel ->
-            respond $
-                responseLBS
-                    status200
-                    jsonHeaders
-                    ( encode $
-                        object
-                            [ "memberId"
-                                .= midText
-                            , "eventCount"
-                                .= kelEventCount kel
-                            ]
-                    )
+            let after = parseAfterKel req
+                events =
+                    drop after (mkelEvents kel)
+            in  respond $
+                    responseLBS
+                        status200
+                        jsonHeaders
+                        ( encode $
+                            object
+                                [ "memberId"
+                                    .= midText
+                                , "eventCount"
+                                    .= kelEventCount
+                                        kel
+                                , "after"
+                                    .= after
+                                , "events"
+                                    .= map
+                                        kelEventToJSON
+                                        events
+                                ]
+                        )
+
+-- | Convert a KEL event to JSON for the API response.
+kelEventToJSON :: KelEvent -> Value
+kelEventToJSON ke =
+    object
+        [ "event"
+            .= TE.decodeUtf8 (keEventBytes ke)
+        , "signatures" .= keSignatures ke
+        ]
 
 -- --------------------------------------------------------
 -- POST /members/:id/rotate
@@ -637,8 +700,9 @@ handleRotate cfg midText req respond = do
             log' $
                 "POST /rotate: member="
                     <> midText
-            fs <- readFullState (scStore cfg)
-            case Map.lookup mid (fsMemberKels fs) of
+            mKel <-
+                readMemberKel (scStore cfg) mid
+            case mKel of
                 Nothing -> do
                     log' "  member KEL not found"
                     respond $
@@ -704,6 +768,11 @@ doRotation cfg mid kks rotSub respond = do
             log' $
                 "  rotation ok, kel events="
                     <> T.pack (show newCount)
+            -- Broadcast KEL update
+            atomically $
+                writeTChan
+                    (scBroadcast cfg)
+                    (KelUpdate mid newCount)
             respond $
                 responseLBS
                     status200
@@ -733,16 +802,39 @@ handleStream cfg respond =
                     atomically $
                         dupTChan (scBroadcast cfg)
                 let loop = do
-                        sn <-
+                        msg <-
                             atomically $ readTChan ch
-                        write $
-                            Builder.byteString
-                                "event: new\ndata: \
-                                \{\"sn\":"
-                                <> Builder.intDec sn
-                                <> Builder.byteString
-                                    "}\n\n"
-                        flush
+                        case msg of
+                            CircleEvent sn -> do
+                                write $
+                                    Builder.byteString
+                                        "event: new\n\
+                                        \data: {\"sn\":"
+                                        <> Builder.intDec
+                                            sn
+                                        <> Builder.byteString
+                                            "}\n\n"
+                                flush
+                            KelUpdate mid count -> do
+                                write $
+                                    Builder.byteString
+                                        "event: kel\n\
+                                        \data: \
+                                        \{\"memberId\":\""
+                                        <> Builder.byteString
+                                            ( TE.encodeUtf8
+                                                ( unMemberId
+                                                    mid
+                                                )
+                                            )
+                                        <> Builder.byteString
+                                            "\",\
+                                            \\"eventCount\":"
+                                        <> Builder.intDec
+                                            count
+                                        <> Builder.byteString
+                                            "}\n\n"
+                                flush
                         loop
                 loop
 
@@ -761,6 +853,18 @@ parseAfter req =
                 Right (n, _) -> Just n
                 Left _ -> Nothing
         _ -> Nothing
+
+{- | Parse the ?after=N query parameter for KEL
+endpoints. Defaults to 0 if not present.
+-}
+parseAfterKel :: Request -> Int
+parseAfterKel req =
+    case lookup "after" (queryString req) of
+        Just (Just bs) ->
+            case TR.decimal (TE.decodeUtf8 bs) of
+                Right (n, _) -> n
+                Left _ -> 0
+        _ -> 0
 
 jsonHeaders :: [(HeaderName, ByteString)]
 jsonHeaders =

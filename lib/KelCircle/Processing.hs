@@ -28,14 +28,11 @@ module KelCircle.Processing
     , applyResolve
     ) where
 
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
 import KelCircle.Events
     ( BaseDecision (..)
     , Resolution
     )
 import KelCircle.Gate (fullGate)
-import KelCircle.MemberKel (MemberKel)
 import KelCircle.Proposals qualified as P
 import KelCircle.State
     ( Circle (..)
@@ -68,8 +65,6 @@ data FullState g p r = FullState
     -- ^ Tracked proposals
     , fsNextSeq :: Int
     -- ^ Next sequence number
-    , fsMemberKels :: Map MemberId MemberKel
-    -- ^ Per-member Key Event Logs
     }
     deriving stock (Show, Eq)
 
@@ -85,7 +80,6 @@ initFullState sid initApp =
         , fsAppState = initApp
         , fsProposals = []
         , fsNextSeq = 1
-        , fsMemberKels = Map.empty
         }
   where
     genesis sid' =
