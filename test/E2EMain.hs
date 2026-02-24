@@ -8,6 +8,7 @@ Runs all E2E scenarios through the HTTP API.
 -}
 module Main (main) where
 
+import E2E.KelProperties qualified
 import E2E.Spec qualified
 import Test.Tasty (defaultMain, testGroup)
 
@@ -16,4 +17,6 @@ main =
     defaultMain $
         testGroup
             "kel-circle-e2e"
-            [E2E.Spec.tests]
+            [ E2E.Spec.tests
+            , E2E.KelProperties.tests
+            ]
