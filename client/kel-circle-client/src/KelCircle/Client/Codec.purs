@@ -27,6 +27,7 @@ import Data.Argonaut.Decode
   , (.:?)
   )
 import Data.Argonaut.Encode (encodeJson)
+import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
@@ -37,6 +38,13 @@ import KelCircle.Client.Events
   , Resolution(..)
   )
 import KelCircle.Client.Types (Member, Role(..))
+
+-- | Build a JSON object with keys sorted alphabetically.
+-- Matches aeson's KeyMap ordering (Data.Map-backed).
+sortedObj
+  :: Array (Tuple String Json) -> Json
+sortedObj =
+  J.fromObject <<< FO.fromFoldable <<< Array.sort
 
 -- --------------------------------------------------------
 -- Role
@@ -59,25 +67,25 @@ decodeRole json = case decodeJson json of
 
 encodeBaseDecision :: BaseDecision -> Json
 encodeBaseDecision (IntroduceMember mid name role) =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "tag" (encodeJson "introduceMember")
     , Tuple "memberId" (encodeJson mid)
     , Tuple "name" (encodeJson name)
     , Tuple "role" (encodeRole role)
     ]
 encodeBaseDecision (RemoveMember mid) =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "tag" (encodeJson "removeMember")
     , Tuple "memberId" (encodeJson mid)
     ]
 encodeBaseDecision (ChangeRole mid role) =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "tag" (encodeJson "changeRole")
     , Tuple "memberId" (encodeJson mid)
     , Tuple "role" (encodeRole role)
     ]
 encodeBaseDecision (RotateSequencer mid) =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "tag" (encodeJson "rotateSequencer")
     , Tuple "memberId" (encodeJson mid)
     ]
@@ -137,29 +145,29 @@ encodeCircleEvent
   -> CircleEvent d p r
   -> Json
 encodeCircleEvent _ _ _ (CEBaseDecision bd) =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "tag" (encodeJson "baseDecision")
     , Tuple "decision" (encodeBaseDecision bd)
     ]
 encodeCircleEvent encD _ _ (CEAppDecision d) =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "tag" (encodeJson "appDecision")
     , Tuple "decision" (encD d)
     ]
 encodeCircleEvent _ encP _ (CEProposal p deadline) =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "tag" (encodeJson "proposal")
     , Tuple "content" (encP p)
     , Tuple "deadline" (encodeJson deadline)
     ]
 encodeCircleEvent _ _ encR (CEResponse r pid) =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "tag" (encodeJson "response")
     , Tuple "content" (encR r)
     , Tuple "proposalId" (encodeJson pid)
     ]
 encodeCircleEvent _ _ _ (CEResolveProposal pid res) =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "tag" (encodeJson "resolveProposal")
     , Tuple "proposalId" (encodeJson pid)
     , Tuple "resolution" (encodeResolution res)
@@ -207,7 +215,7 @@ decodeCircleEvent decD decP decR json = do
 
 encodeMember :: Member -> Json
 encodeMember m =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "memberId" (encodeJson m.memberId)
     , Tuple "memberRole" (encodeRole m.memberRole)
     , Tuple "name" (encodeJson m.memberName)
@@ -239,7 +247,7 @@ encodeSubmission
      }
   -> Json
 encodeSubmission encD encP encR sub =
-  J.fromObject $ FO.fromFoldable
+  sortedObj
     [ Tuple "passphrase"
         ( case sub.passphrase of
             Nothing -> jsonNull
