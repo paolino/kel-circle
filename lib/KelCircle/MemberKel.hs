@@ -17,6 +17,7 @@ module KelCircle.MemberKel
       -- * Key state extraction
     , KelKeyState (..)
     , kelKeyState
+    , applyStoredEvent
 
       -- * Inception parsing
     , InceptionSubmission (..)

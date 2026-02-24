@@ -27,6 +27,7 @@ module KelCircle.Store
     , readFullState
     , readEventsFrom
     , readMemberKel
+    , lookupKelKeyState
     , storeLength
 
       -- * Stored event
@@ -43,6 +44,7 @@ import Control.Concurrent.STM
     )
 import Data.Aeson (FromJSON, ToJSON, decode, encode)
 import Data.ByteString.Lazy qualified as LBS
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text.Encoding qualified as TE
@@ -62,7 +64,10 @@ import KelCircle.Events
     )
 import KelCircle.MemberKel
     ( KelEvent (..)
+    , KelKeyState
     , MemberKel (..)
+    , applyStoredEvent
+    , kelKeyState
     )
 import KelCircle.Processing
     ( FullState (..)
@@ -150,7 +155,25 @@ openStore sid initApp appFold path = do
                 (replayRow appFold)
                 initialState
                 rows
-    stVar <- newTVarIO replayedState
+    -- Populate key state cache from SQLite KELs
+    memberIds <- queryAllMemberIds conn
+    keyStates <-
+        foldM'
+            ( \acc mid -> do
+                mKel <-
+                    readMemberKelInternal conn mid
+                pure $ case mKel >>= eitherToMaybe . kelKeyState of
+                    Just kks ->
+                        Map.insert mid kks acc
+                    Nothing -> acc
+            )
+            Map.empty
+            memberIds
+    let finalState =
+            replayedState
+                { fsKeyStates = keyStates
+                }
+    stVar <- newTVarIO finalState
     pure
         CircleStore
             { csConn = conn
@@ -234,7 +257,7 @@ appendCircleEvent
             (_, Just (mid, _)) ->
                 queryKelCount (csConn store) mid
             _ -> pure 0
-        -- Update in-memory state
+        -- Update in-memory state + key state cache
         sn <- atomically $ do
             st <- readTVar (csState store)
             let st' =
@@ -243,7 +266,34 @@ appendCircleEvent
                         st
                         (MemberId signer)
                         evt
-            writeTVar (csState store) st'
+                ks0 = fsKeyStates st'
+                -- Update cache for introduced member's KEL
+                ks1 = case mKel of
+                    Just (mid, kel) ->
+                        case kelKeyState kel of
+                            Right kks ->
+                                Map.insert mid kks ks0
+                            Left _ -> ks0
+                    Nothing -> ks0
+                -- Update cache for signer's interaction
+                ks2 = case mIxn of
+                    Just (mid, ke) ->
+                        case Map.lookup mid ks1 of
+                            Just kks ->
+                                case applyStoredEvent kks ke of
+                                    Right kks' ->
+                                        Map.insert mid kks' ks1
+                                    Left _ -> ks1
+                            Nothing -> ks1
+                    Nothing -> ks1
+                -- Remove cache entry on member removal
+                ks3 = case evt of
+                    CEBaseDecision (RemoveMember mid) ->
+                        Map.delete mid ks2
+                    _ -> ks2
+            writeTVar
+                (csState store)
+                st'{fsKeyStates = ks3}
             pure (fsNextSeq st)
         pure (sn, kelCount)
 
@@ -325,6 +375,23 @@ appendRotationEvent
     -> IO Int
 appendRotationEvent store mid ke = do
     appendSingleKelEvent (csConn store) mid ke
+    atomically $ do
+        st <- readTVar (csState store)
+        case Map.lookup mid (fsKeyStates st) of
+            Just kks ->
+                case applyStoredEvent kks ke of
+                    Right kks' ->
+                        writeTVar
+                            (csState store)
+                            st
+                                { fsKeyStates =
+                                    Map.insert
+                                        mid
+                                        kks'
+                                        (fsKeyStates st)
+                                }
+                    Left _ -> pure ()
+            Nothing -> pure ()
     queryKelCount (csConn store) mid
 
 {- | Insert a complete member KEL into the store.
@@ -332,8 +399,33 @@ Used to seed the sequencer's inception KEL at genesis.
 -}
 insertMemberKel
     :: CircleStore g p r -> MemberId -> MemberKel -> IO ()
-insertMemberKel store =
-    storeMemberKelEvents (csConn store)
+insertMemberKel store mid kel = do
+    storeMemberKelEvents (csConn store) mid kel
+    case kelKeyState kel of
+        Right kks -> atomically $ do
+            st <- readTVar (csState store)
+            writeTVar
+                (csState store)
+                st
+                    { fsKeyStates =
+                        Map.insert
+                            mid
+                            kks
+                            (fsKeyStates st)
+                    }
+        Left _ -> pure ()
+
+{- | Look up a cached key state for a member.
+Returns 'Nothing' if no KEL exists for the member.
+O(log n) via the in-memory 'Map'.
+-}
+lookupKelKeyState
+    :: CircleStore g p r
+    -> MemberId
+    -> IO (Maybe KelKeyState)
+lookupKelKeyState store mid = do
+    st <- readTVarIO (csState store)
+    pure $ Map.lookup mid (fsKeyStates st)
 
 -- --------------------------------------------------------
 -- Internal helpers
@@ -434,3 +526,54 @@ queryKelCount conn (MemberId mid) = do
             \WHERE member_id = ?"
             (Only mid)
     pure (n :: Int)
+
+-- | Query all distinct member IDs with KELs.
+queryAllMemberIds :: Connection -> IO [MemberId]
+queryAllMemberIds conn = do
+    rows <-
+        query_
+            conn
+            "SELECT DISTINCT member_id \
+            \FROM member_kels"
+            :: IO [Only Text]
+    pure [MemberId mid | Only mid <- rows]
+
+-- | Read a member's KEL directly from SQLite.
+readMemberKelInternal
+    :: Connection -> MemberId -> IO (Maybe MemberKel)
+readMemberKelInternal conn (MemberId mid) = do
+    rows <-
+        query
+            conn
+            "SELECT event_json, signatures_json \
+            \FROM member_kels \
+            \WHERE member_id = ? \
+            \ORDER BY seq_num"
+            (Only mid)
+            :: IO [(Text, LBS.ByteString)]
+    case rows of
+        [] -> pure Nothing
+        _ ->
+            pure $
+                Just $
+                    MemberKel $
+                        map toKelEvent rows
+  where
+    toKelEvent (evtJson, sigsJson) =
+        KelEvent
+            { keEventBytes = TE.encodeUtf8 evtJson
+            , keSignatures =
+                fromMaybe [] (decode sigsJson)
+            }
+
+-- | Convert Either to Maybe (discarding Left).
+eitherToMaybe :: Either a b -> Maybe b
+eitherToMaybe (Right x) = Just x
+eitherToMaybe (Left _) = Nothing
+
+-- | Strict left fold over a list in IO.
+foldM' :: (a -> b -> IO a) -> a -> [b] -> IO a
+foldM' _ acc [] = pure acc
+foldM' f acc (x : xs) = do
+    acc' <- f acc x
+    acc' `seq` foldM' f acc' xs
