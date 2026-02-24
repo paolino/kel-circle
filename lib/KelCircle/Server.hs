@@ -77,6 +77,7 @@ import KelCircle.Store
     , StoredEvent (..)
     , appendCircleEvent
     , appendRotationEvent
+    , lookupKelKeyState
     , readEventsFrom
     , readFullState
     , readMemberKel
@@ -410,25 +411,35 @@ doAppend cfg sub fs respond = do
                     let evtJson = toJSON evt
                         sid =
                             sequencerId (fsCircle fs)
+                        -- Resolve key state: use
+                        -- inception KEL for self-intro,
+                        -- otherwise use cache
+                        resolveKks =
+                            case kelData of
+                                Just (mid, kel)
+                                    | mid == signer ->
+                                        pure $
+                                            case kelKeyState kel of
+                                                Right kks -> Just kks
+                                                Left _ -> Nothing
+                                _ ->
+                                    lookupKelKeyState
+                                        (scStore cfg)
+                                        signer
                     ixnResult <-
                         if signer == sid
                             then
                                 signSequencerInteraction
                                     (scSequencerKeyPair cfg)
                                     evtJson
-                                    ( readMemberKel
-                                        (scStore cfg)
-                                    )
+                                    resolveKks
                                     signer
                             else
                                 verifyInteractionSig
                                     signer
                                     (subSignature sub)
                                     evtJson
-                                    ( readMemberKel
-                                        (scStore cfg)
-                                    )
-                                    kelData
+                                    resolveKks
                     case ixnResult of
                         Left ve -> do
                             log' $
@@ -532,7 +543,7 @@ validateAndBuildKel _ _ _ =
 {- | Verify the interaction event signature for a
 signer. Returns @Right (Just (mid, kelEvent))@ on
 success, or @Left ValidationError@ on failure.
-Uses IO to look up KELs from SQLite.
+Takes a pre-resolved key state from the cache.
 -}
 verifyInteractionSig
     :: MemberId
@@ -541,57 +552,35 @@ verifyInteractionSig
     -- ^ Signature (CESR-encoded)
     -> Value
     -- ^ Circle event as JSON (anchor)
-    -> (MemberId -> IO (Maybe MemberKel))
-    -- ^ KEL lookup function
-    -> Maybe (MemberId, MemberKel)
-    -- ^ Inception KEL (bootstrap self-intro)
+    -> IO (Maybe KelKeyState)
+    -- ^ Pre-resolved key state
     -> IO
         ( Either
             ValidationError
             (Maybe (MemberId, KelEvent))
         )
-verifyInteractionSig
-    signer
-    sig
-    evtJson
-    lookupKel
-    mKelData = do
-        mKel <- case mKelData of
-            Just (mid, kel)
-                | mid == signer -> pure $ Just kel
-            _ -> lookupKel signer
-        pure $ case mKel of
-            Nothing ->
-                Left (SignerHasNoKel signer)
-            Just kel ->
-                case kelKeyState kel of
-                    Left err ->
-                        Left $
-                            InteractionVerifyFailed
-                                signer
-                                err
-                    Right kks ->
-                        case verifyInteraction
-                            kks
-                            sig
-                            evtJson of
-                            Left err ->
-                                Left $
-                                    InteractionVerifyFailed
-                                        signer
-                                        err
-                            Right (VerifyFailed reason) ->
-                                Left $
-                                    InteractionVerifyFailed
-                                        signer
-                                        reason
-                            Right (Verified ke) ->
-                                Right $
-                                    Just
-                                        (signer, ke)
+verifyInteractionSig signer sig evtJson resolveKks = do
+    mKks <- resolveKks
+    pure $ case mKks of
+        Nothing ->
+            Left (SignerHasNoKel signer)
+        Just kks ->
+            case verifyInteraction kks sig evtJson of
+                Left err ->
+                    Left $
+                        InteractionVerifyFailed
+                            signer
+                            err
+                Right (VerifyFailed reason) ->
+                    Left $
+                        InteractionVerifyFailed
+                            signer
+                            reason
+                Right (Verified ke) ->
+                    Right $ Just (signer, ke)
 
 {- | Sign a circle event as a KERI interaction on
-behalf of the sequencer. Looks up the sequencer's KEL,
+behalf of the sequencer. Uses the cached key state,
 computes the next interaction event, signs it with
 the server's keypair, and returns the new 'KelEvent'.
 -}
@@ -599,8 +588,8 @@ signSequencerInteraction
     :: KeyPair
     -> Value
     -- ^ Circle event JSON (anchor)
-    -> (MemberId -> IO (Maybe MemberKel))
-    -- ^ KEL lookup
+    -> IO (Maybe KelKeyState)
+    -- ^ Pre-resolved key state
     -> MemberId
     -- ^ Sequencer MemberId
     -> IO
@@ -608,41 +597,34 @@ signSequencerInteraction
             ValidationError
             (Maybe (MemberId, KelEvent))
         )
-signSequencerInteraction kp evtJson lookupKel mid = do
-    mKel <- lookupKel mid
-    pure $ case mKel of
+signSequencerInteraction kp evtJson resolveKks mid = do
+    mKks <- resolveKks
+    pure $ case mKks of
         Nothing ->
             Left (SignerHasNoKel mid)
-        Just kel ->
-            case kelKeyState kel of
-                Left err ->
-                    Left $
-                        InteractionVerifyFailed
-                            mid
-                            err
-                Right kks ->
-                    let nextSeq = kksSeqNum kks + 1
-                        evtBytes =
-                            buildInteractionBytes
-                                (kksPrefix kks)
-                                nextSeq
-                                (kksLastDigest kks)
-                                evtJson
-                        sigBytes = sign kp evtBytes
-                        sigCesr =
-                            Keri.Cesr.Encode.encode $
-                                Primitive
-                                    { code = Ed25519Sig
-                                    , raw = sigBytes
-                                    }
-                        ke =
-                            KelEvent
-                                { keEventBytes =
-                                    evtBytes
-                                , keSignatures =
-                                    [(0, sigCesr)]
-                                }
-                    in  Right $ Just (mid, ke)
+        Just kks ->
+            let nextSeq = kksSeqNum kks + 1
+                evtBytes =
+                    buildInteractionBytes
+                        (kksPrefix kks)
+                        nextSeq
+                        (kksLastDigest kks)
+                        evtJson
+                sigBytes = sign kp evtBytes
+                sigCesr =
+                    Keri.Cesr.Encode.encode $
+                        Primitive
+                            { code = Ed25519Sig
+                            , raw = sigBytes
+                            }
+                ke =
+                    KelEvent
+                        { keEventBytes =
+                            evtBytes
+                        , keSignatures =
+                            [(0, sigCesr)]
+                        }
+            in  Right $ Just (mid, ke)
 
 {- | Validate a circle event through the appropriate
 gate.
@@ -767,35 +749,22 @@ handleRotate cfg midText req respond = do
             log' $
                 "POST /rotate: member="
                     <> midText
-            mKel <-
-                readMemberKel (scStore cfg) mid
-            case mKel of
+            mKks <-
+                lookupKelKeyState (scStore cfg) mid
+            case mKks of
                 Nothing -> do
                     log' "  member KEL not found"
                     respond $
                         jsonResponse status404 $
                             BadRequest
                                 "member KEL not found"
-                Just kel ->
-                    case kelKeyState kel of
-                        Left err -> do
-                            log' $
-                                "  key state error: "
-                                    <> err
-                            respond
-                                $ jsonResponse
-                                    status422
-                                $ ValidationErr
-                                $ RotationFailed
-                                    mid
-                                    err
-                        Right kks ->
-                            doRotation
-                                cfg
-                                mid
-                                kks
-                                rotSub
-                                respond
+                Just kks ->
+                    doRotation
+                        cfg
+                        mid
+                        kks
+                        rotSub
+                        respond
 
 doRotation
     :: ServerConfig g d p r

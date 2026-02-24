@@ -292,12 +292,14 @@ theorem rotateKelEvent_preserves_kelNonEmpty
   · rw [if_neg hmid] at hfk; rw [← hfk]; exact h_ne
 
 -------------------------------------------------------------------
--- Non-membership events don't affect KELs
+-- Combined invariant predicate
 -------------------------------------------------------------------
 
--- These theorems are proven in Processing.lean where the
--- apply functions are defined. The key property is that
--- applyBase, applyAppDecision, applyProposal, applyResponse,
--- and applyResolve all preserve the memberKels field.
+-- All KEL invariants hold together
+def kelInvariantsHold
+    (members : List Member) (kels : MemberKels) : Prop :=
+  allMembersHaveKel members kels
+    ∧ kelOwnersMatch kels
+    ∧ kelNonEmpty kels
 
 end KelCircle

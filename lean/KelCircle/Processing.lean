@@ -45,14 +45,14 @@ structure FullState (γ π ρ : Type) where
   nextSeq    : Nat                 -- next sequence number
   memberKels : MemberKels          -- per-member KELs
 
--- Initial state for a circle
+-- Initial state for a circle (sequencer has inception KEL)
 def initFullState {γ π ρ : Type}
     (sid : MemberId) (initApp : γ) : FullState γ π ρ :=
   { circle     := genesis sid
   , appState   := initApp
   , proposals  := []
   , nextSeq    := 1  -- event 0 was genesis
-  , memberKels := []
+  , memberKels := insertKel [] sid
   }
 
 -------------------------------------------------------------------
@@ -96,46 +96,59 @@ def gateResolve {γ π ρ : Type}
 -- Apply: update state after a gated event
 -------------------------------------------------------------------
 
--- Apply a base decision to the full state
+-- Apply a base decision to the full state.
+-- The signer's KEL gets an interaction event appended, then
+-- membership changes update memberKels accordingly.
 def applyBase {γ π ρ : Type}
-    (s : FullState γ π ρ) (d : BaseDecision) : FullState γ π ρ :=
+    (s : FullState γ π ρ) (signer : MemberId)
+    (d : BaseDecision) : FullState γ π ρ :=
+  let kels := appendKelEvent s.memberKels signer
   { s with
     circle := applyBaseDecision s.circle d
-    nextSeq := s.nextSeq + 1 }
+    nextSeq := s.nextSeq + 1
+    memberKels := match d with
+      | .introduceMember mid _ => insertKel kels mid
+      | .removeMember mid => removeKel kels mid
+      | _ => kels }
 
--- Apply an application decision (fold update only)
+-- Apply an application decision (fold update + signer KEL append)
 def applyAppDecision {γ δ π ρ : Type}
-    (s : FullState γ π ρ) (content : δ)
+    (s : FullState γ π ρ) (signer : MemberId) (content : δ)
     (fApp : γ → δ → γ) : FullState γ π ρ :=
   { s with
     appState := fApp s.appState content
-    nextSeq := s.nextSeq + 1 }
+    nextSeq := s.nextSeq + 1
+    memberKels := appendKelEvent s.memberKels signer }
 
--- Apply a proposal: register it as open
+-- Apply a proposal: register it as open + signer KEL append
 def applyProposal {γ π ρ : Type}
     (s : FullState γ π ρ) (content : π)
     (proposer : MemberId) (deadline : Timestamp)
     : FullState γ π ρ :=
   { s with
     proposals := openProposal s.proposals s.nextSeq content proposer deadline
-    nextSeq := s.nextSeq + 1 }
+    nextSeq := s.nextSeq + 1
+    memberKels := appendKelEvent s.memberKels proposer }
 
--- Apply a response: add to proposal
+-- Apply a response: add to proposal + signer KEL append
 def applyResponse {γ π ρ : Type}
     (s : FullState γ π ρ) (content : ρ)
     (responder : MemberId) (proposalId : ProposalId)
     : FullState γ π ρ :=
   { s with
     proposals := addResponse s.proposals proposalId responder content
-    nextSeq := s.nextSeq + 1 }
+    nextSeq := s.nextSeq + 1
+    memberKels := appendKelEvent s.memberKels responder }
 
--- Apply a resolution: close the proposal
+-- Apply a resolution: close the proposal + signer KEL append
 def applyResolve {γ π ρ : Type}
-    (s : FullState γ π ρ) (proposalId : ProposalId)
+    (s : FullState γ π ρ) (signer : MemberId)
+    (proposalId : ProposalId)
     (r : Resolution) : FullState γ π ρ :=
   { s with
     proposals := resolveProposal s.proposals proposalId r
-    nextSeq := s.nextSeq + 1 }
+    nextSeq := s.nextSeq + 1
+    memberKels := appendKelEvent s.memberKels signer }
 
 -------------------------------------------------------------------
 -- Sequence number invariant
@@ -143,13 +156,14 @@ def applyResolve {γ π ρ : Type}
 
 -- Every apply increments the sequence number
 theorem apply_base_increments_seq {γ π ρ : Type}
-    (s : FullState γ π ρ) (d : BaseDecision) :
-    (applyBase s d).nextSeq = s.nextSeq + 1 := by
+    (s : FullState γ π ρ) (signer : MemberId) (d : BaseDecision) :
+    (applyBase s signer d).nextSeq = s.nextSeq + 1 := by
   simp [applyBase]
 
 theorem apply_app_decision_increments_seq {γ δ π ρ : Type}
-    (s : FullState γ π ρ) (content : δ) (fApp : γ → δ → γ) :
-    (applyAppDecision s content fApp).nextSeq = s.nextSeq + 1 := by
+    (s : FullState γ π ρ) (signer : MemberId)
+    (content : δ) (fApp : γ → δ → γ) :
+    (applyAppDecision s signer content fApp).nextSeq = s.nextSeq + 1 := by
   simp [applyAppDecision]
 
 theorem apply_proposal_increments_seq {γ π ρ : Type}
@@ -165,9 +179,9 @@ theorem apply_response_increments_seq {γ π ρ : Type}
   simp [applyResponse]
 
 theorem apply_resolve_increments_seq {γ π ρ : Type}
-    (s : FullState γ π ρ) (proposalId : ProposalId)
-    (r : Resolution) :
-    (applyResolve s proposalId r).nextSeq = s.nextSeq + 1 := by
+    (s : FullState γ π ρ) (signer : MemberId)
+    (proposalId : ProposalId) (r : Resolution) :
+    (applyResolve s signer proposalId r).nextSeq = s.nextSeq + 1 := by
   simp [applyResolve]
 
 -------------------------------------------------------------------
@@ -176,8 +190,9 @@ theorem apply_resolve_increments_seq {γ π ρ : Type}
 
 -- Application decisions don't change the circle
 theorem app_decision_preserves_circle {γ δ π ρ : Type}
-    (s : FullState γ π ρ) (content : δ) (fApp : γ → δ → γ) :
-    (applyAppDecision s content fApp).circle = s.circle := by
+    (s : FullState γ π ρ) (signer : MemberId)
+    (content : δ) (fApp : γ → δ → γ) :
+    (applyAppDecision s signer content fApp).circle = s.circle := by
   simp [applyAppDecision]
 
 -- Proposals don't change the circle
@@ -196,9 +211,9 @@ theorem response_preserves_circle {γ π ρ : Type}
 
 -- Resolutions don't change the circle
 theorem resolve_preserves_circle {γ π ρ : Type}
-    (s : FullState γ π ρ) (proposalId : ProposalId)
-    (r : Resolution) :
-    (applyResolve s proposalId r).circle = s.circle := by
+    (s : FullState γ π ρ) (signer : MemberId)
+    (proposalId : ProposalId) (r : Resolution) :
+    (applyResolve s signer proposalId r).circle = s.circle := by
   simp [applyResolve]
 
 -------------------------------------------------------------------
@@ -207,14 +222,15 @@ theorem resolve_preserves_circle {γ π ρ : Type}
 
 -- Base decisions don't change the proposal registry
 theorem base_preserves_proposals {γ π ρ : Type}
-    (s : FullState γ π ρ) (d : BaseDecision) :
-    (applyBase s d).proposals = s.proposals := by
+    (s : FullState γ π ρ) (signer : MemberId) (d : BaseDecision) :
+    (applyBase s signer d).proposals = s.proposals := by
   simp [applyBase]
 
 -- Application decisions don't change the proposal registry
 theorem app_decision_preserves_proposals {γ δ π ρ : Type}
-    (s : FullState γ π ρ) (content : δ) (fApp : γ → δ → γ) :
-    (applyAppDecision s content fApp).proposals = s.proposals := by
+    (s : FullState γ π ρ) (signer : MemberId)
+    (content : δ) (fApp : γ → δ → γ) :
+    (applyAppDecision s signer content fApp).proposals = s.proposals := by
   simp [applyAppDecision]
 
 -------------------------------------------------------------------
@@ -257,49 +273,105 @@ theorem init_sequencer_is_member {γ π ρ : Type}
   exact genesis_sequencer_is_member sid
 
 -------------------------------------------------------------------
--- Member KEL preservation
+-- Member KEL updates
 -------------------------------------------------------------------
 
--- All apply functions preserve the memberKels field because
--- they only modify circle, appState, proposals, and nextSeq.
+-- Apply functions now update memberKels (append signer's KEL event,
+-- plus membership changes for base decisions).
 
--- Base decisions preserve memberKels
-theorem applyBase_preserves_kels {γ π ρ : Type}
-    (s : FullState γ π ρ) (d : BaseDecision) :
-    (applyBase s d).memberKels = s.memberKels := by
-  simp [applyBase]
-
--- Application decisions preserve memberKels
-theorem applyAppDecision_preserves_kels {γ δ π ρ : Type}
-    (s : FullState γ π ρ) (content : δ) (fApp : γ → δ → γ) :
-    (applyAppDecision s content fApp).memberKels = s.memberKels := by
+-- applyAppDecision appends to signer's KEL
+theorem applyAppDecision_updates_kels {γ δ π ρ : Type}
+    (s : FullState γ π ρ) (signer : MemberId)
+    (content : δ) (fApp : γ → δ → γ) :
+    (applyAppDecision s signer content fApp).memberKels =
+      appendKelEvent s.memberKels signer := by
   simp [applyAppDecision]
 
--- Proposals preserve memberKels
-theorem applyProposal_preserves_kels {γ π ρ : Type}
+-- applyProposal appends to proposer's KEL
+theorem applyProposal_updates_kels {γ π ρ : Type}
     (s : FullState γ π ρ) (content : π)
     (proposer : MemberId) (deadline : Timestamp) :
-    (applyProposal s content proposer deadline).memberKels = s.memberKels := by
+    (applyProposal s content proposer deadline).memberKels =
+      appendKelEvent s.memberKels proposer := by
   simp [applyProposal]
 
--- Responses preserve memberKels
-theorem applyResponse_preserves_kels {γ π ρ : Type}
+-- applyResponse appends to responder's KEL
+theorem applyResponse_updates_kels {γ π ρ : Type}
     (s : FullState γ π ρ) (content : ρ)
     (responder : MemberId) (proposalId : ProposalId) :
-    (applyResponse s content responder proposalId).memberKels = s.memberKels := by
+    (applyResponse s content responder proposalId).memberKels =
+      appendKelEvent s.memberKels responder := by
   simp [applyResponse]
 
--- Resolutions preserve memberKels
-theorem applyResolve_preserves_kels {γ π ρ : Type}
-    (s : FullState γ π ρ) (proposalId : ProposalId)
-    (r : Resolution) :
-    (applyResolve s proposalId r).memberKels = s.memberKels := by
+-- applyResolve appends to signer's KEL
+theorem applyResolve_updates_kels {γ π ρ : Type}
+    (s : FullState γ π ρ) (signer : MemberId)
+    (proposalId : ProposalId) (r : Resolution) :
+    (applyResolve s signer proposalId r).memberKels =
+      appendKelEvent s.memberKels signer := by
   simp [applyResolve]
 
--- The initial state has empty memberKels
-theorem init_no_kels {γ π ρ : Type}
+-------------------------------------------------------------------
+-- KEL invariant preservation for apply functions
+-------------------------------------------------------------------
+
+-- applyAppDecision preserves allMembersHaveKel
+theorem applyAppDecision_preserves_allMembersHaveKel {γ δ π ρ : Type}
+    (s : FullState γ π ρ) (signer : MemberId)
+    (content : δ) (fApp : γ → δ → γ)
+    (h : allMembersHaveKel s.circle.state.members s.memberKels) :
+    allMembersHaveKel
+      (applyAppDecision s signer content fApp).circle.state.members
+      (applyAppDecision s signer content fApp).memberKels := by
+  simp [applyAppDecision]
+  exact appendKelEvent_preserves_allMembersHaveKel
+    s.circle.state.members s.memberKels signer h
+
+-- applyProposal preserves allMembersHaveKel
+theorem applyProposal_preserves_allMembersHaveKel {γ π ρ : Type}
+    (s : FullState γ π ρ) (content : π)
+    (proposer : MemberId) (deadline : Timestamp)
+    (h : allMembersHaveKel s.circle.state.members s.memberKels) :
+    allMembersHaveKel
+      (applyProposal s content proposer deadline).circle.state.members
+      (applyProposal s content proposer deadline).memberKels := by
+  simp [applyProposal]
+  exact appendKelEvent_preserves_allMembersHaveKel
+    s.circle.state.members s.memberKels proposer h
+
+-- applyResponse preserves allMembersHaveKel
+theorem applyResponse_preserves_allMembersHaveKel {γ π ρ : Type}
+    (s : FullState γ π ρ) (content : ρ)
+    (responder : MemberId) (proposalId : ProposalId)
+    (h : allMembersHaveKel s.circle.state.members s.memberKels) :
+    allMembersHaveKel
+      (applyResponse s content responder proposalId).circle.state.members
+      (applyResponse s content responder proposalId).memberKels := by
+  simp [applyResponse]
+  exact appendKelEvent_preserves_allMembersHaveKel
+    s.circle.state.members s.memberKels responder h
+
+-- applyResolve preserves allMembersHaveKel
+theorem applyResolve_preserves_allMembersHaveKel {γ π ρ : Type}
+    (s : FullState γ π ρ) (signer : MemberId)
+    (proposalId : ProposalId) (r : Resolution)
+    (h : allMembersHaveKel s.circle.state.members s.memberKels) :
+    allMembersHaveKel
+      (applyResolve s signer proposalId r).circle.state.members
+      (applyResolve s signer proposalId r).memberKels := by
+  simp [applyResolve]
+  exact appendKelEvent_preserves_allMembersHaveKel
+    s.circle.state.members s.memberKels signer h
+
+-------------------------------------------------------------------
+-- Genesis KEL invariant
+-------------------------------------------------------------------
+
+-- The initial state has the sequencer's KEL
+theorem init_sequencer_has_kel {γ π ρ : Type}
     (sid : MemberId) (initApp : γ) :
-    (initFullState sid initApp : FullState γ π ρ).memberKels = [] := by
-  simp [initFullState]
+    ∃ k, k ∈ (initFullState sid initApp : FullState γ π ρ).memberKels
+      ∧ k.1 = sid := by
+  exact ⟨(sid, ⟨sid, 1, 0⟩), .head _, rfl⟩
 
 end KelCircle
