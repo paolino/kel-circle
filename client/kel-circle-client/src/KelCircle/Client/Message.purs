@@ -59,8 +59,7 @@ mkCircleMessage
   -> Either String (KelCircleMessage a)
 mkCircleMessage encodeEvt cfg circleEvent = do
   let
-    canonical = stringify (encodeEvt circleEvent)
-    anchor = fromString canonical
+    anchor = encodeEvt circleEvent
 
     ixnConfig :: InteractionConfig
     ixnConfig =

@@ -13,34 +13,51 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import KelCircle.Client.Events (BaseDecision(..))
-import KelCircle.Client.State (CircleState, isAdminMember, isMember)
+import KelCircle.Client.State
+  ( CircleState
+  , isAdminMember
+  , isMember
+  )
 import KelCircle.Client.Types (Member, Role(..))
 
-data Output = SubmitDecision BaseDecision
+data Output
+  = SubmitDecision BaseDecision
+  | SubmitIntroduceWithInception
+      { memberId :: String
+      , name :: String
+      , role :: Role
+      , inceptionJson :: String
+      }
 
 type Input =
   { circleState :: CircleState
   , myKey :: Maybe String
+  , submitting :: Boolean
   }
 
 type State =
   { circleState :: CircleState
   , myKey :: Maybe String
+  , submitting :: Boolean
   , newMemberKey :: String
   , newMemberName :: String
   , newMemberAdmin :: Boolean
+  , newMemberInception :: String
   }
 
 data Action
   = Receive Input
   | SetNewMemberKey String
   | SetNewMemberName String
+  | SetNewMemberInception String
   | ToggleNewMemberAdmin
   | DoIntroduce
   | DoRemove String
 
 membersComponent
-  :: forall q m. MonadAff m => H.Component q Input Output m
+  :: forall q m
+   . MonadAff m
+  => H.Component q Input Output m
 membersComponent = H.mkComponent
   { initialState
   , render
@@ -54,9 +71,11 @@ initialState :: Input -> State
 initialState input =
   { circleState: input.circleState
   , myKey: input.myKey
+  , submitting: input.submitting
   , newMemberKey: ""
   , newMemberName: ""
   , newMemberAdmin: false
+  , newMemberInception: ""
   }
 
 render :: forall m. State -> H.ComponentHTML Action () m
@@ -70,14 +89,20 @@ render st =
       [ HH.h2_ [ HH.text "Members" ]
       , memberTable st
       , if amIMember then introduceForm st
-        else HH.p [ HP.class_ (HH.ClassName "not-member-hint") ]
-          [ HH.text
-              "You are not a member yet. Share your key with \
-              \an admin to be introduced."
-          ]
+        else
+          HH.p
+            [ HP.class_
+                (HH.ClassName "not-member-hint")
+            ]
+            [ HH.text
+                "You are not a member yet. Share \
+                \your key with an admin to be \
+                \introduced."
+            ]
       ]
 
-memberTable :: forall m. State -> H.ComponentHTML Action () m
+memberTable
+  :: forall m. State -> H.ComponentHTML Action () m
 memberTable st =
   let
     entries = st.circleState.members
@@ -85,37 +110,55 @@ memberTable st =
       Nothing -> false
       Just k -> isAdminMember st.circleState k
   in
-    HH.table [ HP.class_ (HH.ClassName "member-table") ]
+    HH.table
+      [ HP.class_ (HH.ClassName "member-table") ]
       [ HH.thead_
           [ HH.tr_
               [ HH.th_ [ HH.text "Name" ]
               , HH.th_ [ HH.text "Role" ]
-              , if amIAdmin then HH.th_ [ HH.text "Actions" ]
+              , if amIAdmin then
+                  HH.th_ [ HH.text "Actions" ]
                 else HH.text ""
               ]
           ]
-      , HH.tbody_ (map (memberRow amIAdmin) entries)
+      , HH.tbody_
+          (map (memberRow amIAdmin st.submitting) entries)
       ]
 
-memberRow :: forall m. Boolean -> Member -> H.ComponentHTML Action () m
-memberRow amIAdmin member =
+memberRow
+  :: forall m
+   . Boolean
+  -> Boolean
+  -> Member
+  -> H.ComponentHTML Action () m
+memberRow amIAdmin submitting member =
   HH.tr_
-    [ HH.td [ HP.class_ (HH.ClassName "name") ]
+    [ HH.td
+        [ HP.class_ (HH.ClassName "name") ]
         [ HH.text member.memberName ]
     , HH.td_ [ HH.text (show member.memberRole) ]
-    , if amIAdmin && member.memberName /= "sequencer" then HH.td_
-        [ HH.button
-            [ HE.onClick (const (DoRemove member.memberId))
-            , HP.class_ (HH.ClassName "btn-danger")
-            ]
-            [ HH.text "Remove" ]
-        ]
+    , if amIAdmin
+        && member.memberName /= "sequencer"
+        then HH.td_
+          [ HH.button
+              [ HE.onClick
+                  (const (DoRemove member.memberId))
+              , HP.class_
+                  (HH.ClassName "btn-danger")
+              , HP.disabled submitting
+              ]
+              [ HH.text "Remove" ]
+          ]
       else HH.text ""
     ]
 
-introduceForm :: forall m. State -> H.ComponentHTML Action () m
+introduceForm
+  :: forall m. State -> H.ComponentHTML Action () m
 introduceForm st =
-  HH.div [ HP.class_ (HH.ClassName "form introduce-form") ]
+  HH.div
+    [ HP.class_
+        (HH.ClassName "form introduce-form")
+    ]
     [ HH.h3_ [ HH.text "Introduce Member" ]
     , HH.input
         [ HP.placeholder "CESR public key"
@@ -127,17 +170,27 @@ introduceForm st =
         , HP.value st.newMemberName
         , HE.onValueInput SetNewMemberName
         ]
+    , HH.label_ [ HH.text "Inception JSON" ]
+    , HH.textarea
+        [ HP.placeholder
+            "Paste member's inception JSON here"
+        , HP.value st.newMemberInception
+        , HP.rows 4
+        , HE.onValueInput SetNewMemberInception
+        ]
     , HH.label_
         [ HH.input
             [ HP.type_ HP.InputCheckbox
             , HP.checked st.newMemberAdmin
-            , HE.onChecked (const ToggleNewMemberAdmin)
+            , HE.onChecked
+                (const ToggleNewMemberAdmin)
             ]
         , HH.text " Admin"
         ]
     , HH.button
         [ HE.onClick (const DoIntroduce)
         , HP.class_ (HH.ClassName "btn-primary")
+        , HP.disabled st.submitting
         ]
         [ HH.text "Introduce" ]
     ]
@@ -152,6 +205,7 @@ handleAction = case _ of
     H.modify_ _
       { circleState = input.circleState
       , myKey = input.myKey
+      , submitting = input.submitting
       }
 
   SetNewMemberKey s ->
@@ -160,16 +214,49 @@ handleAction = case _ of
   SetNewMemberName s ->
     H.modify_ _ { newMemberName = s }
 
+  SetNewMemberInception s ->
+    H.modify_ _ { newMemberInception = s }
+
   ToggleNewMemberAdmin ->
-    H.modify_ \s -> s { newMemberAdmin = not s.newMemberAdmin }
+    H.modify_ \s ->
+      s { newMemberAdmin = not s.newMemberAdmin }
 
   DoIntroduce -> do
     st <- H.get
     when (st.newMemberKey /= "") do
       let
-        role = if st.newMemberAdmin then Admin else MemberRole
-      H.raise (SubmitDecision (IntroduceMember st.newMemberKey st.newMemberName role))
-      H.modify_ _ { newMemberKey = "", newMemberName = "", newMemberAdmin = false }
+        role =
+          if st.newMemberAdmin then Admin
+          else MemberRole
+        name =
+          if st.newMemberName == "" then
+            st.newMemberKey
+          else st.newMemberName
+      if st.newMemberInception /= "" then
+        H.raise
+          ( SubmitIntroduceWithInception
+              { memberId: st.newMemberKey
+              , name
+              , role
+              , inceptionJson:
+                  st.newMemberInception
+              }
+          )
+      else
+        H.raise
+          ( SubmitDecision
+              ( IntroduceMember
+                  st.newMemberKey
+                  name
+                  role
+              )
+          )
+      H.modify_ _
+        { newMemberKey = ""
+        , newMemberName = ""
+        , newMemberAdmin = false
+        , newMemberInception = ""
+        }
 
   DoRemove key ->
     H.raise (SubmitDecision (RemoveMember key))

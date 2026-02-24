@@ -12,28 +12,33 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 
--- | Output: passphrase and admin key.
-data Output = Submit String String
+-- | Output: passphrase, admin key, and display name.
+data Output = Submit String String String
 
 type Input = Maybe String
 
 type State =
   { passphrase :: String
   , adminKey :: String
+  , displayName :: String
   }
 
 data Action
   = SetPassphrase String
   | SetAdminKey String
+  | SetDisplayName String
   | Receive Input
   | DoSubmit
 
 bootstrapComponent
-  :: forall q m. MonadAff m => H.Component q Input Output m
+  :: forall q m
+   . MonadAff m
+  => H.Component q Input Output m
 bootstrapComponent = H.mkComponent
   { initialState: \myKey ->
       { passphrase: ""
       , adminKey: fromMaybe "" myKey
+      , displayName: ""
       }
   , render
   , eval: H.mkEval H.defaultEval
@@ -47,8 +52,8 @@ render st = HH.div [ HP.class_ (HH.ClassName "bootstrap") ]
   [ HH.h2_ [ HH.text "Bootstrap Mode" ]
   , HH.p_
       [ HH.text
-          "No admins yet. Enter the bootstrap passphrase \
-          \to become the first admin."
+          "No admins yet. Enter the bootstrap \
+          \passphrase to become the first admin."
       ]
   , HH.div [ HP.class_ (HH.ClassName "form") ]
       [ HH.label_ [ HH.text "Passphrase" ]
@@ -58,7 +63,14 @@ render st = HH.div [ HP.class_ (HH.ClassName "bootstrap") ]
           , HP.placeholder "Bootstrap passphrase"
           , HE.onValueInput SetPassphrase
           ]
-      , HH.label_ [ HH.text "Your public key (CESR)" ]
+      , HH.label_ [ HH.text "Display name" ]
+      , HH.input
+          [ HP.value st.displayName
+          , HP.placeholder "Your display name"
+          , HE.onValueInput SetDisplayName
+          ]
+      , HH.label_
+          [ HH.text "Your public key (CESR)" ]
       , HH.input
           [ HP.value st.adminKey
           , HP.placeholder "Your CESR public key"
@@ -79,11 +91,25 @@ handleAction
   => Action
   -> H.HalogenM State Action () Output m Unit
 handleAction = case _ of
-  SetPassphrase s -> H.modify_ _ { passphrase = s }
-  SetAdminKey s -> H.modify_ _ { adminKey = s }
+  SetPassphrase s ->
+    H.modify_ _ { passphrase = s }
+  SetAdminKey s ->
+    H.modify_ _ { adminKey = s }
+  SetDisplayName s ->
+    H.modify_ _ { displayName = s }
   Receive myKey ->
     H.modify_ _ { adminKey = fromMaybe "" myKey }
   DoSubmit -> do
     st <- H.get
-    when (st.passphrase /= "" && st.adminKey /= "") do
-      H.raise (Submit st.passphrase st.adminKey)
+    when
+      ( st.passphrase /= ""
+          && st.adminKey /= ""
+      )
+      do
+        let
+          name =
+            if st.displayName == "" then
+              st.adminKey
+            else st.displayName
+        H.raise
+          (Submit st.passphrase st.adminKey name)

@@ -235,6 +235,7 @@ encodeSubmission
      , signer :: String
      , signature :: String
      , event :: CircleEvent d p r
+     , inception :: Maybe Json
      }
   -> Json
 encodeSubmission encD encP encR sub =
@@ -247,6 +248,11 @@ encodeSubmission encD encP encR sub =
     , Tuple "signer" (encodeJson sub.signer)
     , Tuple "signature" (encodeJson sub.signature)
     , Tuple "event" (encodeCircleEvent encD encP encR sub.event)
+    , Tuple "inception"
+        ( case sub.inception of
+            Nothing -> jsonNull
+            Just icp -> icp
+        )
     ]
 
 -- --------------------------------------------------------

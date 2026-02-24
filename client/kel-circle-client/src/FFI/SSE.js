@@ -8,6 +8,12 @@ export const onMessageImpl = (es) => (handler) => () => {
   });
 };
 
+export const onKelMessageImpl = (es) => (handler) => () => {
+  es.addEventListener("kel", (e) => {
+    handler(e.data)();
+  });
+};
+
 export const close = (es) => () => {
   es.close();
 };
