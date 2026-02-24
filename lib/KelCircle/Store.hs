@@ -10,7 +10,7 @@ with the signer key and Ed25519 signature. The server
 maintains a hot @FullState@ in a @TVar@ for O(1) reads.
 
 Per-member KELs are stored in a separate @member_kels@
-table and rebuilt on replay.
+table and served directly from SQLite.
 -}
 module KelCircle.Store
     ( -- * Store handle
@@ -25,6 +25,7 @@ module KelCircle.Store
     , appendRotationEvent
     , readFullState
     , readEventsFrom
+    , readMemberKel
     , storeLength
 
       -- * Stored event
@@ -41,7 +42,6 @@ import Control.Concurrent.STM
     )
 import Data.Aeson (FromJSON, ToJSON, decode, encode)
 import Data.ByteString.Lazy qualified as LBS
-import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text.Encoding qualified as TE
@@ -94,13 +94,13 @@ data CircleStore g p r = CircleStore
     -- ^ SQLite connection
     , csState :: TVar (FullState g p r)
     -- ^ Hot state updated incrementally
-    , csLength :: TVar Int
-    -- ^ Number of events in the store
     }
 
 {- | Open or create a circle store at the given path.
 Creates the events and member_kels tables on first open
 and replays existing events to rebuild the in-memory state.
+KELs are served directly from SQLite, not replayed into
+the TVar.
 -}
 openStore
     :: ( FromJSON d
@@ -144,34 +144,16 @@ openStore sid initApp appFold path = do
             \ORDER BY id"
             :: IO [(Text, LBS.ByteString)]
     let initialState = initFullState sid initApp
-        circleState =
+        replayedState =
             foldl
                 (replayRow appFold)
                 initialState
                 rows
-    -- Replay member KELs
-    kelRows <-
-        query_
-            conn
-            "SELECT member_id, seq_num, event_json \
-            \, signatures_json \
-            \FROM member_kels ORDER BY member_id \
-            \, seq_num"
-            :: IO [(Text, Int, Text, LBS.ByteString)]
-    let kels = replayKelRows kelRows
-        finalState =
-            circleState{fsMemberKels = kels}
-    stVar <- newTVarIO finalState
-    [Only n] <-
-        query_
-            conn
-            "SELECT COUNT(*) FROM events"
-    lVar <- newTVarIO (n :: Int)
+    stVar <- newTVarIO replayedState
     pure
         CircleStore
             { csConn = conn
             , csState = stVar
-            , csLength = lVar
             }
 
 -- | Close the store.
@@ -186,6 +168,10 @@ When the event is 'IntroduceMember', the optional
 'MemberKel' is inserted into the member_kels table.
 When an interaction 'KelEvent' is provided, it is
 appended to the signer's existing KEL.
+
+Returns (sequenceNumber, kelEventCount) where
+kelEventCount is the signer's KEL size after update
+(0 for sequencer or when no KEL change occurred).
 -}
 appendCircleEvent
     :: (ToJSON d, ToJSON p, ToJSON r)
@@ -202,7 +188,7 @@ appendCircleEvent
     -- ^ Optional: member KEL for IntroduceMember
     -> Maybe (MemberId, KelEvent)
     -- ^ Optional: interaction event to append
-    -> IO Int
+    -> IO (Int, Int)
 appendCircleEvent
     store
     appFold
@@ -240,8 +226,15 @@ appendCircleEvent
             CEBaseDecision (RemoveMember mid) ->
                 deleteMemberKel (csConn store) mid
             _ -> pure ()
+        -- Query KEL count for the affected member
+        kelCount <- case (mKel, mIxn) of
+            (Just (mid, _), _) ->
+                queryKelCount (csConn store) mid
+            (_, Just (mid, _)) ->
+                queryKelCount (csConn store) mid
+            _ -> pure 0
         -- Update in-memory state
-        atomically $ do
+        sn <- atomically $ do
             st <- readTVar (csState store)
             let st' =
                     applyEvent
@@ -249,14 +242,9 @@ appendCircleEvent
                         st
                         (MemberId signer)
                         evt
-                st'' =
-                    appendIxnKel mIxn $
-                        updateKels evt mKel st'
-            writeTVar (csState store) st''
-            n <- readTVar (csLength store)
-            let n' = n + 1
-            writeTVar (csLength store) n'
-            pure n'
+            writeTVar (csState store) st'
+            pure (fsNextSeq st)
+        pure (sn, kelCount)
 
 -- | Read current full state (from TVar, O(1)).
 readFullState :: CircleStore g p r -> IO (FullState g p r)
@@ -288,11 +276,46 @@ readEventsFrom store n = do
 
 -- | Number of events in the store.
 storeLength :: CircleStore g p r -> IO Int
-storeLength = readTVarIO . csLength
+storeLength store = do
+    [Only n] <-
+        query_
+            (csConn store)
+            "SELECT COUNT(*) FROM events"
+    pure (n :: Int)
+
+{- | Read a member's KEL from SQLite.
+Returns 'Nothing' if no KEL events exist for the member.
+-}
+readMemberKel
+    :: CircleStore g p r -> MemberId -> IO (Maybe MemberKel)
+readMemberKel store (MemberId mid) = do
+    rows <-
+        query
+            (csConn store)
+            "SELECT event_json, signatures_json \
+            \FROM member_kels \
+            \WHERE member_id = ? \
+            \ORDER BY seq_num"
+            (Only mid)
+            :: IO [(Text, LBS.ByteString)]
+    case rows of
+        [] -> pure Nothing
+        _ ->
+            pure $
+                Just $
+                    MemberKel $
+                        map toKelEvent rows
+  where
+    toKelEvent (evtJson, sigsJson) =
+        KelEvent
+            { keEventBytes = TE.encodeUtf8 evtJson
+            , keSignatures =
+                fromMaybe [] (decode sigsJson)
+            }
 
 {- | Append a rotation event to a member's KEL.
-Persists to SQLite and updates the in-memory state.
-Returns the new KEL event count for the member.
+Persists to SQLite. Returns the new KEL event count
+for the member.
 -}
 appendRotationEvent
     :: CircleStore g p r
@@ -301,26 +324,7 @@ appendRotationEvent
     -> IO Int
 appendRotationEvent store mid ke = do
     appendSingleKelEvent (csConn store) mid ke
-    atomically $ do
-        st <- readTVar (csState store)
-        let st' =
-                st
-                    { fsMemberKels =
-                        Map.adjust
-                            ( \(MemberKel evts) ->
-                                MemberKel
-                                    (evts ++ [ke])
-                            )
-                            mid
-                            (fsMemberKels st)
-                    }
-        writeTVar (csState store) st'
-        let newCount =
-                case Map.lookup mid (fsMemberKels st') of
-                    Just kel ->
-                        length (mkelEvents kel)
-                    Nothing -> 0
-        pure newCount
+    queryKelCount (csConn store) mid
 
 -- --------------------------------------------------------
 -- Internal helpers
@@ -363,31 +367,6 @@ replayRow appFold st (signer, eventJson) =
                 evt
         Nothing -> st
 
--- | Rebuild member KELs from database rows.
-replayKelRows
-    :: [(Text, Int, Text, LBS.ByteString)]
-    -> Map.Map MemberId MemberKel
-replayKelRows = foldl addKelRow Map.empty
-  where
-    addKelRow acc (midText, _seqNum, evtJson, sigsJson) =
-        let mid = MemberId midText
-            evtBytes = TE.encodeUtf8 evtJson
-            sigs = fromMaybe [] (decode sigsJson)
-            ke =
-                KelEvent
-                    { keEventBytes = evtBytes
-                    , keSignatures = sigs
-                    }
-            existing =
-                Map.findWithDefault
-                    (MemberKel [])
-                    mid
-                    acc
-            updated =
-                MemberKel
-                    (mkelEvents existing ++ [ke])
-        in  Map.insert mid updated acc
-
 -- | Append a single KEL event to an existing member.
 appendSingleKelEvent
     :: Connection -> MemberId -> KelEvent -> IO ()
@@ -408,23 +387,6 @@ appendSingleKelEvent conn (MemberId mid) ke = do
         , TE.decodeUtf8 (keEventBytes ke)
         , encode (keSignatures ke)
         )
-
--- | Append interaction event to in-memory KEL map.
-appendIxnKel
-    :: Maybe (MemberId, KelEvent)
-    -> FullState g p r
-    -> FullState g p r
-appendIxnKel Nothing st = st
-appendIxnKel (Just (mid, ke)) st =
-    st
-        { fsMemberKels =
-            Map.adjust
-                ( \(MemberKel evts) ->
-                    MemberKel (evts ++ [ke])
-                )
-                mid
-                (fsMemberKels st)
-        }
 
 -- | Store all events in a member KEL.
 storeMemberKelEvents
@@ -453,24 +415,13 @@ deleteMemberKel conn (MemberId mid) =
         "DELETE FROM member_kels WHERE member_id = ?"
         (Only mid)
 
--- | Update memberKels in the FullState.
-updateKels
-    :: CircleEvent d p r
-    -> Maybe (MemberId, MemberKel)
-    -> FullState g p r
-    -> FullState g p r
-updateKels evt mKel st = case mKel of
-    Just (mid, kel) ->
-        st
-            { fsMemberKels =
-                Map.insert mid kel (fsMemberKels st)
-            }
-    Nothing -> case evt of
-        CEBaseDecision (RemoveMember mid) ->
-            st
-                { fsMemberKels =
-                    Map.delete
-                        mid
-                        (fsMemberKels st)
-                }
-        _ -> st
+-- | Query KEL event count for a member from SQLite.
+queryKelCount :: Connection -> MemberId -> IO Int
+queryKelCount conn (MemberId mid) = do
+    [Only n] <-
+        query
+            conn
+            "SELECT COUNT(*) FROM member_kels \
+            \WHERE member_id = ?"
+            (Only mid)
+    pure (n :: Int)

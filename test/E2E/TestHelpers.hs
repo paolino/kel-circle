@@ -54,11 +54,16 @@ module E2E.TestHelpers
       -- * URL helpers
     , urlEncode
 
+      -- * KEL helpers
+    , getMemberKel
+    , getMemberKelAfter
+
       -- * Response decoders
     , InfoResp (..)
     , ConditionResp (..)
     , ConditionMember (..)
     , GetEventResp (..)
+    , KelResp (..)
     ) where
 
 import Control.Concurrent.STM (newBroadcastTChanIO)
@@ -88,7 +93,11 @@ import KelCircle.RotationVerify
     ( buildRotationBytes
     , rotationEventDigest
     )
-import KelCircle.Server (ServerConfig (..), mkApp)
+import KelCircle.Server
+    ( SSEMessage
+    , ServerConfig (..)
+    , mkApp
+    )
 import KelCircle.Server.JSON
     ( AppendResult (..)
     , RotationSubmission (..)
@@ -311,7 +320,7 @@ withTestEnv action = do
     dbPath <-
         emptySystemTempFile "kel-circle-e2e-.db"
     let sid = MemberId "server-sequencer"
-    ch <- newBroadcastTChanIO
+    ch <- newBroadcastTChanIO @SSEMessage
     (store :: CircleStore () () ()) <-
         openStore
             sid
@@ -912,3 +921,60 @@ instance FromJSON GetEventResp where
             <$> o .: "signer"
             <*> o .: "event"
             <*> o .: "signature"
+
+-- --------------------------------------------------------
+-- KEL helpers
+-- --------------------------------------------------------
+
+-- | Decoded KEL response.
+data KelResp = KelResp
+    { kelRespEventCount :: Int
+    , kelRespAfter :: Int
+    , kelRespEvents :: [Value]
+    }
+    deriving stock (Show)
+
+instance FromJSON KelResp where
+    parseJSON = withObject "KelResp" $ \o ->
+        KelResp
+            <$> o .: "eventCount"
+            <*> o .: "after"
+            <*> o .: "events"
+
+{- | GET /members/:id/kel and decode the response.
+Expects 200.
+-}
+getMemberKel :: TestEnv -> Text -> IO KelResp
+getMemberKel te midText = do
+    resp <-
+        httpGet
+            te
+            ( "/members/"
+                <> urlEncode midText
+                <> "/kel"
+            )
+    assertEqual
+        "GET /members/:id/kel status"
+        status200
+        (HC.responseStatus resp)
+    decodeOrFail (HC.responseBody resp)
+
+{- | GET /members/:id/kel?after=N and decode the
+response. Expects 200.
+-}
+getMemberKelAfter
+    :: TestEnv -> Text -> Int -> IO KelResp
+getMemberKelAfter te midText after = do
+    resp <-
+        httpGet
+            te
+            ( "/members/"
+                <> urlEncode midText
+                <> "/kel?after="
+                <> show after
+            )
+    assertEqual
+        "GET /members/:id/kel?after=N status"
+        status200
+        (HC.responseStatus resp)
+    decodeOrFail (HC.responseBody resp)

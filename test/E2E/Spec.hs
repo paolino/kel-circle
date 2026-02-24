@@ -11,11 +11,8 @@ proposals, responses, and resolution.
 module E2E.Spec (tests) where
 
 import Data.Aeson
-    ( FromJSON (..)
-    , Value (..)
+    ( Value (..)
     , object
-    , withObject
-    , (.:)
     , (.=)
     )
 import Data.Aeson qualified as Aeson
@@ -64,6 +61,7 @@ tests =
         , memberKelTests
         , interactionVerificationTests
         , rotationTests
+        , kelRetrievalTests
         ]
 
 -- --------------------------------------------------------
@@ -597,16 +595,8 @@ testBootstrapAdminHasKel = withTestEnv $ \te -> do
 
     -- Check KEL exists via GET endpoint
     -- 2 events: inception (seqnum 0) + interaction (seqnum 1)
-    resp <-
-        httpGet
-            te
-            ( "/members/"
-                <> urlEncode (tidKey admin1)
-                <> "/kel"
-            )
-    HC.responseStatus resp @?= status200
-    kelResp <- decodeOrFail (HC.responseBody resp)
-    kelRespEventCount kelResp @?= 2
+    kr <- getMemberKel te (tidKey admin1)
+    kelRespEventCount kr @?= 2
 
 testIntroducedMemberHasKel :: IO ()
 testIntroducedMemberHasKel =
@@ -619,17 +609,8 @@ testIntroducedMemberHasKel =
                 te
                 (introduceMember admin1 user1)
 
-        resp <-
-            httpGet
-                te
-                ( "/members/"
-                    <> urlEncode (tidKey user1)
-                    <> "/kel"
-                )
-        HC.responseStatus resp @?= status200
-        kelResp <-
-            decodeOrFail (HC.responseBody resp)
-        kelRespEventCount kelResp @?= 1
+        kr <- getMemberKel te (tidKey user1)
+        kelRespEventCount kr @?= 1
 
 testMissingInceptionRejected :: IO ()
 testMissingInceptionRejected =
@@ -695,16 +676,8 @@ testValidInteractionSig = withTestEnv $ \te -> do
 
     -- Admin's KEL: inception (0) + bootstrap ixn (1)
     -- + introduce ixn (2) = 3 events
-    resp <-
-        httpGet
-            te
-            ( "/members/"
-                <> urlEncode (tidKey admin1)
-                <> "/kel"
-            )
-    HC.responseStatus resp @?= status200
-    kelResp <- decodeOrFail (HC.responseBody resp)
-    kelRespEventCount kelResp @?= 3
+    kr <- getMemberKel te (tidKey admin1)
+    kelRespEventCount kr @?= 3
 
 testForgedSignatureRejected :: IO ()
 testForgedSignatureRejected =
@@ -827,16 +800,8 @@ testKelGrowsWithEvents = withTestEnv $ \te -> do
     _ <- postEvent te (removeMember admin1 user2)
     -- KEL: +ixn(4) = 5
 
-    resp <-
-        httpGet
-            te
-            ( "/members/"
-                <> urlEncode (tidKey admin1)
-                <> "/kel"
-            )
-    HC.responseStatus resp @?= status200
-    kelResp <- decodeOrFail (HC.responseBody resp)
-    kelRespEventCount kelResp @?= 5
+    kr <- getMemberKel te (tidKey admin1)
+    kelRespEventCount kr @?= 5
 
 -- --------------------------------------------------------
 -- Key rotation
@@ -867,15 +832,7 @@ testRotateAndNewKey = withTestEnv $ \te -> do
     _ <- postEvent te (introduceMember admin1 user1)
 
     -- user1 KEL: inception (1 event)
-    resp0 <-
-        httpGet
-            te
-            ( "/members/"
-                <> urlEncode (tidKey user1)
-                <> "/kel"
-            )
-    HC.responseStatus resp0 @?= status200
-    kr0 <- decodeOrFail (HC.responseBody resp0)
+    kr0 <- getMemberKel te (tidKey user1)
     kelRespEventCount kr0 @?= 1
 
     -- Rotate user1's keys
@@ -890,15 +847,7 @@ testRotateAndNewKey = withTestEnv $ \te -> do
             (submitProposal rotatedUser1 9999)
 
     -- user1 KEL: inception + rotation + ixn = 3
-    resp1 <-
-        httpGet
-            te
-            ( "/members/"
-                <> urlEncode (tidKey user1)
-                <> "/kel"
-            )
-    HC.responseStatus resp1 @?= status200
-    kr1 <- decodeOrFail (HC.responseBody resp1)
+    kr1 <- getMemberKel te (tidKey user1)
     kelRespEventCount kr1 @?= 3
 
 testRotateOldKeyRejected :: IO ()
@@ -962,15 +911,98 @@ testBadCommitmentRejected = withTestEnv $ \te -> do
     HC.responseStatus resp @?= status422
 
 -- --------------------------------------------------------
--- Helpers
+-- KEL retrieval
 -- --------------------------------------------------------
 
--- | Decoded KEL response.
-newtype KelResp = KelResp
-    { kelRespEventCount :: Int
-    }
-    deriving stock (Show)
+kelRetrievalTests :: TestTree
+kelRetrievalTests =
+    testGroup
+        "KEL retrieval"
+        [ testCase
+            "full KEL after introduction"
+            testFullKelAfterIntro
+        , testCase
+            "KEL grows after interaction"
+            testKelGrowsAfterInteraction
+        , testCase
+            "KEL after rotation"
+            testKelAfterRotation
+        , testCase
+            "partial fetch with ?after=N"
+            testPartialFetchAfter
+        , testCase
+            "KEL not found for unknown member"
+            testKelNotFoundUnknown
+        ]
 
-instance FromJSON KelResp where
-    parseJSON = withObject "KelResp" $ \o ->
-        KelResp <$> o .: "eventCount"
+testFullKelAfterIntro :: IO ()
+testFullKelAfterIntro = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+    _ <- postEvent te (bootstrapAdmin admin1)
+    _ <- postEvent te (introduceMember admin1 user1)
+
+    kr <- getMemberKel te (tidKey user1)
+    kelRespEventCount kr @?= 1
+    length (kelRespEvents kr) @?= 1
+
+testKelGrowsAfterInteraction :: IO ()
+testKelGrowsAfterInteraction =
+    withTestEnv $ \te -> do
+        admin1 <- newTestId
+        user1 <- newTestId
+        _ <- postEvent te (bootstrapAdmin admin1)
+        _ <-
+            postEvent
+                te
+                (introduceMember admin1 user1)
+
+        -- user1 submits a proposal → ixn event
+        _ <-
+            postEvent
+                te
+                (submitProposal user1 9999)
+
+        kr <- getMemberKel te (tidKey user1)
+        kelRespEventCount kr @?= 2
+        length (kelRespEvents kr) @?= 2
+
+testKelAfterRotation :: IO ()
+testKelAfterRotation = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+    _ <- postEvent te (bootstrapAdmin admin1)
+    _ <- postEvent te (introduceMember admin1 user1)
+
+    -- Rotate user1's keys
+    _ <- postRotation te user1
+
+    kr <- getMemberKel te (tidKey user1)
+    -- inception + rotation = 2
+    kelRespEventCount kr @?= 2
+    length (kelRespEvents kr) @?= 2
+
+testPartialFetchAfter :: IO ()
+testPartialFetchAfter = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+    _ <- postEvent te (bootstrapAdmin admin1)
+    _ <- postEvent te (introduceMember admin1 user1)
+
+    -- user1 submits → 2 KEL events (icp + ixn)
+    _ <-
+        postEvent
+            te
+            (submitProposal user1 9999)
+
+    kr <-
+        getMemberKelAfter te (tidKey user1) 1
+    kelRespAfter kr @?= 1
+    -- Only the ixn, not inception
+    length (kelRespEvents kr) @?= 1
+
+testKelNotFoundUnknown :: IO ()
+testKelNotFoundUnknown = withTestEnv $ \te -> do
+    resp <-
+        httpGet te "/members/unknown/kel"
+    HC.responseStatus resp @?= status404
