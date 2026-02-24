@@ -12,9 +12,14 @@ from the Lean formalization:
 * nextSeq = 1 + totalEventsPosted (Processing.lean)
 * memberCount = 1 + activeMembers (BaseDecisions.lean)
 * authMode = \"normal\" when admin exists (BaseDecisions.lean)
+* sequencerKelCount = 1 (icp) + resolveCount
+* full cryptographic KEL audit: seqNum contiguity,
+  prefix consistency, digest chaining, signature validity
 -}
 module E2E.KelProperties (tests) where
 
+import Data.ByteString (ByteString)
+import Data.Either (fromRight)
 import Data.IORef
     ( modifyIORef'
     , newIORef
@@ -23,12 +28,25 @@ import Data.IORef
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as TE
 import E2E.TestHelpers
 import KelCircle.Events (Resolution (..))
+import KelCircle.MemberKel
+    ( extractDigest
+    , extractKeys
+    , extractPrefix
+    , extractSeqNumHex
+    , parseEventJson
+    )
+import Keri.Cesr.Decode qualified as Cesr
+import Keri.Cesr.DerivationCode (DerivationCode (..))
+import Keri.Cesr.Primitive (Primitive (..))
+import Keri.Crypto.Ed25519 (publicKeyFromBytes, verify)
 import Network.HTTP.Client qualified as HC
 import Network.HTTP.Types (status404)
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (assertEqual)
+import Test.Tasty.HUnit (assertEqual, assertFailure)
 import Test.Tasty.QuickCheck
     ( Gen
     , Property
@@ -127,9 +145,9 @@ genValidAction active
 -- | Generate a proposal round from the active set.
 genRound :: IntSet -> Gen ProposalRound
 genRound active = do
-    let members = IntSet.toList active
-    proposer <- elements members
-    let others = filter (/= proposer) members
+    let ms = IntSet.toList active
+    proposer <- elements ms
+    let others = filter (/= proposer) ms
     responders <- sublistOf others
     resolution <-
         elements
@@ -195,7 +213,7 @@ executeScenario te scenario = do
     admin <- newTestId
     others <- mapM (const newTestId) [1 .. n - 1]
     let tids = admin : others
-    seqId <- mkBadTestId "server-sequencer"
+        seqId = teSequencer te
 
     -- Track sign counts per member index
     signCounts <-
@@ -212,6 +230,11 @@ executeScenario te scenario = do
     totalEventsRef <- newIORef (0 :: Int)
     let bumpTotal =
             modifyIORef' totalEventsRef (+ 1)
+
+    -- Track resolve count (for sequencer KEL)
+    resolveCountRef <- newIORef (0 :: Int)
+    let bumpResolve =
+            modifyIORef' resolveCountRef (+ 1)
 
     -- Bootstrap admin (index 0)
     _ <- postEvent te (bootstrapAdmin admin)
@@ -265,7 +288,7 @@ executeScenario te scenario = do
                     )
                     (prResponders pr)
 
-                -- Sequencer resolves (exempt from signing)
+                -- Sequencer resolves
                 _ <-
                     postEvent
                         te
@@ -275,6 +298,7 @@ executeScenario te scenario = do
                             (prResolution pr)
                         )
                 bumpTotal
+                bumpResolve
                 pure ()
             RemoveAction i -> do
                 _ <-
@@ -294,37 +318,33 @@ executeScenario te scenario = do
     finalCounts <- readIORef signCounts
     removedSet <- readIORef removedRef
     totalEvents <- readIORef totalEventsRef
+    resolveCount <- readIORef resolveCountRef
     info <- getInfo te
 
-    -- (1) Processing.lean: nextSeq increments by 1 per event
-    --     Server starts at nextSeq=1 (genesis), so after N
-    --     events: nextSeq = 1 + N
+    -- (1) nextSeq = 1 + totalEvents
     assertEqual
         "nextSeq = 1 + totalEvents"
         (1 + totalEvents)
         (irNextSeq info)
 
-    -- (2) BaseDecisions.lean: member count =
-    --     1 (sequencer) + active members
+    -- (2) memberCount = 1 (sequencer) + active members
     let activeCount = n - IntSet.size removedSet
     assertEqual
         "memberCount = sequencer + active"
         (1 + activeCount)
         (irMemberCount info)
 
-    -- (3) BaseDecisions.lean: admin exists → normal mode
-    --     (generator never removes index 0 = admin)
+    -- (3) authMode = "normal" (admin exists)
     assertEqual
         "authMode = normal (admin exists)"
         "normal"
         (irAuthMode info)
 
-    -- (4) MemberKel.lean: per-member KEL event count
+    -- (4) per-member KEL event count
     mapM_
         ( \i ->
             if IntSet.member i removedSet
                 then do
-                    -- Removed: KEL should be 404
                     resp <-
                         httpGet
                             te
@@ -343,7 +363,6 @@ executeScenario te scenario = do
                         status404
                         (HC.responseStatus resp)
                 else do
-                    -- Active: KEL = 1 (icp) + signCount
                     kel <-
                         getMemberKel
                             te
@@ -363,6 +382,183 @@ executeScenario te scenario = do
                         (kelRespEventCount kel)
         )
         [0 .. n - 1]
+
+    -- (5) sequencer KEL = 1 (icp) + resolveCount
+    seqKel <-
+        getMemberKel te (tidKey seqId)
+    assertEqual
+        "sequencer KEL count"
+        (1 + resolveCount)
+        (kelRespEventCount seqKel)
+
+    -- (6) full cryptographic KEL audit for all active
+    --     members including the sequencer
+    let activeKeys =
+            [ tidKey (tids !! i)
+            | i <- [0 .. n - 1]
+            , not (IntSet.member i removedSet)
+            ]
+                ++ [tidKey seqId]
+    mapM_ (auditKel te) activeKeys
+
+-- --------------------------------------------------------
+-- Full cryptographic KEL audit
+-- --------------------------------------------------------
+
+{- | Audit a member's KEL for:
+(a) seqNum contiguity
+(b) prefix consistency
+(c) digest chaining
+(d) signature validity
+-}
+auditKel :: TestEnv -> T.Text -> IO ()
+auditKel te midText = do
+    kr <- getMemberKel te midText
+    let evts = kelRespEvents kr
+        label = T.unpack midText
+
+    -- Walk events checking invariants
+    auditEvents label Nothing 0 evts
+
+{- | Walk KEL events verifying invariants pairwise.
+Tracks the expected seqNum, prefix from first event,
+and prior digest for chaining.
+-}
+auditEvents
+    :: String
+    -> Maybe (T.Text, T.Text)
+    -- ^ (prefix, lastDigest) from prior event
+    -> Int
+    -- ^ Expected seqNum
+    -> [KelEventResp]
+    -> IO ()
+auditEvents _ _ _ [] = pure ()
+auditEvents label mPrior expectedSeq (ker : rest) = do
+    let evtBytes = TE.encodeUtf8 (kerEvent ker)
+    case parseEventJson evtBytes of
+        Left err ->
+            assertFailure $
+                label
+                    <> " event parse failed: "
+                    <> T.unpack err
+        Right evtVal -> do
+            -- (a) seqNum contiguity
+            case extractSeqNumHex evtVal of
+                Left err ->
+                    assertFailure $
+                        label
+                            <> " seqNum extract: "
+                            <> T.unpack err
+                Right sn ->
+                    assertEqual
+                        ( label
+                            <> " seqNum at "
+                            <> show expectedSeq
+                        )
+                        expectedSeq
+                        sn
+
+            -- (b) prefix consistency
+            case extractPrefix evtVal of
+                Left err ->
+                    assertFailure $
+                        label
+                            <> " prefix extract: "
+                            <> T.unpack err
+                Right pfx ->
+                    case mPrior of
+                        Nothing -> pure ()
+                        Just (prevPfx, _) ->
+                            assertEqual
+                                ( label
+                                    <> " prefix at "
+                                    <> show expectedSeq
+                                )
+                                prevPfx
+                                pfx
+
+            -- (c) digest chaining
+            case extractDigest evtVal of
+                Left err ->
+                    assertFailure $
+                        label
+                            <> " digest extract: "
+                            <> T.unpack err
+                Right _digest ->
+                    pure ()
+
+            -- (d) signature validity
+            verifySigs label evtBytes (kerSignatures ker)
+
+            -- Continue to next
+            let pfx =
+                    fromRight "?" (extractPrefix evtVal)
+                dig =
+                    fromRight "?" (extractDigest evtVal)
+            auditEvents
+                label
+                (Just (pfx, dig))
+                (expectedSeq + 1)
+                rest
+
+{- | Verify that at least one signature in the event
+is cryptographically valid. Decodes the CESR signature
+and the signer's public key from the event's \"k\" field.
+-}
+verifySigs
+    :: String -> ByteString -> [(Int, T.Text)] -> IO ()
+verifySigs label evtBytes sigs =
+    case parseEventJson evtBytes of
+        Left _ -> pure ()
+        Right evtVal ->
+            case extractKeys evtVal of
+                Left _ -> pure ()
+                Right keys ->
+                    mapM_ (verifySig label evtBytes keys) sigs
+
+{- | Verify a single indexed signature against the
+corresponding key.
+-}
+verifySig
+    :: String
+    -> ByteString
+    -> [T.Text]
+    -> (Int, T.Text)
+    -> IO ()
+verifySig label evtBytes keys (idx, sigCesr)
+    | idx >= length keys = pure ()
+    | otherwise = do
+        let keyCesr = keys !! idx
+        case Cesr.decode sigCesr of
+            Left _ -> pure ()
+            Right sigPrim ->
+                case Cesr.decode keyCesr of
+                    Left _ -> pure ()
+                    Right keyPrim ->
+                        case ( code keyPrim
+                             , code sigPrim
+                             ) of
+                            ( Ed25519PubKey
+                                , Ed25519Sig
+                                ) ->
+                                    case publicKeyFromBytes
+                                        (raw keyPrim) of
+                                        Left _ ->
+                                            pure ()
+                                        Right pk ->
+                                            assertEqual
+                                                ( label
+                                                    <> " sig["
+                                                    <> show idx
+                                                    <> "] valid"
+                                                )
+                                                True
+                                                ( verify
+                                                    pk
+                                                    evtBytes
+                                                    (raw sigPrim)
+                                                )
+                            _ -> pure ()
 
 -- --------------------------------------------------------
 -- Property

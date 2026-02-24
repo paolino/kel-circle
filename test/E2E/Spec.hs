@@ -210,7 +210,7 @@ testNonMemberCannotIntroduce =
 testCannotRemoveSequencer :: IO ()
 testCannotRemoveSequencer = withTestEnv $ \te -> do
     admin1 <- newTestId
-    seqId <- mkBadTestId "server-sequencer"
+    let seqId = teSequencer te
 
     _ <- postEvent te (bootstrapAdmin admin1)
 
@@ -337,7 +337,7 @@ testProposalAndResponse = withTestEnv $ \te -> do
 testResolveProposal :: IO ()
 testResolveProposal = withTestEnv $ \te -> do
     -- The sequencer can resolve proposals
-    seqId <- mkBadTestId "server-sequencer"
+    let seqId = teSequencer te
     admin1 <- newTestId
 
     _ <- postEvent te (bootstrapAdmin admin1)
@@ -631,7 +631,6 @@ testMissingInceptionRejected =
                                 (tidKey user1)
                                 Member
                     , tsInception = Nothing
-                    , tsSignerExempt = False
                     }
         resp <- postEventRaw te noInception
         HC.responseStatus resp @?= status422
@@ -658,7 +657,6 @@ testWrongKeyInceptionRejected =
                     , tsInception =
                         Just
                             (mkInceptionFor wrongUser)
-                    , tsSignerExempt = False
                     }
         resp <- postEventRaw te wrongInception
         HC.responseStatus resp @?= status422
@@ -697,7 +695,6 @@ testForgedSignatureRejected =
                     , tsPassphrase = Nothing
                     , tsEvent = CEProposal () 9999
                     , tsInception = Nothing
-                    , tsSignerExempt = True
                     }
         sub <- signSubmission forged
         let badSub =
@@ -738,7 +735,6 @@ testWrongKeySignatureRejected =
                     , tsPassphrase = Nothing
                     , tsEvent = CEProposal () 9999
                     , tsInception = Nothing
-                    , tsSignerExempt = False
                     }
         sub <- signSubmission wrongKey
         -- Submit as user1 but with imposter's sig
@@ -769,7 +765,6 @@ testTamperedPayloadRejected =
                     , tsPassphrase = Nothing
                     , tsEvent = CEProposal () 9999
                     , tsInception = Nothing
-                    , tsSignerExempt = False
                     }
         sub <- signSubmission original
         -- Tamper: change the event payload
@@ -919,6 +914,9 @@ kelRetrievalTests =
     testGroup
         "KEL retrieval"
         [ testCase
+            "sequencer has KEL at genesis"
+            testSequencerKelAtGenesis
+        , testCase
             "full KEL after introduction"
             testFullKelAfterIntro
         , testCase
@@ -934,6 +932,15 @@ kelRetrievalTests =
             "KEL not found for unknown member"
             testKelNotFoundUnknown
         ]
+
+testSequencerKelAtGenesis :: IO ()
+testSequencerKelAtGenesis = withTestEnv $ \te -> do
+    -- Before any events, sequencer KEL exists
+    -- with exactly 1 event (inception)
+    let seqKey = tidKey (teSequencer te)
+    kr <- getMemberKel te seqKey
+    kelRespEventCount kr @?= 1
+    length (kelRespEvents kr) @?= 1
 
 testFullKelAfterIntro :: IO ()
 testFullKelAfterIntro = withTestEnv $ \te -> do
