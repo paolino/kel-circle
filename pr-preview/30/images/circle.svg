@@ -1,0 +1,376 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <linearGradient id="kelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#2dd4bf" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="seqGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.05"/>
+    </linearGradient>
+    <!-- indigo arrow for global sequence — large and visible -->
+    <marker id="arrow" viewBox="0 0 10 7" refX="9" refY="3.5"
+            markerWidth="12" markerHeight="9" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6366f1"/>
+    </marker>
+    <!-- rose arrow for key rotation chains -->
+    <marker id="rotArrow" viewBox="0 0 10 7" refX="9" refY="3.5"
+            markerWidth="10" markerHeight="7" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f43f5e"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="960" fill="#1e1e2e" rx="16"/>
+
+  <text x="480" y="45" text-anchor="middle" fill="#cdd6f4"
+        font-size="22" font-weight="600">Kel-Circle Protocol</text>
+  <text x="480" y="70" text-anchor="middle" fill="#6c7086"
+        font-size="13">4 members + 1 sequencer · global sequence</text>
+
+  <!-- Subtle circle outline, center=(480,490), r=310 -->
+  <circle cx="480" cy="490" r="310" fill="none"
+          stroke="#313244" stroke-width="1" stroke-dasharray="4,8" opacity="0.4"/>
+
+  <!-- ============================================================ -->
+  <!-- 5 KELs on the circle, 72° apart.                             -->
+  <!-- icp at OUTER end (far from center), newest event innermost.  -->
+  <!-- The strip grows OUTWARD from the ring: icp is the far tip,   -->
+  <!-- newest event is near the ring center.                         -->
+  <!--                                                               -->
+  <!-- Center = (480, 490), radius = 310                             -->
+  <!-- Positions (angle from top, clockwise):                        -->
+  <!--   S:  0°   → (480, 180)  rotate 180°  — Sequencer (amber)   -->
+  <!--   A:  72°  → (775, 394)  rotate 252°                         -->
+  <!--   B: 144°  → (662, 741)  rotate 324°                         -->
+  <!--   C: 216°  → (298, 741)  rotate 36°                          -->
+  <!--   D: 288°  → (185, 394)  rotate 108°                         -->
+  <!--                                                               -->
+  <!-- 72° positions on circle r=310, center=(480,490):             -->
+  <!--   0°:   480 + 310*sin(0)   = 480,  490 - 310*cos(0)   = 180 -->
+  <!--   72°:  480 + 310*sin(72)  = 775,  490 - 310*cos(72)  = 394 -->
+  <!--   144°: 480 + 310*sin(144) = 662,  490 - 310*cos(144) = 741 -->
+  <!--   216°: 480 + 310*sin(216) = 298,  490 - 310*cos(216) = 741 -->
+  <!--   288°: 480 + 310*sin(288) = 185,  490 - 310*cos(288) = 394 -->
+  <!--                                                               -->
+  <!-- Each KEL rotated so its LENGTH axis points radially inward.  -->
+  <!-- Local y-axis: negative = outward (icp), positive = inward.   -->
+  <!-- Rotation = angle + 180° (strip points inward from rim).      -->
+  <!--                                                               -->
+  <!-- Global sequence: A(1)→B(2)→S(3)→D(4)→C(5)→S(6)→A(7)→B(8)  -->
+  <!--   S emits ixn 3 (timeout) and ixn 6 (threshold)              -->
+  <!-- ============================================================ -->
+
+  <!-- ===== Sequencer S (0°, top) — amber ===== -->
+  <!-- translate(480,180) rotate(180): local -y = outward (up), +y = inward (down) -->
+  <!-- icp at local y=-72 → world (480, 180+72) = (480, 252) OUTER -->
+  <!-- ixn3 at local y=-40 → world (480, 220) -->
+  <!-- ixn6 at local y=-8  → world (480, 188) -->
+  <!-- But wait: rotate(180) means local (0,ly) → world (480-0, 180-ly) = (480, 180-ly) -->
+  <!-- So local y=-72 → world (480, 252), local y=-40 → world (480, 220), -->
+  <!--    local y=-8 → world (480, 188) -->
+  <!-- icp at 252 is BELOW (further from top edge = further from center? No — -->
+  <!-- center is at 490. 252 < 490 so 252 is ABOVE center = toward outer edge. Good!) -->
+  <!-- Actually 252 is closer to top edge = outer. 188 is even more outer. Hmm. -->
+  <!-- For S at top (180), outer means AWAY from center (490), so outer = smaller y. -->
+  <!-- icp should be outermost = smallest y. Let me put icp at the far tip. -->
+  <!-- With rotate(180): local y=+72 → world (480, 180-72) = (480, 108) = outermost -->
+  <!-- local y=+40 → world (480, 140), local y=+8 → world (480, 172) -->
+  <!-- local y=-24 → world (480, 204) = innermost -->
+  <g transform="translate(480,180) rotate(180)">
+    <rect x="-32" y="-45" width="64" height="140" rx="10"
+          fill="url(#seqGrad)" stroke="#f59e0b" stroke-width="1.5"/>
+    <!-- icp — outermost (local y=+72 → world y=108) -->
+    <rect x="-24" y="59" width="48" height="26" rx="4"
+          fill="#f59e0b" fill-opacity="0.25"/>
+    <text x="0" y="77" text-anchor="middle" fill="#fcd34d"
+          font-size="10" transform="rotate(180,0,72)">icp</text>
+    <!-- ixn 3 (local y=+27 → world y=153) -->
+    <rect x="-24" y="14" width="48" height="26" rx="4"
+          fill="#6366f1" fill-opacity="0.3"/>
+    <text x="0" y="32" text-anchor="middle" fill="#a5b4fc"
+          font-size="10" transform="rotate(180,0,27)">ixn 3</text>
+    <!-- ixn 6 — innermost (local y=-18 → world y=198) -->
+    <rect x="-24" y="-31" width="48" height="26" rx="4"
+          fill="#6366f1" fill-opacity="0.3"/>
+    <text x="0" y="-13" text-anchor="middle" fill="#a5b4fc"
+          font-size="10" transform="rotate(180,0,-18)">ixn 6</text>
+    <!-- label outside -->
+    <text x="0" y="100" text-anchor="middle" fill="#f59e0b"
+          font-size="11" font-weight="700"
+          transform="rotate(180,0,95)">S</text>
+  </g>
+
+  <!-- ===== Member A (72°, top-right) ===== -->
+  <!-- translate(775,394) rotate(252) -->
+  <!-- rot=252°: cos(252°)=cos(-108°)=-0.309, sin(252°)=sin(-108°)=-0.951 -->
+  <!-- local (0, ly) → world (775 - ly*sin252, 394 + ly*cos252) -->
+  <!--               = (775 + ly*0.951, 394 - ly*0.309) -->
+  <!-- Events: icp(outer), ixn1, rot, ixn7(inner) -->
+  <!-- icp:  ly=+72 → world (775+68.5, 394-22.2) = (843, 372) OUTER -->
+  <!-- ixn1: ly=+27 → world (775+25.7, 394-8.3)  = (801, 386) -->
+  <!-- rot:  ly=-5  → world (775-4.8, 394+1.5)   = (770, 396) -->
+  <!-- ixn7: ly=-37 → world (775-35.2, 394+11.4) = (740, 405) INNER -->
+  <g transform="translate(775,394) rotate(252)">
+    <rect x="-32" y="-55" width="64" height="150" rx="10"
+          fill="url(#kelGrad)" stroke="#2dd4bf" stroke-width="1.5"/>
+    <!-- icp — outermost -->
+    <rect x="-24" y="62" width="48" height="26" rx="4"
+          fill="#2dd4bf" fill-opacity="0.3"/>
+    <text x="0" y="80" text-anchor="middle" fill="#94e2d5"
+          font-size="10" transform="rotate(108,0,75)">icp</text>
+    <!-- ixn 1 -->
+    <rect x="-24" y="17" width="48" height="26" rx="4"
+          fill="#6366f1" fill-opacity="0.3"/>
+    <text x="0" y="35" text-anchor="middle" fill="#a5b4fc"
+          font-size="10" transform="rotate(108,0,30)">ixn 1</text>
+    <!-- rot -->
+    <rect x="-24" y="-15" width="48" height="26" rx="4"
+          fill="#f43f5e" fill-opacity="0.3"/>
+    <text x="0" y="3" text-anchor="middle" fill="#fda4af"
+          font-size="10" transform="rotate(108,0,-2)">rot</text>
+    <!-- ixn 7 — innermost -->
+    <rect x="-24" y="-47" width="48" height="26" rx="4"
+          fill="#6366f1" fill-opacity="0.3"/>
+    <text x="0" y="-29" text-anchor="middle" fill="#a5b4fc"
+          font-size="10" transform="rotate(108,0,-34)">ixn 7</text>
+    <!-- label -->
+    <text x="0" y="105" text-anchor="middle" fill="#2dd4bf"
+          font-size="11" font-weight="600"
+          transform="rotate(108,0,100)">A</text>
+  </g>
+
+  <!-- ===== Member B (144°, bottom-right) ===== -->
+  <!-- translate(662,741) rotate(324) -->
+  <!-- rot=324°: cos(324°)=0.809, sin(324°)=-0.588 -->
+  <!-- local (0, ly) → world (662 + ly*0.588, 741 + ly*0.809) -->
+  <!-- Events: icp(outer), ixn2, ixn8(inner) -->
+  <!-- icp:  ly=+52 → world (662+30.6, 741+42.1) = (693, 783) OUTER -->
+  <!-- ixn2: ly=+7  → world (662+4.1, 741+5.7)   = (666, 747) -->
+  <!-- ixn8: ly=-25 → world (662-14.7, 741-20.2) = (647, 721) INNER -->
+  <g transform="translate(662,741) rotate(324)">
+    <rect x="-32" y="-45" width="64" height="120" rx="10"
+          fill="url(#kelGrad)" stroke="#2dd4bf" stroke-width="1.5"/>
+    <!-- icp — outermost -->
+    <rect x="-24" y="42" width="48" height="26" rx="4"
+          fill="#2dd4bf" fill-opacity="0.3"/>
+    <text x="0" y="60" text-anchor="middle" fill="#94e2d5"
+          font-size="10" transform="rotate(36,0,55)">icp</text>
+    <!-- ixn 2 -->
+    <rect x="-24" y="-3" width="48" height="26" rx="4"
+          fill="#6366f1" fill-opacity="0.3"/>
+    <text x="0" y="15" text-anchor="middle" fill="#a5b4fc"
+          font-size="10" transform="rotate(36,0,10)">ixn 2</text>
+    <!-- ixn 8 — innermost -->
+    <rect x="-24" y="-35" width="48" height="26" rx="4"
+          fill="#6366f1" fill-opacity="0.3"/>
+    <text x="0" y="-17" text-anchor="middle" fill="#a5b4fc"
+          font-size="10" transform="rotate(36,0,-22)">ixn 8</text>
+    <!-- label -->
+    <text x="0" y="82" text-anchor="middle" fill="#2dd4bf"
+          font-size="11" font-weight="600"
+          transform="rotate(36,0,77)">B</text>
+  </g>
+
+  <!-- ===== Member C (216°, bottom-left) — has 1 rot ===== -->
+  <!-- translate(298,741) rotate(36) -->
+  <!-- rot=36°: cos(36°)=0.809, sin(36°)=0.588 -->
+  <!-- local (0, ly) → world (298 - ly*0.588, 741 + ly*0.809) -->
+  <!-- Events: icp(outer), rot, ixn5(inner) -->
+  <!-- icp:  ly=+52 → world (298-30.6, 741+42.1) = (267, 783) OUTER -->
+  <!-- rot:  ly=+7  → world (298-4.1, 741+5.7)   = (294, 747) -->
+  <!-- ixn5: ly=-25 → world (298+14.7, 741-20.2) = (313, 721) INNER -->
+  <g transform="translate(298,741) rotate(36)">
+    <rect x="-32" y="-45" width="64" height="120" rx="10"
+          fill="url(#kelGrad)" stroke="#2dd4bf" stroke-width="1.5"/>
+    <!-- icp — outermost -->
+    <rect x="-24" y="42" width="48" height="26" rx="4"
+          fill="#2dd4bf" fill-opacity="0.3"/>
+    <text x="0" y="60" text-anchor="middle" fill="#94e2d5"
+          font-size="10" transform="rotate(-36,0,55)">icp</text>
+    <!-- rot -->
+    <rect x="-24" y="-3" width="48" height="26" rx="4"
+          fill="#f43f5e" fill-opacity="0.3"/>
+    <text x="0" y="15" text-anchor="middle" fill="#fda4af"
+          font-size="10" transform="rotate(-36,0,10)">rot</text>
+    <!-- ixn 5 — innermost -->
+    <rect x="-24" y="-35" width="48" height="26" rx="4"
+          fill="#6366f1" fill-opacity="0.3"/>
+    <text x="0" y="-17" text-anchor="middle" fill="#a5b4fc"
+          font-size="10" transform="rotate(-36,0,-22)">ixn 5</text>
+    <!-- label -->
+    <text x="0" y="82" text-anchor="middle" fill="#2dd4bf"
+          font-size="11" font-weight="600"
+          transform="rotate(-36,0,77)">C</text>
+  </g>
+
+  <!-- ===== Member D (288°, top-left) — has 2 rots ===== -->
+  <!-- translate(185,394) rotate(108) -->
+  <!-- rot=108°: cos(108°)=-0.309, sin(108°)=0.951 -->
+  <!-- local (0, ly) → world (185 - ly*0.951, 394 + ly*(-0.309)) -->
+  <!--               = (185 - ly*0.951, 394 - ly*0.309) -->
+  <!-- Events: icp(outer), rot1, ixn4, rot2(inner) -->
+  <!-- icp:  ly=+72 → world (185-68.5, 394-22.2) = (117, 372) OUTER -->
+  <!-- rot1: ly=+27 → world (185-25.7, 394-8.3)  = (159, 386) -->
+  <!-- ixn4: ly=-5  → world (185+4.8, 394+1.5)   = (190, 396) -->
+  <!-- rot2: ly=-37 → world (185+35.2, 394+11.4) = (220, 405) INNER -->
+  <g transform="translate(185,394) rotate(108)">
+    <rect x="-32" y="-55" width="64" height="150" rx="10"
+          fill="url(#kelGrad)" stroke="#2dd4bf" stroke-width="1.5"/>
+    <!-- icp — outermost -->
+    <rect x="-24" y="62" width="48" height="26" rx="4"
+          fill="#2dd4bf" fill-opacity="0.3"/>
+    <text x="0" y="80" text-anchor="middle" fill="#94e2d5"
+          font-size="10" transform="rotate(-108,0,75)">icp</text>
+    <!-- rot 1 -->
+    <rect x="-24" y="17" width="48" height="26" rx="4"
+          fill="#f43f5e" fill-opacity="0.3"/>
+    <text x="0" y="35" text-anchor="middle" fill="#fda4af"
+          font-size="10" transform="rotate(-108,0,30)">rot</text>
+    <!-- ixn 4 -->
+    <rect x="-24" y="-15" width="48" height="26" rx="4"
+          fill="#6366f1" fill-opacity="0.3"/>
+    <text x="0" y="3" text-anchor="middle" fill="#a5b4fc"
+          font-size="10" transform="rotate(-108,0,-2)">ixn 4</text>
+    <!-- rot 2 — innermost -->
+    <rect x="-24" y="-47" width="48" height="26" rx="4"
+          fill="#f43f5e" fill-opacity="0.3"/>
+    <text x="0" y="-29" text-anchor="middle" fill="#fda4af"
+          font-size="10" transform="rotate(-108,0,-34)">rot</text>
+    <!-- label -->
+    <text x="0" y="105" text-anchor="middle" fill="#2dd4bf"
+          font-size="11" font-weight="600"
+          transform="rotate(-108,0,100)">D</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- Global sequence: straight lines between ixn events            -->
+  <!--                                                               -->
+  <!-- Path: A(1)→B(2)→S(3)→D(4)→C(5)→S(6)→A(7)→B(8)             -->
+  <!--                                                               -->
+  <!-- World coords of ixn centers:                                  -->
+  <!--   A ixn1≈(801,386)  A ixn7≈(740,405)                         -->
+  <!--   B ixn2≈(666,747)  B ixn8≈(647,721)                         -->
+  <!--   S ixn3≈(480,153)  S ixn6≈(480,198)                         -->
+  <!--   D ixn4≈(190,396)                                           -->
+  <!--   C ixn5≈(313,721)                                           -->
+  <!--                                                               -->
+  <!-- Lines that share a KEL get slight bends to avoid overlap      -->
+  <!-- ============================================================ -->
+
+  <!-- 1→2: A(ixn1) → B(ixn2) -->
+  <line x1="801" y1="386" x2="666" y2="747"
+        stroke="#6366f1" stroke-width="1.5" stroke-dasharray="6,3"
+        marker-end="url(#arrow)" opacity="0.7"/>
+  <!-- 2→3: B(ixn2) → S(ixn3) — bend right to avoid overlap with 8→end -->
+  <path d="M 666,747 Q 610,440 480,153" fill="none"
+        stroke="#6366f1" stroke-width="1.5" stroke-dasharray="6,3"
+        marker-end="url(#arrow)" opacity="0.7"/>
+  <!-- 3→4: S(ixn3) → D(ixn4) -->
+  <line x1="480" y1="153" x2="190" y2="396"
+        stroke="#6366f1" stroke-width="1.5" stroke-dasharray="6,3"
+        marker-end="url(#arrow)" opacity="0.7"/>
+  <!-- 4→5: D(ixn4) → C(ixn5) -->
+  <line x1="190" y1="396" x2="313" y2="721"
+        stroke="#6366f1" stroke-width="1.5" stroke-dasharray="6,3"
+        marker-end="url(#arrow)" opacity="0.7"/>
+  <!-- 5→6: C(ixn5) → S(ixn6) — bend left to avoid overlap with 2→3 -->
+  <path d="M 313,721 Q 350,440 480,198" fill="none"
+        stroke="#6366f1" stroke-width="1.5" stroke-dasharray="6,3"
+        marker-end="url(#arrow)" opacity="0.7"/>
+  <!-- 6→7: S(ixn6) → A(ixn7) -->
+  <line x1="480" y1="198" x2="740" y2="405"
+        stroke="#6366f1" stroke-width="1.5" stroke-dasharray="6,3"
+        marker-end="url(#arrow)" opacity="0.7"/>
+  <!-- 7→8: A(ixn7) → B(ixn8) — bend right to avoid overlap with 1→2 -->
+  <path d="M 740,405 Q 720,570 647,721" fill="none"
+        stroke="#6366f1" stroke-width="1.5" stroke-dasharray="6,3"
+        marker-end="url(#arrow)" opacity="0.7"/>
+
+  <!-- Numbered sequence dots at each ixn event -->
+  <g font-size="9" font-weight="700" text-anchor="middle" fill="#1e1e2e">
+    <circle cx="801" cy="386" r="9" fill="#6366f1" opacity="0.85"/>
+    <text x="801" y="389">1</text>
+    <circle cx="666" cy="747" r="9" fill="#6366f1" opacity="0.85"/>
+    <text x="666" y="750">2</text>
+    <circle cx="480" cy="153" r="9" fill="#6366f1" opacity="0.85"/>
+    <text x="480" y="156">3</text>
+    <circle cx="190" cy="396" r="9" fill="#6366f1" opacity="0.85"/>
+    <text x="190" y="399">4</text>
+    <circle cx="313" cy="721" r="9" fill="#6366f1" opacity="0.85"/>
+    <text x="313" y="724">5</text>
+    <circle cx="480" cy="198" r="9" fill="#6366f1" opacity="0.85"/>
+    <text x="480" y="201">6</text>
+    <circle cx="740" cy="405" r="9" fill="#6366f1" opacity="0.85"/>
+    <text x="740" y="408">7</text>
+    <circle cx="647" cy="721" r="9" fill="#6366f1" opacity="0.85"/>
+    <text x="647" y="724">8</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- Key rotation chains: bezier curves icp→rot→rot within KELs   -->
+  <!-- ============================================================ -->
+
+  <!-- A: icp→rot -->
+  <!-- icp≈(843,372), rot≈(770,396) — bow outward (away from center) -->
+  <path d="M 843,372 Q 830,410 770,396" fill="none"
+        stroke="#f43f5e" stroke-width="1.3" stroke-dasharray="3,2"
+        marker-end="url(#rotArrow)" opacity="0.65"/>
+
+  <!-- C: icp→rot -->
+  <!-- icp≈(267,783), rot≈(294,747) — bow outward (down-left) -->
+  <path d="M 267,783 Q 255,755 294,747" fill="none"
+        stroke="#f43f5e" stroke-width="1.3" stroke-dasharray="3,2"
+        marker-end="url(#rotArrow)" opacity="0.65"/>
+
+  <!-- D: icp→rot1 -->
+  <!-- icp≈(117,372), rot1≈(159,386) — bow outward (left) -->
+  <path d="M 117,372 Q 120,400 159,386" fill="none"
+        stroke="#f43f5e" stroke-width="1.3" stroke-dasharray="3,2"
+        marker-end="url(#rotArrow)" opacity="0.65"/>
+  <!-- D: rot1→rot2 -->
+  <!-- rot1≈(159,386), rot2≈(220,405) — bow outward -->
+  <path d="M 159,386 Q 175,420 220,405" fill="none"
+        stroke="#f43f5e" stroke-width="1.3" stroke-dasharray="3,2"
+        marker-end="url(#rotArrow)" opacity="0.65"/>
+
+  <!-- ============================================================ -->
+  <!-- Legend                                                         -->
+  <!-- ============================================================ -->
+  <g transform="translate(40,910)">
+    <rect x="0" y="0" width="40" height="16" rx="3"
+          fill="#2dd4bf" fill-opacity="0.3"/>
+    <text x="20" y="12" text-anchor="middle" fill="#94e2d5"
+          font-size="9">icp</text>
+    <text x="48" y="12" fill="#a6adc8" font-size="10">inception</text>
+
+    <rect x="130" y="0" width="40" height="16" rx="3"
+          fill="#f43f5e" fill-opacity="0.3"/>
+    <text x="150" y="12" text-anchor="middle" fill="#fda4af"
+          font-size="9">rot</text>
+    <text x="178" y="12" fill="#a6adc8" font-size="10">key rotation</text>
+
+    <rect x="290" y="0" width="40" height="16" rx="3"
+          fill="#6366f1" fill-opacity="0.3"/>
+    <text x="310" y="12" text-anchor="middle" fill="#a5b4fc"
+          font-size="9">ixn</text>
+    <text x="338" y="12" fill="#a6adc8" font-size="10">interaction</text>
+
+    <rect x="440" y="0" width="16" height="16" rx="3"
+          fill="#f59e0b" fill-opacity="0.2" stroke="#f59e0b" stroke-width="1"/>
+    <text x="464" y="12" fill="#a6adc8" font-size="10">sequencer</text>
+
+    <rect x="540" y="0" width="16" height="16" rx="3"
+          fill="#2dd4bf" fill-opacity="0.15" stroke="#2dd4bf" stroke-width="1"/>
+    <text x="564" y="12" fill="#a6adc8" font-size="10">member</text>
+
+    <line x1="620" y1="8" x2="660" y2="8"
+          stroke="#6366f1" stroke-width="1.5" stroke-dasharray="6,3"
+          marker-end="url(#arrow)"/>
+    <text x="668" y="12" fill="#a6adc8" font-size="10">global seq</text>
+
+    <path d="M 760,8 Q 775,0 790,8" fill="none"
+          stroke="#f43f5e" stroke-width="1.3" stroke-dasharray="3,2"
+          marker-end="url(#rotArrow)"/>
+    <text x="800" y="12" fill="#a6adc8" font-size="10">key chain</text>
+  </g>
+</svg>

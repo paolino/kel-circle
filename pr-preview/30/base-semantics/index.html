@@ -1,0 +1,1415 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://paolino.github.io/kel-circle/base-semantics/">
+      
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+        <link rel="next" href="../event-classification/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Base Semantics - kel-circle</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#base-semantics" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="kel-circle" class="md-header__button md-logo" aria-label="kel-circle" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            kel-circle
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Base Semantics
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/paolino/kel-circle" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    paolino/kel-circle
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="kel-circle" class="md-nav__button md-logo" aria-label="kel-circle" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    kel-circle
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/paolino/kel-circle" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    paolino/kel-circle
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base Semantics
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base Semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#global-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global sequence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#circle-genesis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Circle genesis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Circle genesis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequencer-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequencer protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#membership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Membership
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#base-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Base decisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Base decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#straight-decisions-admin-gated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Straight decisions (admin-gated)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#proposals-requiring-admin-majority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposals requiring admin majority
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-two-level-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two-level gate
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The two-level gate">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#level-1-base-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Level 1: base gate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#level-2-application-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Level 2: application gate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bootstrap-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bootstrap mode
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bootstrap mode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#re-entering-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-entering bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fold-computation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fold computation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-processing-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event processing pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Event processing pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dependency-on-full-kels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency on full KELs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-vs-client-asymmetric-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server vs client: asymmetric roles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Server vs client: asymmetric roles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#server-gatekeeper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server: gatekeeper
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-auditor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client: auditor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checkpoint-based-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checkpoint-based sync
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trust-model-censor-but-not-forge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trust model: censor but not forge
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#global-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global sequence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#circle-genesis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Circle genesis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Circle genesis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequencer-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequencer protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#membership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Membership
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#base-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Base decisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Base decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#straight-decisions-admin-gated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Straight decisions (admin-gated)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#proposals-requiring-admin-majority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposals requiring admin majority
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-two-level-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two-level gate
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The two-level gate">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#level-1-base-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Level 1: base gate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#level-2-application-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Level 2: application gate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bootstrap-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bootstrap mode
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bootstrap mode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#re-entering-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-entering bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fold-computation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fold computation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-processing-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event processing pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Event processing pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dependency-on-full-kels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency on full KELs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-vs-client-asymmetric-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server vs client: asymmetric roles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Server vs client: asymmetric roles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#server-gatekeeper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server: gatekeeper
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-auditor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client: auditor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checkpoint-based-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checkpoint-based sync
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trust-model-censor-but-not-forge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trust model: censor but not forge
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="base-semantics">Base Semantics</h1>
+<p>The base semantics are the protocol-level rules that the sequencer
+enforces <strong>independently of any application</strong>. They give the server
+the ability to control access and maintain circle integrity.</p>
+<h2 id="global-sequence">Global sequence</h2>
+<p>The sequencer maintains a monotonic counter starting at zero. Each
+accepted interaction event is assigned the next index.</p>
+<p><strong>Invariant 1 — no gaps, no duplicates.</strong> Every index from 0 to
+the current counter is populated by exactly one interaction event.</p>
+<p><strong>Invariant 2 — strictly increasing timestamps.</strong> Each index
+carries a UTC timestamp. For any indices <em>i &lt; j</em>, the timestamp at
+<em>i</em> is strictly less than the timestamp at <em>j</em>.</p>
+<p><strong>Invariant 3 — server semantic authority.</strong> The sequencer has full
+knowledge of the protocol and application semantics. It governs
+what interactions are valid and controls the fold.</p>
+<p><strong>Lean predicates:</strong> <code>SequencedEvent</code>, <code>GlobalSequence</code>,
+<code>WellFormedSequence</code>, <code>indicesContiguous</code>, <code>timestampsIncreasing</code>,
+<code>noDuplicateIndices</code>, <code>append_preserves_contiguous</code>,
+<code>append_preserves_increasing</code>, <code>append_preserves_no_dups</code></p>
+<h2 id="circle-genesis">Circle genesis</h2>
+<p>The first two events in every circle are fixed by the protocol:</p>
+<p><strong>Event 0 — sequencer self-introduction.</strong> The sequencer introduces
+itself as a non-admin member. This is a hard-coded genesis event,
+not subject to any gate. The sequencer needs to be a member so it
+can sign events (e.g. decisions that resolve proposals), but it is
+never an admin.</p>
+<p><strong>Event 1 — first admin introduction.</strong> The first human user
+introduces themselves as an admin. This happens during bootstrap
+mode (no admins exist yet), gated by a passphrase challenge. After
+this event, normal mode begins.</p>
+<h3 id="sequencer-protection">Sequencer protection</h3>
+<p>The sequencer is a permanent, non-admin member:</p>
+<ul>
+<li><strong>Cannot be removed</strong> — the base gate rejects any <code>removeMember</code>
+  targeting the sequencer</li>
+<li><strong>Cannot be promoted to admin</strong> — the base gate rejects any
+  <code>changeRole</code> promoting the sequencer to admin</li>
+</ul>
+<p>These protections are enforced unconditionally, regardless of mode.</p>
+<p>The sequencer's identity <em>can</em> be replaced via a <strong>sequencer
+rotation</strong> — any admin can do this as a straight decision.</p>
+<p><strong>Lean predicates:</strong> <code>genesis</code>, <code>genesis_sequencer_is_member</code>,
+<code>genesis_sequencer_not_admin</code>, <code>genesis_is_bootstrap</code>,
+<code>genesis_preserves_sequencer_id</code>,
+<code>sequencer_removal_rejected</code>, <code>sequencer_admin_promotion_rejected</code></p>
+<h2 id="membership">Membership</h2>
+<p>Membership is a base-layer concern. The protocol itself tracks who
+is in the circle. The sequencer can always determine the current
+member set by folding the event history — no application logic
+required.</p>
+<p>A member is identified by their KERI prefix (the self-certifying
+identifier from their own KEL). Each member's KEL is independent
+and handles inception and key rotation per the KERI specification.</p>
+<p><strong>Lean predicates:</strong> <code>CircleState</code>, <code>isMember</code>, <code>isAdmin</code>,
+<code>admin_is_member</code></p>
+<h2 id="admin-roles">Admin roles</h2>
+<p>Admin is a distinguished base-layer role. Admins can:</p>
+<ul>
+<li>Introduce new members (straight decision)</li>
+<li>Propose admin promotions and demotions (requires majority)</li>
+<li>Remove members (straight decision)</li>
+</ul>
+<p>Non-admin members can participate in application-level interactions
+but cannot modify the circle's membership structure.</p>
+<h2 id="base-decisions">Base decisions</h2>
+<p>The protocol defines two categories of membership operations:</p>
+<h3 id="straight-decisions-admin-gated">Straight decisions (admin-gated)</h3>
+<p>These are accepted immediately when the signer is an admin:</p>
+<ul>
+<li><strong>Introduce member</strong> — add a new non-admin member to the circle.
+  Introducing someone directly as admin is rejected by the straight
+  gate — admin role requires a majority proposal.</li>
+<li><strong>Remove member</strong> — remove a member from the circle. Removing the
+  sequencer is always rejected. The application gate also
+  participates: it can reject a removal based on domain state
+  (e.g. a member with frozen funds in an open order cannot be
+  removed until the order resolves).</li>
+<li><strong>Rotate sequencer</strong> — replace the sequencer's identity with a
+  new KERI prefix. The old sequencer stays as a regular member;
+  the new one takes over sequencing.</li>
+</ul>
+<h3 id="proposals-requiring-admin-majority">Proposals requiring admin majority</h3>
+<p>These require a proposal with majority approval from all current
+admins:</p>
+<ul>
+<li><strong>Promote to admin</strong> — change a member's role to admin</li>
+<li><strong>Demote from admin</strong> — change an admin's role to member</li>
+</ul>
+<p>Admin role changes affect the power structure of the circle, so
+they require consensus rather than unilateral action. Note that a
+single remaining admin can demote themselves (majority of one),
+which returns the circle to bootstrap mode.</p>
+<p><strong>Lean predicates:</strong> <code>BaseDecision</code>, <code>applyBaseDecision</code>, <code>Circle</code>,
+<code>introduce_adds_member</code>, <code>introduce_admin_exits_bootstrap</code>,
+<code>introduce_preserves_existing</code>, <code>baseGate</code>,
+<code>rotate_accepted_by_admin</code>,
+<code>rotate_new_sequencer_is_member</code>,
+<code>rotate_old_sequencer_stays_member</code>,
+<code>rotate_updates_sequencer_id</code>,
+<code>majority</code>, <code>hasAdminMajority</code>, <code>single_admin_majority</code>,
+<code>demote_sole_admin_enters_bootstrap</code>,
+<code>demote_then_bootstrap_accepts_admin</code>,
+<code>sequencer_survives_demotion</code></p>
+<h2 id="the-two-level-gate">The two-level gate</h2>
+<p>Every event submitted to the sequencer must pass two gates before
+it is accepted and assigned a sequence number.</p>
+<h3 id="level-1-base-gate">Level 1: base gate</h3>
+<p>The base gate is fixed by the protocol. It checks:</p>
+<ol>
+<li>
+<p><strong>Sequencer protection</strong> — the event does not remove or promote
+   the sequencer</p>
+</li>
+<li>
+<p><strong>Mode-dependent authorization:</strong></p>
+<ul>
+<li><em>Bootstrap mode</em> — only <code>introduceMember</code> with admin role is
+  accepted (passphrase-gated)</li>
+<li><em>Normal mode</em> — signer must be an admin for membership
+  operations; signer must be a member for application events</li>
+</ul>
+</li>
+<li>
+<p><strong>Sequence number freshness</strong> — the submitter's claimed sequence
+   number must still be available. If another event was already
+   assigned that index, the submission is rejected. This detects
+   stale state (the submitter was looking at an old fold).</p>
+</li>
+<li>
+<p><strong>Timestamp bounds</strong> — the submitted timestamp must be within a
+   configured accuracy window of the server's clock. This prevents
+   backdated or far-future events.</p>
+</li>
+<li>
+<p><strong>Membership</strong> — the signer must be a known member of the
+   circle. The signer is identified by verifying the Ed25519
+   signature against the public key from their KEL.</p>
+</li>
+</ol>
+<h3 id="level-2-application-gate">Level 2: application gate</h3>
+<p>The application gate is parameterized. Different circles supply
+different validation functions. In general, the application gate
+can see both the base fold state and the application fold state.
+However, for <strong>base decisions</strong> (membership operations), only the
+application fold state is needed — the base gate already handles
+all membership and role checks:</p>
+<div class="highlight"><pre><span></span><code>applicationGate :: AppFoldState -&gt; BaseDecision -&gt; Bool
+</code></pre></div>
+<p>The sequencer applies this function after the base gate passes. If
+the application gate rejects the event, it is not sequenced.</p>
+<p>The application gate sees <strong>all</strong> events, including base decisions
+like member removal. This allows the application to block removals
+when domain invariants would be violated (e.g. a member with
+active commitments cannot be removed until those commitments are
+resolved).</p>
+<p>This separation means the base infrastructure (membership, roles,
+sequencing, proposals) is reusable across applications, while each
+application defines its own domain-specific validity rules.</p>
+<p><strong>Lean predicates:</strong> <code>protectsSequencer</code>, <code>requiresMajority</code>,
+<code>baseGate</code>, <code>fullGate</code>, <code>full_gate_base_rejects</code>,
+<code>full_gate_app_rejects</code></p>
+<h2 id="bootstrap-mode">Bootstrap mode</h2>
+<p>When the circle has zero admins, it is in <strong>bootstrap mode</strong>. The
+genesis sequence is:</p>
+<ol>
+<li>Event 0 — sequencer self-introduces as member (no gate)</li>
+<li>Still in bootstrap — sequencer is not an admin</li>
+<li>Event 1 — first user self-introduces as admin (passphrase-gated)</li>
+<li>Normal mode begins</li>
+</ol>
+<h3 id="re-entering-bootstrap">Re-entering bootstrap</h3>
+<p>If the last admin demotes themselves (via a majority proposal —
+which trivially passes with one admin), the circle returns to
+bootstrap mode. The sequencer remains as a permanent non-admin
+member (event 0 is never undone). A new admin can then
+self-introduce using the passphrase, exactly as during initial
+setup.</p>
+<p>This means the circle is never stuck: as long as someone knows the
+passphrase, the admin role can always be recovered.</p>
+<p><strong>Lean predicates:</strong> <code>isBootstrap</code>, <code>isBootstrapB</code>,
+<code>empty_is_bootstrap</code>, <code>genesis_is_bootstrap</code>,
+<code>bootstrap_accepts_admin_intro</code>, <code>bootstrap_rejects_member_intro</code>,
+<code>bootstrap_rejects_remove</code></p>
+<h2 id="fold-computation">Fold computation</h2>
+<p>The circle's current state is computed by folding <strong>all</strong> events in
+the global sequence. Every sequenced interaction event — decision,
+proposal, or response — contributes to the fold.</p>
+<p>The fold has two layers:</p>
+<ul>
+<li>
+<p><strong>Base fold</strong> — extracts membership and role information. This
+  layer is fixed by the protocol. The base gate uses only the base
+  fold to check membership, roles, and freshness.</p>
+</li>
+<li>
+<p><strong>Application fold</strong> — accumulates domain-specific state. This
+  layer is pluggable. The application gate uses the full fold
+  (base + application) to validate domain rules.</p>
+</li>
+</ul>
+<p>To compute the current state:</p>
+<ol>
+<li>Walk the global sequence from index 0</li>
+<li>Apply each event to the fold accumulator (both base and
+   application layers)</li>
+</ol>
+<p>A future optimization may allow skipping fully resolved proposals
+during fold replay, but the base model treats every sequenced event
+as a fold input.</p>
+<h2 id="event-processing-pipeline">Event processing pipeline</h2>
+<p>The sequencer processes five kinds of events, each with its own
+gate and state transition:</p>
+<ol>
+<li>
+<p><strong>Base decision</strong> — membership operations (introduce, remove,
+   changeRole, rotate). Gated by the two-level gate (<code>baseGate</code> +
+   application gate). Updates the circle state.</p>
+</li>
+<li>
+<p><strong>Application decision</strong> — domain-specific straight decisions.
+   Signer must be a member. Application gate validates content.
+   Updates the application fold state only.</p>
+</li>
+<li>
+<p><strong>Proposal</strong> — opens a coordination round. Signer must be a
+   member. Registers the proposal in the proposal registry with
+   its deadline.</p>
+</li>
+<li>
+<p><strong>Response</strong> — responds to an open proposal. Signer must be a
+   member who has not already responded to this proposal. The
+   proposal must be open.</p>
+</li>
+<li>
+<p><strong>Proposal resolution</strong> — server-emitted decision that closes
+   a proposal. Only the sequencer can emit resolutions.</p>
+</li>
+</ol>
+<p>Each event increments the global sequence number. The processing
+pipeline guarantees separation of concerns:</p>
+<ul>
+<li>Base decisions change the circle but not the proposal registry</li>
+<li>Application decisions change the app fold but not the circle
+  or the proposal registry</li>
+<li>Proposals and responses change the proposal registry but not
+  the circle or the app fold</li>
+<li>Resolutions change the proposal registry but not the circle
+  or the app fold</li>
+</ul>
+<p>This separation is formally verified in Lean: each <code>apply*</code>
+function preserves the state components it does not logically
+modify.</p>
+<p><strong>Lean predicates:</strong> <code>CircleEvent</code>, <code>FullState</code>, <code>initFullState</code>,
+<code>gateBaseDecision</code>, <code>gateAppDecision</code>, <code>gateProposal</code>,
+<code>gateResponse</code>, <code>gateResolve</code>,
+<code>applyBase</code>, <code>applyAppDecision</code>, <code>applyProposal</code>,
+<code>applyResponse</code>, <code>applyResolve</code>,
+<code>apply_base_increments_seq</code>, <code>apply_app_decision_increments_seq</code>,
+<code>apply_proposal_increments_seq</code>, <code>apply_response_increments_seq</code>,
+<code>apply_resolve_increments_seq</code>,
+<code>app_decision_preserves_circle</code>, <code>proposal_preserves_circle</code>,
+<code>response_preserves_circle</code>, <code>resolve_preserves_circle</code>,
+<code>base_preserves_proposals</code>, <code>app_decision_preserves_proposals</code>,
+<code>non_sequencer_cannot_resolve</code>, <code>sequencer_can_resolve</code>,
+<code>init_seq_is_one</code>, <code>init_no_proposals</code>,
+<code>init_sequencer_is_member</code></p>
+<h3 id="dependency-on-full-kels">Dependency on full KELs</h3>
+<p>Both the server and clients must fold and validate against the
+<strong>full KELs</strong> of all circle members — not just the interaction
+events in the global sequence. Each member's KEL includes inception,
+key rotation, and interaction events per the KERI specification.</p>
+<p>When the server receives a new event, it resolves the signer's KEL
+to verify the signature against their current key state. Only then
+does it apply the two-level gate and (if accepted) assign a sequence
+number. Clients perform the same verification when replaying the
+global sequence.</p>
+<p>Without access to the full KELs, neither server nor client can
+confirm that a signature is valid under the signer's current public
+key (which may have been rotated since the event was signed). The
+global sequence provides canonical ordering; the KELs provide
+cryptographic identity.</p>
+<h2 id="server-vs-client-asymmetric-roles">Server vs client: asymmetric roles</h2>
+<p>Both server and clients fold the global sequence and validate
+against full KELs, but their roles are fundamentally asymmetric.</p>
+<h3 id="server-gatekeeper">Server: gatekeeper</h3>
+<p>The server is <strong>always online</strong> and maintains the <strong>source of truth
+for all member KELs</strong>. It holds copies of every member's full KEL
+(inception, key rotations, interactions) so it can resolve key
+state and verify signatures at any time without depending on
+external infrastructure.</p>
+<p>Members cannot update their own KELs directly. Every KEL event —
+inception, key rotation, and interaction — must be submitted to the
+server. The server validates each event (correct prior digest, valid
+signature) and only then appends it to its copy of that member's
+KEL. The server is the <strong>sole writer</strong> of all KELs in the circle.</p>
+<p>For each submitted event, the server:</p>
+<ol>
+<li>Resolves the signer's KEL and verifies the signature</li>
+<li><strong>Challenges membership</strong> — confirms the signer is a known
+   member of the circle (from the current base fold)</li>
+<li>Applies the <strong>base gate</strong> — sequencer protection, mode-dependent
+   authorization, sequence freshness, timestamp bounds</li>
+<li>Applies the <strong>application gate</strong> — domain-specific validation</li>
+<li>If all gates pass, assigns the next sequence number</li>
+</ol>
+<p>The membership challenge is critical: it happens before any other
+gate logic. An event from an unknown signer is rejected immediately,
+regardless of its content.</p>
+<p>The server is also responsible for <strong>relaying</strong> all data to clients.
+Clients do not communicate with each other — they receive the global
+sequence and all member KELs exclusively from the server. This makes
+the server the single point of distribution for all circle state.</p>
+<h3 id="client-auditor">Client: auditor</h3>
+<p>Clients replay the global sequence <strong>after</strong> events have been
+accepted and sequenced. They:</p>
+<ol>
+<li>Obtain the global sequence and all member KELs</li>
+<li>For each event, verify the signature against the signer's KEL</li>
+<li>Recompute both folds (base + application) over all events</li>
+<li>Confirm the resulting state matches the server's reported state</li>
+</ol>
+<p>Clients do not re-run the gate logic — the server already enforced
+it. Instead, they verify that the server's decisions were consistent:
+every sequenced event has a valid signature from a member who was
+in the circle at the time. If the server accepted an event from a
+non-member, the client's replay would detect the inconsistency.</p>
+<p>Clients store the current fold state <strong>locally</strong> — this is public
+data derived from the global sequence and requires no special
+protection. The member's <strong>private key</strong> is stored separately and
+protected by a password. The two are never co-located: the fold
+state can be freely cached and synced, while the private key
+remains locked until the user authenticates to sign a new event.</p>
+<h3 id="checkpoint-based-sync">Checkpoint-based sync</h3>
+<p>For efficiency, clients do not replay the full history from genesis
+on every connection. Instead, they maintain a <strong>checkpoint</strong> — a
+snapshot of the fold state (both base and application layers) at a
+known sequence index, together with the <strong>pre-image</strong> of that fold:
+the complete circle of KELs as they stood at that index. The fold
+state is derived from the KELs, so storing the pre-image alongside
+the result lets the client resume verification from a known-good
+point without replaying from genesis.</p>
+<p>To stay current, clients connect to an <strong>SSE (Server-Sent Events)
+endpoint</strong>. The SSE stream continuously provides:</p>
+<ul>
+<li>The <strong>next free sequence number</strong> (tip of the global sequence)</li>
+<li>The <strong>current server time</strong></li>
+<li>Notifications when new events are sequenced</li>
+</ul>
+<p>The sequence number and time allow clients to detect when they are
+behind and to construct valid submissions (with a fresh sequence
+number and timestamp within the accuracy window). On receiving a
+notification of new events, the client requests the delta from its
+checkpoint index to the current tip — all new events and KEL
+updates since the checkpoint. The client applies the delta to its
+local state, advancing to the tip.</p>
+<p>This is analogous to blockchain light sync: the client trusts its
+own checkpoint (which it previously verified) and only replays the
+new events. A full replay from genesis is always possible for
+complete re-verification but is not required for normal operation.</p>
+<h3 id="trust-model-censor-but-not-forge">Trust model: censor but not forge</h3>
+<p>The server has <strong>full visibility</strong> over all events and <strong>full
+control</strong> over what gets sequenced — it can delay, reorder, or
+reject submissions. In this sense, the server is a censor.</p>
+<p>However, the server <strong>cannot forge events</strong>. Every event carries a
+signature from the member's private key, and the server never holds
+any member's private key. A forged event would fail signature
+verification during client replay. This is the fundamental security
+guarantee: the server controls the sequence, but cannot fabricate
+the content.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="../javascripts/mermaid.mjs" type="module"></script>
+      
+    
+  </body>
+</html>
