@@ -64,6 +64,7 @@ module E2E.TestHelpers
     , ConditionMember (..)
     , GetEventResp (..)
     , KelResp (..)
+    , KelEventResp (..)
     ) where
 
 import Control.Concurrent.STM (newBroadcastTChanIO)
@@ -89,6 +90,11 @@ import KelCircle.Events
     , Resolution
     )
 import KelCircle.InteractionVerify (buildInteractionBytes)
+import KelCircle.MemberKel
+    ( MemberKel
+    , kelFromInception
+    , parseInceptionValue
+    )
 import KelCircle.RotationVerify
     ( buildRotationBytes
     , rotationEventDigest
@@ -106,6 +112,7 @@ import KelCircle.Server.JSON
 import KelCircle.Store
     ( CircleStore
     , closeStore
+    , insertMemberKel
     , openStore
     )
 import KelCircle.Types
@@ -310,16 +317,21 @@ testPass = "e2e-bootstrap-pass"
 data TestEnv = TestEnv
     { tePort :: Warp.Port
     , teMgr :: HC.Manager
+    , teSequencer :: TestId
+    -- ^ Real sequencer identity with keypair + KEL
     }
 
 {- | Spin up a fresh server on a random port. Uses
 the trivial application (Unit types for d, p, r).
+Creates a real sequencer identity with Ed25519 keypair
+and inception KEL.
 -}
 withTestEnv :: (TestEnv -> IO a) -> IO a
 withTestEnv action = do
     dbPath <-
         emptySystemTempFile "kel-circle-e2e-.db"
-    let sid = MemberId "server-sequencer"
+    seqTid <- newTestId
+    let sid = MemberId (tidKey seqTid)
     ch <- newBroadcastTChanIO @SSEMessage
     (store :: CircleStore () () ()) <-
         openStore
@@ -327,6 +339,13 @@ withTestEnv action = do
             ()
             trivialAppFold
             dbPath
+    -- Create sequencer inception KEL
+    seqInception <- mkInceptionFor seqTid
+    case parseInceptionKel seqInception of
+        Nothing ->
+            error "failed to parse sequencer inception"
+        Just kel ->
+            insertMemberKel store sid kel
     let cfg =
             ServerConfig
                 { scStore = store
@@ -338,6 +357,8 @@ withTestEnv action = do
                 , scPassphrase = testPass
                 , scBroadcast = ch
                 , scLog = \_ -> pure ()
+                , scSequencerKeyPair =
+                    tidKeyPair seqTid
                 }
     mgr <- HC.newManager HC.defaultManagerSettings
     result <-
@@ -348,6 +369,7 @@ withTestEnv action = do
                     TestEnv
                         { tePort = port
                         , teMgr = mgr
+                        , teSequencer = seqTid
                         }
             )
     closeStore store
@@ -369,6 +391,13 @@ trivialAppGate _ _ = True
 -- | Trivial proposal gate: always passes.
 trivialProposalGate :: () -> () -> Bool
 trivialProposalGate _ _ = True
+
+-- | Parse inception JSON into a MemberKel.
+parseInceptionKel :: Value -> Maybe MemberKel
+parseInceptionKel val =
+    case parseInceptionValue val of
+        Left _ -> Nothing
+        Right icp -> Just (kelFromInception icp)
 
 -- --------------------------------------------------------
 -- HTTP helpers
@@ -479,8 +508,6 @@ data TestSub = TestSub
     , tsEvent :: CircleEvent () () ()
     , tsInception :: Maybe (IO Value)
     -- ^ Deferred inception builder (needs IO)
-    , tsSignerExempt :: Bool
-    -- ^ Sequencer is exempt from interaction signing
     }
 
 {- | Sign a test submission. Builds the inception
@@ -494,14 +521,9 @@ signSubmission ts = do
         Nothing -> pure Nothing
         Just mkInc -> Just <$> mkInc
     sig <-
-        if tsSignerExempt ts
-            then
-                pure $
-                    "dummy:" <> tidKey (tsSigner ts)
-            else
-                signInteraction
-                    (tsSigner ts)
-                    (tsEvent ts)
+        signInteraction
+            (tsSigner ts)
+            (tsEvent ts)
     pure
         Submission
             { subPassphrase = tsPassphrase ts
@@ -585,7 +607,6 @@ bootstrapAdmin tid =
                     Admin
         , tsInception =
             Just (mkInceptionFor tid)
-        , tsSignerExempt = False
         }
 
 {- | Introduce a regular member. The introducing
@@ -604,7 +625,6 @@ introduceMember signer newMember =
                     Member
         , tsInception =
             Just (mkInceptionFor newMember)
-        , tsSignerExempt = False
         }
 
 -- | Introduce a new admin.
@@ -621,7 +641,6 @@ introduceAdmin signer newAdmin =
                     Admin
         , tsInception =
             Just (mkInceptionFor newAdmin)
-        , tsSignerExempt = False
         }
 
 -- | Remove a member.
@@ -635,7 +654,6 @@ removeMember signer target =
                 RemoveMember
                     (MemberId $ tidKey target)
         , tsInception = Nothing
-        , tsSignerExempt = False
         }
 
 -- | Change a member's role.
@@ -651,7 +669,6 @@ changeRole signer target role =
                     (MemberId $ tidKey target)
                     role
         , tsInception = Nothing
-        , tsSignerExempt = False
         }
 
 -- | Submit a proposal (trivial Unit content).
@@ -663,7 +680,6 @@ submitProposal signer deadline =
         , tsPassphrase = Nothing
         , tsEvent = CEProposal () deadline
         , tsInception = Nothing
-        , tsSignerExempt = False
         }
 
 -- | Respond to a proposal (trivial Unit content).
@@ -675,7 +691,6 @@ respondToProposal signer pid =
         , tsPassphrase = Nothing
         , tsEvent = CEResponse () pid
         , tsInception = Nothing
-        , tsSignerExempt = False
         }
 
 -- | Resolve a proposal (sequencer only).
@@ -690,7 +705,6 @@ resolveProposal signer pid res =
         , tsPassphrase = Nothing
         , tsEvent = CEResolveProposal pid res
         , tsInception = Nothing
-        , tsSignerExempt = True
         }
 
 -- --------------------------------------------------------
@@ -926,11 +940,26 @@ instance FromJSON GetEventResp where
 -- KEL helpers
 -- --------------------------------------------------------
 
+-- | A single KEL event from the API response.
+data KelEventResp = KelEventResp
+    { kerEvent :: Text
+    -- ^ Raw KERI JSON string
+    , kerSignatures :: [(Int, Text)]
+    -- ^ Indexed CESR signatures
+    }
+    deriving stock (Show)
+
+instance FromJSON KelEventResp where
+    parseJSON = withObject "KelEventResp" $ \o ->
+        KelEventResp
+            <$> o .: "event"
+            <*> o .: "signatures"
+
 -- | Decoded KEL response.
 data KelResp = KelResp
     { kelRespEventCount :: Int
     , kelRespAfter :: Int
-    , kelRespEvents :: [Value]
+    , kelRespEvents :: [KelEventResp]
     }
     deriving stock (Show)
 

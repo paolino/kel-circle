@@ -45,6 +45,7 @@ import KelCircle.Events
     )
 import KelCircle.InteractionVerify
     ( VerifyResult (..)
+    , buildInteractionBytes
     , verifyInteraction
     )
 import KelCircle.MemberKel
@@ -89,6 +90,10 @@ import KelCircle.Validate
     , validateResolve
     , validateResponse
     )
+import Keri.Cesr.DerivationCode (DerivationCode (..))
+import Keri.Cesr.Encode qualified
+import Keri.Cesr.Primitive (Primitive (..))
+import Keri.Crypto.Ed25519 (KeyPair, sign)
 import Network.HTTP.Types
     ( HeaderName
     , Status
@@ -139,6 +144,8 @@ data ServerConfig g d p r = ServerConfig
     -- ^ SSE broadcast channel
     , scLog :: Text -> IO ()
     -- ^ Logger function
+    , scSequencerKeyPair :: KeyPair
+    -- ^ Sequencer's Ed25519 keypair for signing
     }
 
 {- | Build a WAI 'Application' from a 'ServerConfig'.
@@ -375,7 +382,6 @@ doAppend cfg sub fs respond = do
     let signer = MemberId (subSigner sub)
         evt = subEvent sub
         log' = scLog cfg
-        sid = sequencerId (fsCircle fs)
     case validateCircleEvent cfg fs signer evt of
         Left ve -> do
             log' $
@@ -400,16 +406,29 @@ doAppend cfg sub fs respond = do
                         jsonResponse status422 $
                             ValidationErr ve
                 Right kelData -> do
-                    -- Verify interaction signature
+                    -- Verify or sign interaction event
                     let evtJson = toJSON evt
+                        sid =
+                            sequencerId (fsCircle fs)
                     ixnResult <-
-                        verifyInteractionSig
-                            signer
-                            (subSignature sub)
-                            evtJson
-                            (readMemberKel (scStore cfg))
-                            kelData
-                            sid
+                        if signer == sid
+                            then
+                                signSequencerInteraction
+                                    (scSequencerKeyPair cfg)
+                                    evtJson
+                                    ( readMemberKel
+                                        (scStore cfg)
+                                    )
+                                    signer
+                            else
+                                verifyInteractionSig
+                                    signer
+                                    (subSignature sub)
+                                    evtJson
+                                    ( readMemberKel
+                                        (scStore cfg)
+                                    )
+                                    kelData
                     case ixnResult of
                         Left ve -> do
                             log' $
@@ -511,8 +530,7 @@ validateAndBuildKel _ _ _ =
     pure $ Right Nothing
 
 {- | Verify the interaction event signature for a
-signer. Returns @Right Nothing@ if the signer is the
-sequencer (exempt), @Right (Just (mid, kelEvent))@ on
+signer. Returns @Right (Just (mid, kelEvent))@ on
 success, or @Left ValidationError@ on failure.
 Uses IO to look up KELs from SQLite.
 -}
@@ -527,8 +545,6 @@ verifyInteractionSig
     -- ^ KEL lookup function
     -> Maybe (MemberId, MemberKel)
     -- ^ Inception KEL (bootstrap self-intro)
-    -> MemberId
-    -- ^ Sequencer ID
     -> IO
         ( Either
             ValidationError
@@ -539,43 +555,94 @@ verifyInteractionSig
     sig
     evtJson
     lookupKel
-    mKelData
-    sid
-        | signer == sid = pure $ Right Nothing
-        | otherwise = do
-            mKel <- case mKelData of
-                Just (mid, kel)
-                    | mid == signer -> pure $ Just kel
-                _ -> lookupKel signer
-            pure $ case mKel of
-                Nothing ->
-                    Left (SignerHasNoKel signer)
-                Just kel ->
-                    case kelKeyState kel of
-                        Left err ->
-                            Left $
-                                InteractionVerifyFailed
-                                    signer
-                                    err
-                        Right kks ->
-                            case verifyInteraction
-                                kks
-                                sig
-                                evtJson of
-                                Left err ->
-                                    Left $
-                                        InteractionVerifyFailed
-                                            signer
-                                            err
-                                Right (VerifyFailed reason) ->
-                                    Left $
-                                        InteractionVerifyFailed
-                                            signer
-                                            reason
-                                Right (Verified ke) ->
-                                    Right $
-                                        Just
-                                            (signer, ke)
+    mKelData = do
+        mKel <- case mKelData of
+            Just (mid, kel)
+                | mid == signer -> pure $ Just kel
+            _ -> lookupKel signer
+        pure $ case mKel of
+            Nothing ->
+                Left (SignerHasNoKel signer)
+            Just kel ->
+                case kelKeyState kel of
+                    Left err ->
+                        Left $
+                            InteractionVerifyFailed
+                                signer
+                                err
+                    Right kks ->
+                        case verifyInteraction
+                            kks
+                            sig
+                            evtJson of
+                            Left err ->
+                                Left $
+                                    InteractionVerifyFailed
+                                        signer
+                                        err
+                            Right (VerifyFailed reason) ->
+                                Left $
+                                    InteractionVerifyFailed
+                                        signer
+                                        reason
+                            Right (Verified ke) ->
+                                Right $
+                                    Just
+                                        (signer, ke)
+
+{- | Sign a circle event as a KERI interaction on
+behalf of the sequencer. Looks up the sequencer's KEL,
+computes the next interaction event, signs it with
+the server's keypair, and returns the new 'KelEvent'.
+-}
+signSequencerInteraction
+    :: KeyPair
+    -> Value
+    -- ^ Circle event JSON (anchor)
+    -> (MemberId -> IO (Maybe MemberKel))
+    -- ^ KEL lookup
+    -> MemberId
+    -- ^ Sequencer MemberId
+    -> IO
+        ( Either
+            ValidationError
+            (Maybe (MemberId, KelEvent))
+        )
+signSequencerInteraction kp evtJson lookupKel mid = do
+    mKel <- lookupKel mid
+    pure $ case mKel of
+        Nothing ->
+            Left (SignerHasNoKel mid)
+        Just kel ->
+            case kelKeyState kel of
+                Left err ->
+                    Left $
+                        InteractionVerifyFailed
+                            mid
+                            err
+                Right kks ->
+                    let nextSeq = kksSeqNum kks + 1
+                        evtBytes =
+                            buildInteractionBytes
+                                (kksPrefix kks)
+                                nextSeq
+                                (kksLastDigest kks)
+                                evtJson
+                        sigBytes = sign kp evtBytes
+                        sigCesr =
+                            Keri.Cesr.Encode.encode $
+                                Primitive
+                                    { code = Ed25519Sig
+                                    , raw = sigBytes
+                                    }
+                        ke =
+                            KelEvent
+                                { keEventBytes =
+                                    evtBytes
+                                , keSignatures =
+                                    [(0, sigCesr)]
+                                }
+                    in  Right $ Just (mid, ke)
 
 {- | Validate a circle event through the appropriate
 gate.

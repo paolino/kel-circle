@@ -23,6 +23,7 @@ module KelCircle.Store
       -- * Operations
     , appendCircleEvent
     , appendRotationEvent
+    , insertMemberKel
     , readFullState
     , readEventsFrom
     , readMemberKel
@@ -325,6 +326,14 @@ appendRotationEvent
 appendRotationEvent store mid ke = do
     appendSingleKelEvent (csConn store) mid ke
     queryKelCount (csConn store) mid
+
+{- | Insert a complete member KEL into the store.
+Used to seed the sequencer's inception KEL at genesis.
+-}
+insertMemberKel
+    :: CircleStore g p r -> MemberId -> MemberKel -> IO ()
+insertMemberKel store =
+    storeMemberKelEvents (csConn store)
 
 -- --------------------------------------------------------
 -- Internal helpers
