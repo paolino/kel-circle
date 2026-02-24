@@ -15,6 +15,8 @@ from the Lean formalization:
 * sequencerKelCount = 1 (icp) + resolveCount
 * full cryptographic KEL audit: seqNum contiguity,
   prefix consistency, digest chaining, signature validity
+* prefix uniqueness across all active members
+* global sequence contiguity + signer membership
 -}
 module E2E.KelProperties (tests) where
 
@@ -28,6 +30,7 @@ import Data.IORef
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
+import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import E2E.TestHelpers
@@ -44,9 +47,13 @@ import Keri.Cesr.DerivationCode (DerivationCode (..))
 import Keri.Cesr.Primitive (Primitive (..))
 import Keri.Crypto.Ed25519 (publicKeyFromBytes, verify)
 import Network.HTTP.Client qualified as HC
-import Network.HTTP.Types (status404)
+import Network.HTTP.Types (status200, status404)
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (assertEqual, assertFailure)
+import Test.Tasty.HUnit
+    ( assertBool
+    , assertEqual
+    , assertFailure
+    )
 import Test.Tasty.QuickCheck
     ( Gen
     , Property
@@ -400,6 +407,119 @@ executeScenario te scenario = do
             ]
                 ++ [tidKey seqId]
     mapM_ (auditKel te) activeKeys
+
+    -- (7) Prefix uniqueness across all active members
+    prefixes <- mapM (getKelPrefix te) activeKeys
+    let prefixSet = Set.fromList prefixes
+    assertEqual
+        "all KERI prefixes unique"
+        (length activeKeys)
+        (Set.size prefixSet)
+
+    -- (8) Global sequence contiguity + signer membership
+    --     Walk the entire log, verify each signer is a
+    --     known member (including removed ones).
+    let allKnownKeys =
+            Set.fromList
+                ( [ tidKey (tids !! i)
+                  | i <- [0 .. n - 1]
+                  ]
+                    ++ [tidKey seqId]
+                )
+    globalEvents <-
+        walkGlobalLog te totalEvents
+    mapM_
+        ( \(idx, ge) ->
+            assertBool
+                ( "global event "
+                    <> show idx
+                    <> " signer is known member"
+                )
+                ( Set.member
+                    (erSigner ge)
+                    allKnownKeys
+                )
+        )
+        (zip [0 :: Int ..] globalEvents)
+
+-- --------------------------------------------------------
+-- Prefix uniqueness helper
+-- --------------------------------------------------------
+
+{- | Extract the KERI prefix from a member's inception
+event (first event in their KEL).
+-}
+getKelPrefix :: TestEnv -> T.Text -> IO T.Text
+getKelPrefix te midText = do
+    kr <- getMemberKel te midText
+    case kelRespEvents kr of
+        [] -> do
+            _ <-
+                assertFailure $
+                    T.unpack midText
+                        <> " KEL is empty"
+            pure ""
+        (ker : _) ->
+            case parseEventJson
+                (TE.encodeUtf8 (kerEvent ker)) of
+                Left err -> do
+                    _ <-
+                        assertFailure $
+                            T.unpack midText
+                                <> " inception parse: "
+                                <> T.unpack err
+                    pure ""
+                Right evtVal ->
+                    case extractPrefix evtVal of
+                        Left err -> do
+                            _ <-
+                                assertFailure $
+                                    T.unpack midText
+                                        <> " prefix: "
+                                        <> T.unpack err
+                            pure ""
+                        Right pfx -> pure pfx
+
+-- --------------------------------------------------------
+-- Global sequence walk
+-- --------------------------------------------------------
+
+{- | Walk the global event log via GET /events?after=N.
+Verifies contiguity (every position returns 200) and
+that no extra events exist beyond the expected total.
+-}
+walkGlobalLog
+    :: TestEnv -> Int -> IO [GetEventResp]
+walkGlobalLog te total = do
+    events <- mapM fetchAt [0 .. total - 1]
+    -- Verify no extra events exist
+    resp <-
+        httpGet
+            te
+            ( "/events?after="
+                <> show (total - 1)
+            )
+    assertEqual
+        "global log ends at expected total"
+        status404
+        (HC.responseStatus resp)
+    pure events
+  where
+    fetchAt idx = do
+        resp <-
+            httpGet
+                te
+                ( "/events?after="
+                    <> show (idx - 1)
+                )
+        assertEqual
+            ( "global event "
+                <> show idx
+                <> " exists"
+            )
+            status200
+            (HC.responseStatus resp)
+        decodeOrFail (HC.responseBody resp)
 
 -- --------------------------------------------------------
 -- Full cryptographic KEL audit
