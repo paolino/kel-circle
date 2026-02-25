@@ -11,6 +11,7 @@ module KelCircle.Client.Proposals
   , resolveProposal
   , hasNotResponded
   , canRespond
+  , hasOpenProposalWithContent
   ) where
 
 import Prelude
@@ -140,3 +141,16 @@ canRespond
   -> Boolean
 canRespond tp mid =
   isOpen tp.status && hasNotResponded tp mid
+
+-- | Check if there is already an open proposal
+-- | with the same content.
+hasOpenProposalWithContent
+  :: forall p r
+   . Eq p
+  => ProposalRegistry p r
+  -> p
+  -> Boolean
+hasOpenProposalWithContent reg content =
+  Array.any
+    (\tp -> isOpen tp.status && tp.content == content)
+    reg

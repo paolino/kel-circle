@@ -314,6 +314,21 @@ instance ToJSON ValidationError where
                         :: Text
                    )
             ]
+    toJSON DuplicateProposal =
+        object
+            [ "error"
+                .= ( "duplicateProposal"
+                        :: Text
+                   )
+            ]
+    toJSON (ResponseNotAdmin mid) =
+        object
+            [ "error"
+                .= ( "responseNotAdmin"
+                        :: Text
+                   )
+            , "memberId" .= mid
+            ]
     toJSON (ResponseGateRejected pid) =
         object
             [ "error"

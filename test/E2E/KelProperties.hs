@@ -149,13 +149,18 @@ genValidAction active
         not (null removable)
             && IntSet.size active > 2
 
--- | Generate a proposal round from the active set.
+{- | Generate a proposal round from the active set.
+Only admin members (index 0) can respond to proposals.
+-}
 genRound :: IntSet -> Gen ProposalRound
 genRound active = do
     let ms = IntSet.toList active
     proposer <- elements ms
-    let others = filter (/= proposer) ms
-    responders <- sublistOf others
+    let admins =
+            filter
+                (\i -> i == 0 && i /= proposer)
+                ms
+    responders <- sublistOf admins
     resolution <-
         elements
             [ ThresholdReached

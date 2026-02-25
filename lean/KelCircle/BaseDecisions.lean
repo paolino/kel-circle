@@ -17,7 +17,7 @@ inductive BaseDecision where
   | removeMember      (id : MemberId)
   | changeRole        (id : MemberId) (newRole : Role)
   | rotateSequencer   (newSequencerId : MemberId)
-  deriving Repr
+  deriving Repr, BEq
 
 -- Count admins in the circle
 def adminCount (s : CircleState) : Nat :=

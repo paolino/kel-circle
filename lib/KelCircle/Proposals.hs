@@ -27,6 +27,9 @@ module KelCircle.Proposals
       -- * Response validation
     , hasNotResponded
     , canRespond
+
+      -- * Duplicate detection
+    , hasOpenProposalWithContent
     ) where
 
 import KelCircle.Events (Resolution)
@@ -184,3 +187,17 @@ canRespond
     :: TrackedProposal p r -> MemberId -> Bool
 canRespond tp m =
     isOpen (tpStatus tp) && hasNotResponded tp m
+
+{- | Check if there is already an open proposal with
+the same content. Mirrors Lean
+@hasOpenProposalWithContent@.
+-}
+hasOpenProposalWithContent
+    :: (Eq p) => ProposalRegistry p r -> p -> Bool
+hasOpenProposalWithContent reg content =
+    any
+        ( \tp ->
+            isOpen (tpStatus tp)
+                && tpContent tp == content
+        )
+        reg

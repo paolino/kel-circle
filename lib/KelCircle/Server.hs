@@ -164,6 +164,7 @@ mkApp
        , ToJSON d
        , ToJSON p
        , ToJSON r
+       , Eq p
        )
     => ServerConfig g d p r
     -> Maybe Application
@@ -317,6 +318,7 @@ handlePostEvent
        , ToJSON d
        , ToJSON p
        , ToJSON r
+       , Eq p
        )
     => ServerConfig g d p r
     -> Request
@@ -351,7 +353,7 @@ handlePostEvent cfg req respond = do
     log' = scLog cfg
 
 handleBootstrapPost
-    :: (ToJSON d, ToJSON p, ToJSON r)
+    :: (ToJSON d, ToJSON p, ToJSON r, Eq p)
     => ServerConfig g d p r
     -> Submission d p r
     -> FullState g p r
@@ -374,7 +376,7 @@ handleBootstrapPost cfg sub fs respond =
                 doAppend cfg sub fs respond
 
 doAppend
-    :: (ToJSON d, ToJSON p, ToJSON r)
+    :: (ToJSON d, ToJSON p, ToJSON r, Eq p)
     => ServerConfig g d p r
     -> Submission d p r
     -> FullState g p r
@@ -618,7 +620,8 @@ signSequencerInteraction kp evtJson resolveKks mid = do
 gate.
 -}
 validateCircleEvent
-    :: ServerConfig g d p r
+    :: (Eq p)
+    => ServerConfig g d p r
     -> FullState g p r
     -> MemberId
     -> CircleEvent d p r
