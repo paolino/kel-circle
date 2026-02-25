@@ -30,6 +30,8 @@ import KelCircle.Processing
     , gateResolve
     , gateResponse
     )
+import KelCircle.Proposals qualified as P
+import KelCircle.State (Circle (..), isAdmin)
 import KelCircle.Types
     ( MemberId
     , ProposalId
@@ -43,8 +45,12 @@ data ValidationError
       AppGateRejected
     | -- | Proposal gate rejected
       ProposalGateRejected
-    | {- | Response gate rejected (not member,
-      already responded, or proposal not open)
+    | -- | Duplicate open proposal with same content
+      DuplicateProposal
+    | -- | Responder is not an admin
+      ResponseNotAdmin MemberId
+    | {- | Response gate rejected (already responded
+      or proposal not open)
       -}
       ResponseGateRejected ProposalId
     | -- | Only the sequencer can resolve proposals
@@ -86,9 +92,13 @@ validateAppDecision s signer content appGate
         Right ()
     | otherwise = Left AppGateRejected
 
--- | Validate a proposal submission.
+{- | Validate a proposal submission.
+Returns specific errors for duplicate content vs
+other gate failures.
+-}
 validateProposal
-    :: FullState g p r
+    :: (Eq p)
+    => FullState g p r
     -> MemberId
     -> p
     -> (g -> p -> Bool)
@@ -96,9 +106,16 @@ validateProposal
 validateProposal s signer content appGate
     | gateProposal s signer content appGate =
         Right ()
+    | P.hasOpenProposalWithContent
+        (fsProposals s)
+        content =
+        Left DuplicateProposal
     | otherwise = Left ProposalGateRejected
 
--- | Validate a response submission.
+{- | Validate a response submission.
+Returns specific errors for non-admin vs other
+gate failures.
+-}
 validateResponse
     :: FullState g p r
     -> MemberId
@@ -106,6 +123,12 @@ validateResponse
     -> Either ValidationError ()
 validateResponse s signer pid
     | gateResponse s signer pid = Right ()
+    | not
+        ( isAdmin
+            (circleState (fsCircle s))
+            signer
+        ) =
+        Left (ResponseNotAdmin signer)
     | otherwise = Left (ResponseGateRejected pid)
 
 -- | Validate a proposal resolution.

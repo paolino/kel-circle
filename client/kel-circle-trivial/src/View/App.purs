@@ -304,6 +304,8 @@ content st = case st.screen of
           Proposals.proposalsComponent
           { proposals: st.fullState.proposals
           , myKey: map _.prefix st.identity
+          , circleState:
+              st.fullState.circle.circleState
           }
           HandleProposals
       ]

@@ -24,7 +24,9 @@ import KelCircle.Processing
     , applyProposal
     , applyResolve
     , applyResponse
+    , gateProposal
     , gateResolve
+    , gateResponse
     , initFullState
     )
 import KelCircle.State (Circle (..), isMember)
@@ -47,6 +49,8 @@ tests =
         , testProposalPreservation
         , testGateSequencer
         , testGenesisState
+        , testResponseInvariants
+        , testProposalInvariants
         ]
 
 sid :: MemberId
@@ -58,8 +62,15 @@ aid = MemberId "admin-0"
 s0 :: FullState () () ()
 s0 = initFullState sid ()
 
+mid :: MemberId
+mid = MemberId "member-0"
+
 s1 :: FullState () () ()
 s1 = applyBase s0 (IntroduceMember aid "" Admin)
+
+-- s1 with a non-admin member introduced
+s2 :: FullState () () ()
+s2 = applyBase s1 (IntroduceMember mid "" Member)
 
 -- ---------------------------------------------------------
 -- Sequence increments (mirrors apply_*_increments_seq)
@@ -247,4 +258,73 @@ testGenesisState =
                 in  isMember
                         (circleState (fsCircle s))
                         sid'
+        ]
+
+-- ---------------------------------------------------------
+-- Response invariants (mirrors gateResponse_requires_admin)
+-- ---------------------------------------------------------
+
+testResponseInvariants :: TestTree
+testResponseInvariants =
+    testGroup
+        "response invariants"
+        [ testCase "non-admin response rejected" $ do
+            -- Open a proposal so there's something to
+            -- respond to
+            let sWithProp =
+                    applyProposal s2 () aid 9999
+                pid = fsNextSeq s2
+            assertBool
+                "non-admin should be rejected"
+                (not (gateResponse sWithProp mid pid))
+        , testCase "admin response accepted" $ do
+            let sWithProp =
+                    applyProposal s2 () aid 9999
+                pid = fsNextSeq s2
+            assertBool
+                "admin should be accepted"
+                (gateResponse sWithProp aid pid)
+        ]
+
+-- ---------------------------------------------------------
+-- Proposal invariants (mirrors
+-- gateProposal_rejects_duplicate)
+-- ---------------------------------------------------------
+
+testProposalInvariants :: TestTree
+testProposalInvariants =
+    testGroup
+        "proposal invariants"
+        [ testCase "duplicate proposal rejected" $ do
+            let sWithProp =
+                    applyProposal s1 () aid 9999
+            assertBool
+                "duplicate should be rejected"
+                ( not
+                    ( gateProposal
+                        sWithProp
+                        aid
+                        ()
+                        (\_ _ -> True)
+                    )
+                )
+        , testCase "different content accepted" $ do
+            -- Use Int proposals to test different
+            -- content
+            let s :: FullState () Int ()
+                s = initFullState sid ()
+                s' =
+                    applyBase
+                        s
+                        (IntroduceMember aid "" Admin)
+                sWithProp =
+                    applyProposal s' (1 :: Int) aid 9999
+            assertBool
+                "different content should pass"
+                ( gateProposal
+                    sWithProp
+                    aid
+                    (2 :: Int)
+                    (\_ _ -> True)
+                )
         ]

@@ -20,6 +20,10 @@ import KelCircle.Client.Proposals
   , canRespond
   , isOpen
   )
+import KelCircle.Client.State
+  ( CircleState
+  , isAdminMember
+  )
 import KelCircle.Client.Types (MemberId, ProposalId)
 
 data Output = SubmitResponse ProposalId
@@ -27,11 +31,13 @@ data Output = SubmitResponse ProposalId
 type Input =
   { proposals :: ProposalRegistry Unit Unit
   , myKey :: Maybe MemberId
+  , circleState :: CircleState
   }
 
 type State =
   { proposals :: ProposalRegistry Unit Unit
   , myKey :: Maybe MemberId
+  , circleState :: CircleState
   }
 
 data Action
@@ -53,6 +59,7 @@ initialState :: Input -> State
 initialState input =
   { proposals: input.proposals
   , myKey: input.myKey
+  , circleState: input.circleState
   }
 
 render :: forall m. State -> H.ComponentHTML Action () m
@@ -66,7 +73,7 @@ render st =
       , if openProps == [] then
           HH.p_ [ HH.text "No open proposals." ]
         else
-          HH.div_ (map (proposalCard st.myKey) openProps)
+          HH.div_ (map (proposalCard st.circleState st.myKey) openProps)
       , if resolvedProps /= [] then
           HH.div_
             [ HH.h3_ [ HH.text "Resolved" ]
@@ -77,15 +84,18 @@ render st =
 
 proposalCard
   :: forall m
-   . Maybe MemberId
+   . CircleState
+  -> Maybe MemberId
   -> TrackedProposal Unit Unit
   -> H.ComponentHTML Action () m
-proposalCard myKey tp =
+proposalCard cs myKey tp =
   let
     responseCount = Array.length tp.responses
+    -- Only admins who haven't responded can respond
     canI = case myKey of
       Nothing -> false
-      Just k -> canRespond tp k
+      Just k ->
+        isAdminMember cs k && canRespond tp k
   in
     HH.div [ HP.class_ (HH.ClassName "proposal-card") ]
       [ HH.h3_ [ HH.text ("Proposal #" <> show tp.proposalId) ]
@@ -138,6 +148,7 @@ handleAction = case _ of
     H.modify_ _
       { proposals = input.proposals
       , myKey = input.myKey
+      , circleState = input.circleState
       }
   DoRespond pid ->
     H.raise (SubmitResponse pid)

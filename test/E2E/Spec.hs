@@ -325,11 +325,11 @@ testProposalAndResponse = withTestEnv $ \te -> do
     -- proposal id = sequence number when opened
     let pid = proposalSn
 
-    -- User responds
+    -- Admin responds (only admins can respond)
     _ <-
         postEvent
             te
-            (respondToProposal user1 pid)
+            (respondToProposal admin1 pid)
 
     cond <- getCondition te
     length (crProposals cond) @?= 1

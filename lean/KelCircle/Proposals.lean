@@ -100,6 +100,11 @@ def resolveProposal {π ρ : Type}
       { p with status := .resolved r }
     else p)
 
+-- Check if there is already an open proposal with the same content
+def hasOpenProposalWithContent {π ρ : Type} [BEq π]
+    (reg : ProposalRegistry π ρ) (content : π) : Bool :=
+  reg.any (fun p => p.isOpen && p.content == content)
+
 -------------------------------------------------------------------
 -- Invariants
 -------------------------------------------------------------------

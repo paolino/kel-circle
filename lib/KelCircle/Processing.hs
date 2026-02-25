@@ -41,6 +41,7 @@ import KelCircle.State
     ( Circle (..)
     , applyBaseDecision
     , emptyCircle
+    , isAdmin
     , isMember
     )
 import KelCircle.Types
@@ -132,12 +133,14 @@ gateAppDecision s signer content appGate =
     isMember (circleState (fsCircle s)) signer
         && appGate (fsAppState s) content
 
-{- | Gate for proposals: signer must be a member and
-pass the app gate.
+{- | Gate for proposals: signer must be a member,
+pass the app gate, and no open proposal with the
+same content may exist.
 Mirrors Lean @gateProposal@.
 -}
 gateProposal
-    :: FullState g p r
+    :: (Eq p)
+    => FullState g p r
     -> MemberId
     -> p
     -> (g -> p -> Bool)
@@ -145,8 +148,13 @@ gateProposal
 gateProposal s signer content appGate =
     isMember (circleState (fsCircle s)) signer
         && appGate (fsAppState s) content
+        && not
+            ( P.hasOpenProposalWithContent
+                (fsProposals s)
+                content
+            )
 
-{- | Gate for responses: signer must be a member,
+{- | Gate for responses: signer must be an admin,
 proposal must be open, signer must not have already
 responded.
 Mirrors Lean @gateResponse@.
@@ -157,7 +165,7 @@ gateResponse
     -> ProposalId
     -> Bool
 gateResponse s signer pid =
-    isMember (circleState (fsCircle s)) signer
+    isAdmin (circleState (fsCircle s)) signer
         && case P.findProposal (fsProposals s) pid of
             Just tp -> P.canRespond tp signer
             Nothing -> False

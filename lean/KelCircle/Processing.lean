@@ -71,18 +71,21 @@ def gateAppDecision {γ δ π ρ : Type}
     (content : δ) (appGate : γ → δ → Bool) : Bool :=
   isMemberB s.circle.state signer && appGate s.appState content
 
--- Gate for proposals: signer must be a member
-def gateProposal {γ π ρ : Type}
+-- Gate for proposals: signer must be a member, no duplicate open
+-- proposal with the same content
+def gateProposal {γ π ρ : Type} [BEq π]
     (s : FullState γ π ρ) (signer : MemberId)
     (content : π) (appGate : γ → π → Bool) : Bool :=
-  isMemberB s.circle.state signer && appGate s.appState content
+  isMemberB s.circle.state signer
+    && appGate s.appState content
+    && !hasOpenProposalWithContent s.proposals content
 
--- Gate for responses: signer must be a member, proposal must be
+-- Gate for responses: signer must be an admin, proposal must be
 -- open, signer must not have already responded
 def gateResponse {γ π ρ : Type}
     (s : FullState γ π ρ) (signer : MemberId)
     (proposalId : ProposalId) : Bool :=
-  isMemberB s.circle.state signer &&
+  isAdminB s.circle.state signer &&
   match findProposal s.proposals proposalId with
   | some p => canRespond p signer
   | none => false
@@ -373,5 +376,29 @@ theorem init_sequencer_has_kel {γ π ρ : Type}
     ∃ k, k ∈ (initFullState sid initApp : FullState γ π ρ).memberKels
       ∧ k.1 = sid := by
   exact ⟨(sid, ⟨sid, 1, 0⟩), .head _, rfl⟩
+
+-------------------------------------------------------------------
+-- Proposal invariant: response requires admin
+-------------------------------------------------------------------
+
+-- A non-admin member cannot pass the response gate
+theorem gateResponse_requires_admin {γ π ρ : Type}
+    (s : FullState γ π ρ) (signer : MemberId)
+    (pid : ProposalId)
+    (hnotadmin : isAdminB s.circle.state signer = false) :
+    gateResponse s signer pid = false := by
+  simp [gateResponse, hnotadmin]
+
+-------------------------------------------------------------------
+-- Proposal invariant: no duplicate proposals
+-------------------------------------------------------------------
+
+-- If an open proposal with the same content exists, the gate rejects
+theorem gateProposal_rejects_duplicate {γ π ρ : Type} [BEq π]
+    (s : FullState γ π ρ) (signer : MemberId)
+    (content : π) (appGate : γ → π → Bool)
+    (hdup : hasOpenProposalWithContent s.proposals content = true) :
+    gateProposal s signer content appGate = false := by
+  simp [gateProposal, hdup]
 
 end KelCircle
