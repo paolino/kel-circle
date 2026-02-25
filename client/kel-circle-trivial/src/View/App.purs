@@ -14,7 +14,7 @@ import Data.Argonaut.Parser (jsonParser)
 import Data.Bifunctor (lmap)
 import Data.Const (Const)
 import Data.Either (Either(..))
-import Data.Foldable (foldM)
+import Data.Foldable (foldM, for_)
 import Data.Maybe (Maybe(..))
 import Data.String as String
 import Data.Tuple (Tuple(..))
@@ -446,10 +446,11 @@ handleAction = case _ of
       Right _ -> fetchNewEvents
 
   SSEKelMessage msgStr -> do
-    case parseKelSseMessage msgStr of
+    case parseKelSseMessages msgStr of
       Left _ -> pure unit
-      Right { memberId, eventCount } ->
-        handleKelUpdate memberId eventCount
+      Right updates ->
+        for_ updates \{ memberId, eventCount } ->
+          handleKelUpdate memberId eventCount
 
   CopyKey -> do
     st <- H.get
@@ -507,12 +508,17 @@ handleKelUpdate memberId _eventCount = do
                 ("KEL fetch error: " <> err)
             }
         Right ks -> do
-          let
-            mks' = KV.insertMemberKel memberId ks
-              st.fullState.memberKeyStates
-          H.modify_ _ { fullState = st.fullState
-            { memberKeyStates = mks' } }
-          liftEffect $ KV.persistKeyStates mks'
+          -- Merge into current state (not stale st)
+          H.modify_ \s -> s
+            { fullState = s.fullState
+                { memberKeyStates =
+                    KV.insertMemberKel memberId ks
+                      s.fullState.memberKeyStates
+                }
+            }
+          st' <- H.get
+          liftEffect $ KV.persistKeyStates
+            st'.fullState.memberKeyStates
 
     Just ks -> do
       let after = ks.sequenceNumber + 1
@@ -531,12 +537,17 @@ handleKelUpdate memberId _eventCount = do
                     ("KEL validate: " <> err)
                 }
             Right ks' -> do
-              let
-                mks' = KV.insertMemberKel memberId ks'
-                  st.fullState.memberKeyStates
-              H.modify_ _ { fullState = st.fullState
-                { memberKeyStates = mks' } }
-              liftEffect $ KV.persistKeyStates mks'
+              -- Merge into current state (not stale st)
+              H.modify_ \s -> s
+                { fullState = s.fullState
+                    { memberKeyStates =
+                        KV.insertMemberKel memberId ks'
+                          s.fullState.memberKeyStates
+                    }
+                }
+              st' <- H.get
+              liftEffect $ KV.persistKeyStates
+                st'.fullState.memberKeyStates
         _ -> pure unit
 
   -- Re-enable submission if this was our own KEL
@@ -656,7 +667,6 @@ doPost passphrase ident signature evt mInception = do
       }
   else do
     st <- H.get
-    fetchNewEvents
     case st.screen of
       BootstrapScreen ->
         checkMembershipAndLoad ident.prefix
@@ -786,21 +796,16 @@ buildAllMemberKeyStates fs = do
   let
     memberIds = map _.memberId
       fs.circle.circleState.members
-    -- Start with existing key states (from
-    -- localStorage on unlock, or from identity gen)
     existing = st.fullState.memberKeyStates
   foldM
     ( \acc mid -> do
-        case KV.lookupKeyState mid acc of
-          Just _ -> pure acc
-          Nothing -> do
-            result <- liftAff $
-              try (KV.fetchAndValidateFullKel baseUrl mid)
-            case result of
-              Left _ -> pure acc
-              Right (Left _) -> pure acc
-              Right (Right ks) ->
-                pure (KV.insertMemberKel mid ks acc)
+        result <- liftAff $
+          try (KV.fetchAndValidateFullKel baseUrl mid)
+        case result of
+          Left _ -> pure acc
+          Right (Left _) -> pure acc
+          Right (Right ks) ->
+            pure (KV.insertMemberKel mid ks acc)
     )
     existing
     memberIds
@@ -832,8 +837,13 @@ fetchNewEvents = do
                     fs.circle.circleState
                     then BootstrapScreen
                   else NormalScreen
-              H.modify_ _
+              -- Merge: keep current memberKeyStates
+              -- (may have been updated by handleKelUpdate)
+              H.modify_ \s -> s
                 { fullState = fs
+                    { memberKeyStates =
+                        s.fullState.memberKeyStates
+                    }
                 , serverSeqNo = seqNo + 1
                 , screen = screen
                 }
@@ -905,17 +915,15 @@ parseSseMessage s = do
     obj <- decodeJson json
     obj .: "sn"
 
-parseKelSseMessage
+parseKelSseMessages
   :: String
   -> Either String
-       { memberId :: String, eventCount :: Int }
-parseKelSseMessage s = do
+       ( Array
+           { memberId :: String, eventCount :: Int }
+       )
+parseKelSseMessages s = do
   json <- lmap show (jsonParser s)
-  lmap printJsonDecodeError do
-    obj <- decodeJson json
-    memberId <- obj .: "memberId"
-    eventCount <- obj .: "eventCount"
-    pure { memberId, eventCount }
+  lmap printJsonDecodeError (decodeJson json)
 
 parseEventResponse
   :: String

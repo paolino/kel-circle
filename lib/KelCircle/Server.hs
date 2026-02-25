@@ -34,6 +34,7 @@ import Data.Aeson
     )
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder qualified as Builder
+import Data.List (intersperse)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
@@ -121,8 +122,8 @@ import Network.Wai
 data SSEMessage
     = -- | Circle event appended (sequence number)
       CircleEvent Int
-    | -- | Member KEL updated (member id, event count)
-      KelUpdate MemberId Int
+    | -- | Member KELs updated (member id, event count)
+      KelUpdates [(MemberId, Int)]
     deriving stock (Show, Eq)
 
 {- | Server configuration, parameterized by application
@@ -450,7 +451,7 @@ doAppend cfg sub fs respond = do
                                     status422
                                 $ ValidationErr ve
                         Right mIxn -> do
-                            (sn, kelCount) <-
+                            (sn, kelUpdates) <-
                                 appendCircleEvent
                                     (scStore cfg)
                                     (scAppFold cfg)
@@ -468,31 +469,18 @@ doAppend cfg sub fs respond = do
                                 writeTChan
                                     (scBroadcast cfg)
                                     (CircleEvent sn)
-                            -- Broadcast KEL update
-                            let kelMid =
-                                    case (kelData, mIxn) of
-                                        ( Just (mid, _)
-                                            , _
-                                            ) ->
-                                                Just mid
-                                        ( _
-                                            , Just
-                                                (mid, _)
-                                            ) ->
-                                                Just mid
-                                        _ -> Nothing
-                            case kelMid of
-                                Just mid ->
+                            -- Broadcast KEL updates
+                            case kelUpdates of
+                                [] -> pure ()
+                                _ ->
                                     atomically $
                                         writeTChan
                                             ( scBroadcast
                                                 cfg
                                             )
-                                            ( KelUpdate
-                                                mid
-                                                kelCount
+                                            ( KelUpdates
+                                                kelUpdates
                                             )
-                                Nothing -> pure ()
                             respond $
                                 responseLBS
                                     status200
@@ -808,7 +796,7 @@ doRotation cfg mid kks rotSub respond = do
             atomically $
                 writeTChan
                     (scBroadcast cfg)
-                    (KelUpdate mid newCount)
+                    (KelUpdates [(mid, newCount)])
             respond $
                 responseLBS
                     status200
@@ -851,25 +839,23 @@ handleStream cfg respond =
                                         <> Builder.byteString
                                             "}\n\n"
                                 flush
-                            KelUpdate mid count -> do
+                            KelUpdates updates -> do
                                 write $
                                     Builder.byteString
                                         "event: kel\n\
-                                        \data: \
-                                        \{\"memberId\":\""
-                                        <> Builder.byteString
-                                            ( TE.encodeUtf8
-                                                ( unMemberId
-                                                    mid
+                                        \data: ["
+                                        <> mconcat
+                                            ( intersperse
+                                                ( Builder.byteString
+                                                    ","
+                                                )
+                                                ( map
+                                                    kelUpdateEntry
+                                                    updates
                                                 )
                                             )
                                         <> Builder.byteString
-                                            "\",\
-                                            \\"eventCount\":"
-                                        <> Builder.intDec
-                                            count
-                                        <> Builder.byteString
-                                            "}\n\n"
+                                            "]\n\n"
                                 flush
                         loop
                 loop
@@ -877,6 +863,17 @@ handleStream cfg respond =
 -- --------------------------------------------------------
 -- Helpers
 -- --------------------------------------------------------
+
+-- | Build a single KEL update entry for SSE.
+kelUpdateEntry
+    :: (MemberId, Int) -> Builder.Builder
+kelUpdateEntry (mid, count) =
+    Builder.byteString "{\"memberId\":\""
+        <> Builder.byteString
+            (TE.encodeUtf8 (unMemberId mid))
+        <> Builder.byteString "\",\"eventCount\":"
+        <> Builder.intDec count
+        <> Builder.byteString "}"
 
 -- | Parse the ?after=N query parameter.
 parseAfter :: Request -> Maybe Int
