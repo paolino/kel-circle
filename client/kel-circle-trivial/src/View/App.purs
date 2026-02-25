@@ -49,7 +49,7 @@ import KelCircle.Client.Fold
   )
 import KelCircle.Client.Identity as Identity
 import KelCircle.Client.KelValidate as KV
-import KelCircle.Client.State (isBootstrap)
+import KelCircle.Client.State (isBootstrap, isMember)
 import KelCircle.Client.Types (MemberId, Role(..))
 import Type.Proxy (Proxy(..))
 import View.Bootstrap as Bootstrap
@@ -293,22 +293,59 @@ content st = case st.screen of
       ]
 
   NormalScreen ->
-    HH.div_
-      [ HH.slot (Proxy :: _ "members") unit
-          Members.membersComponent
-          { circleState:
-              st.fullState.circle.circleState
-          , myKey: map _.prefix st.identity
-          , submitting: st.submitting
-          }
-          HandleMembers
-      , HH.slot (Proxy :: _ "proposals") unit
-          Proposals.proposalsComponent
-          { proposals: st.fullState.proposals
-          , myKey: map _.prefix st.identity
-          }
-          HandleProposals
-      ]
+    let
+      amIMember = case st.identity of
+        Nothing -> false
+        Just ident -> isMember
+          st.fullState.circle.circleState
+          ident.prefix
+    in
+      HH.div_
+        [ HH.slot (Proxy :: _ "members") unit
+            Members.membersComponent
+            { circleState:
+                st.fullState.circle.circleState
+            , myKey: map _.prefix st.identity
+            , submitting: st.submitting
+            }
+            HandleMembers
+        , if not amIMember then
+            HH.div
+              [ HP.class_
+                  (HH.ClassName "inception-share")
+              ]
+              [ HH.p_
+                  [ HH.text
+                      "Share your key and inception \
+                      \JSON with an admin:"
+                  ]
+              , HH.button
+                  [ HE.onClick (const CopyKey)
+                  , HP.class_
+                      (HH.ClassName "btn-primary")
+                  ]
+                  [ HH.text "Copy Key" ]
+              , case st.inception of
+                  Just _ ->
+                    HH.button
+                      [ HE.onClick
+                          (const CopyInception)
+                      , HP.class_
+                          (HH.ClassName "btn-primary")
+                      ]
+                      [ HH.text
+                          "Copy Inception JSON"
+                      ]
+                  Nothing -> HH.text ""
+              ]
+          else HH.text ""
+        , HH.slot (Proxy :: _ "proposals") unit
+            Proposals.proposalsComponent
+            { proposals: st.fullState.proposals
+            , myKey: map _.prefix st.identity
+            }
+            HandleProposals
+        ]
 
 passphraseField
   :: forall m. State -> H.ComponentHTML Action Slots m
