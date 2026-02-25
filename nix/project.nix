@@ -28,12 +28,15 @@ let
         purs-tidy-bin.purs-tidy-0_10_0
         esbuild
         nodejs_20
+        playwright-test
         (writeShellScriptBin "haskell-language-server-wrapper" ''
           exec haskell-language-server "$@"
         '')
       ];
       shellHook = ''
         echo "packages: ${keri-hs}" > cabal.project.local
+        export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
+        export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
       '';
     };
     cabalProjectLocal = ''

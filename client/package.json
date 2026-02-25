@@ -4,5 +4,8 @@
   "dependencies": {
     "tweetnacl": "^1.0.3",
     "blakejs": "^1.2.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.54.1"
   }
 }

@@ -193,9 +193,9 @@ When the event is 'IntroduceMember', the optional
 When an interaction 'KelEvent' is provided, it is
 appended to the signer's existing KEL.
 
-Returns (sequenceNumber, kelEventCount) where
-kelEventCount is the signer's KEL size after update
-(0 for sequencer or when no KEL change occurred).
+Returns (sequenceNumber, kelUpdates) where
+kelUpdates lists all (MemberId, eventCount) pairs
+for KELs that were modified by this event.
 -}
 appendCircleEvent
     :: (ToJSON d, ToJSON p, ToJSON r)
@@ -212,7 +212,7 @@ appendCircleEvent
     -- ^ Optional: member KEL for IntroduceMember
     -> Maybe (MemberId, KelEvent)
     -- ^ Optional: interaction event to append
-    -> IO (Int, Int)
+    -> IO (Int, [(MemberId, Int)])
 appendCircleEvent
     store
     appFold
@@ -250,13 +250,19 @@ appendCircleEvent
             CEBaseDecision (RemoveMember mid) ->
                 deleteMemberKel (csConn store) mid
             _ -> pure ()
-        -- Query KEL count for the affected member
-        kelCount <- case (mKel, mIxn) of
-            (Just (mid, _), _) ->
-                queryKelCount (csConn store) mid
-            (_, Just (mid, _)) ->
-                queryKelCount (csConn store) mid
-            _ -> pure 0
+        -- Query KEL counts for all affected members
+        kelUpdates <- do
+            kelKel <- case mKel of
+                Just (mid, _) -> do
+                    c <- queryKelCount (csConn store) mid
+                    pure [(mid, c)]
+                Nothing -> pure []
+            ixnKel <- case mIxn of
+                Just (mid, _) -> do
+                    c <- queryKelCount (csConn store) mid
+                    pure [(mid, c)]
+                Nothing -> pure []
+            pure (kelKel <> ixnKel)
         -- Update in-memory state + key state cache
         sn <- atomically $ do
             st <- readTVar (csState store)
@@ -295,7 +301,7 @@ appendCircleEvent
                 (csState store)
                 st'{fsKeyStates = ks3}
             pure (fsNextSeq st)
-        pure (sn, kelCount)
+        pure (sn, kelUpdates)
 
 -- | Read current full state (from TVar, O(1)).
 readFullState :: CircleStore g p r -> IO (FullState g p r)

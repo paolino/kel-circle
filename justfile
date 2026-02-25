@@ -46,6 +46,14 @@ lint-client:
 test-client:
     cd client && spago test -p kel-circle-client
 
+# Run Playwright E2E tests (requires built server + bundled client)
+test-playwright: build bundle-client
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd client
+    npm install
+    npx playwright test
+
 # Full CI check
 ci: format-check lint build test lean build-docs
 

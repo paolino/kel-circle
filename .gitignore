@@ -10,4 +10,5 @@ lean/.lake/
 client/.spago/
 client/output/
 client/node_modules/
+client/test-results/
 client/kelgroups-trivial/dist/index.js
