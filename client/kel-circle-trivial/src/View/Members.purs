@@ -22,6 +22,7 @@ import KelCircle.Client.Types (Member, Role(..))
 
 data Output
   = SubmitDecision BaseDecision
+  | SubmitProposal BaseDecision
   | SubmitIntroduceWithInception
       { memberId :: String
       , name :: String
@@ -53,6 +54,7 @@ data Action
   | ToggleNewMemberAdmin
   | DoIntroduce
   | DoRemove String
+  | DoPropose String Role
 
 membersComponent
   :: forall q m
@@ -109,6 +111,9 @@ memberTable st =
     amIAdmin = case st.myKey of
       Nothing -> false
       Just k -> isAdminMember st.circleState k
+    myId = case st.myKey of
+      Nothing -> ""
+      Just k -> k
   in
     HH.table
       [ HP.class_ (HH.ClassName "member-table") ]
@@ -122,35 +127,67 @@ memberTable st =
               ]
           ]
       , HH.tbody_
-          (map (memberRow amIAdmin st.submitting) entries)
+          ( map
+              (memberRow amIAdmin st.submitting myId)
+              entries
+          )
       ]
 
 memberRow
   :: forall m
    . Boolean
   -> Boolean
+  -> String
   -> Member
   -> H.ComponentHTML Action () m
-memberRow amIAdmin submitting member =
-  HH.tr_
-    [ HH.td
-        [ HP.class_ (HH.ClassName "name") ]
-        [ HH.text member.memberName ]
-    , HH.td_ [ HH.text (show member.memberRole) ]
-    , if amIAdmin
-        && member.memberName /= "sequencer"
-        then HH.td_
-          [ HH.button
+memberRow amIAdmin submitting myId member =
+  let
+    isSequencer = member.memberName == "sequencer"
+    isMe = member.memberId == myId
+    proposeBtn = case member.memberRole of
+      MemberRole ->
+        HH.button
+          [ HE.onClick
+              (const (DoPropose member.memberId Admin))
+          , HP.class_
+              (HH.ClassName "btn-propose")
+          , HP.disabled submitting
+          ]
+          [ HH.text "Propose Admin" ]
+      Admin ->
+        HH.button
+          [ HE.onClick
+              ( const
+                  ( DoPropose member.memberId
+                      MemberRole
+                  )
+              )
+          , HP.class_
+              (HH.ClassName "btn-propose")
+          , HP.disabled submitting
+          ]
+          [ HH.text "Propose Demote" ]
+  in
+    HH.tr_
+      [ HH.td
+          [ HP.class_ (HH.ClassName "name") ]
+          [ HH.text member.memberName ]
+      , HH.td_ [ HH.text (show member.memberRole) ]
+      , if amIAdmin && not isSequencer && not isMe then HH.td_
+          [ proposeBtn
+          , HH.button
               [ HE.onClick
-                  (const (DoRemove member.memberId))
+                  ( const
+                      (DoRemove member.memberId)
+                  )
               , HP.class_
                   (HH.ClassName "btn-danger")
               , HP.disabled submitting
               ]
               [ HH.text "Remove" ]
           ]
-      else HH.text ""
-    ]
+        else HH.text ""
+      ]
 
 introduceForm
   :: forall m. State -> H.ComponentHTML Action () m
@@ -260,3 +297,6 @@ handleAction = case _ of
 
   DoRemove key ->
     H.raise (SubmitDecision (RemoveMember key))
+
+  DoPropose memberId role ->
+    H.raise (SubmitProposal (ChangeRole memberId role))

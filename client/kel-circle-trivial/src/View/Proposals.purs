@@ -14,14 +14,18 @@ import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import KelCircle.Client.Events (BaseDecision)
+import KelCircle.Client.Events (BaseDecision(..))
 import KelCircle.Client.Proposals
   ( TrackedProposal
   , ProposalRegistry
   , canRespond
   , isOpen
   )
-import KelCircle.Client.Types (MemberId, ProposalId)
+import KelCircle.Client.Types
+  ( MemberId
+  , ProposalId
+  , Role(..)
+  )
 
 data Output = SubmitResponse ProposalId
 
@@ -89,10 +93,19 @@ proposalCard myKey tp =
       Just k -> canRespond tp k
   in
     HH.div [ HP.class_ (HH.ClassName "proposal-card") ]
-      [ HH.h3_ [ HH.text ("Proposal #" <> show tp.proposalId) ]
+      [ HH.h3_
+          [ HH.text
+              ("Proposal #" <> show tp.proposalId)
+          ]
+      , HH.p
+          [ HP.class_
+              (HH.ClassName "proposal-content")
+          ]
+          [ HH.text (describeDecision tp.content) ]
       , HH.p_
           [ HH.text $
-              "Proposed by: " <> truncateKey tp.proposer
+              "Proposed by: "
+                <> truncateKey tp.proposer
           ]
       , HH.p_
           [ HH.text $
@@ -103,7 +116,8 @@ proposalCard myKey tp =
               "Deadline: " <> show tp.deadline
           ]
       , if canI then HH.button
-          [ HE.onClick (const (DoRespond tp.proposalId))
+          [ HE.onClick
+              (const (DoRespond tp.proposalId))
           , HP.class_ (HH.ClassName "btn-primary")
           ]
           [ HH.text "Respond" ]
@@ -115,17 +129,30 @@ resolvedCard
    . TrackedProposal BaseDecision Unit
   -> H.ComponentHTML Action () m
 resolvedCard tp =
-  HH.div [ HP.class_ (HH.ClassName "proposal-card resolved") ]
-    [ HH.h3_ [ HH.text ("Proposal #" <> show tp.proposalId) ]
+  HH.div
+    [ HP.class_
+        (HH.ClassName "proposal-card resolved")
+    ]
+    [ HH.h3_
+        [ HH.text
+            ("Proposal #" <> show tp.proposalId)
+        ]
+    , HH.p
+        [ HP.class_
+            (HH.ClassName "proposal-content")
+        ]
+        [ HH.text (describeDecision tp.content) ]
     , HH.p_
         [ HH.text $
-            "Proposed by: " <> truncateKey tp.proposer
+            "Proposed by: "
+              <> truncateKey tp.proposer
         ]
     , HH.p_
         [ HH.text $ "Status: " <> show tp.status ]
     , HH.p_
         [ HH.text $
-            "Responses: " <> show (Array.length tp.responses)
+            "Responses: "
+              <> show (Array.length tp.responses)
         ]
     ]
 
@@ -145,7 +172,24 @@ handleAction = case _ of
 
 -- Helpers
 
+describeDecision :: BaseDecision -> String
+describeDecision = case _ of
+  ChangeRole mid Admin ->
+    "Promote " <> truncateKey mid <> " to Admin"
+  ChangeRole mid MemberRole ->
+    "Demote " <> truncateKey mid <> " to Member"
+  IntroduceMember mid name _ ->
+    "Introduce " <> name
+      <> " ("
+      <> truncateKey mid
+      <> ")"
+  RemoveMember mid ->
+    "Remove " <> truncateKey mid
+  RotateSequencer mid ->
+    "Rotate sequencer to " <> truncateKey mid
+
 truncateKey :: String -> String
 truncateKey s =
-  if String.length s > 12 then String.take 12 s <> "..."
+  if String.length s > 12 then
+    String.take 12 s <> "..."
   else s

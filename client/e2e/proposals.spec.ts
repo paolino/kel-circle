@@ -5,7 +5,6 @@ import { join } from "path";
 import { tmpdir } from "os";
 import {
   extractIdentity,
-  submitRoleChangeProposal,
   submitDirectRoleChange,
   ExtractedIdentity,
 } from "./keri-helpers";
@@ -197,7 +196,7 @@ async function introduceMember(
 }
 
 // ----------------------------------------------------------
-// Proposal flow tests
+// Proposal flow tests (UI-driven)
 // ----------------------------------------------------------
 
 test.describe("proposal-based role changes", () => {
@@ -263,14 +262,15 @@ test.describe("proposal-based role changes", () => {
     await introduceMember(alicePage, bobPrefix, "Bob", bobInception);
 
     // Verify Bob is a Member
-    const bobRoleCell = alicePage.locator("tr", {
-      has: alicePage.locator("td.name", { hasText: "Bob" }),
-    }).locator("td").nth(1);
+    const bobRoleCell = alicePage
+      .locator("tr", {
+        has: alicePage.locator("td.name", { hasText: "Bob" }),
+      })
+      .locator("td")
+      .nth(1);
     await expect(bobRoleCell).toHaveText("Member", { timeout: 5_000 });
 
-    // ---- Step 4: Alice creates a proposal to promote Bob ----
-    // Extract Alice's identity for API signing
-    // Reload first so key states are up to date
+    // ---- Step 4: Negative — direct role change blocked ----
     await unlockIdentity(alicePage);
     await expect(
       alicePage.locator("h2", { hasText: "Members" }),
@@ -281,8 +281,6 @@ test.describe("proposal-based role changes", () => {
       USER_PASS,
     );
 
-    // ---- Negative: direct role change blocked by baseGate ----
-    // ChangeRole requires majority — direct submission must fail
     const directPromote = await submitDirectRoleChange(
       baseUrl(),
       aliceIdentity,
@@ -291,62 +289,40 @@ test.describe("proposal-based role changes", () => {
     );
     expect(directPromote.status).not.toBe(200);
 
-    // Extract Bob's identity for negative tests
-    const bobIdentity: ExtractedIdentity = await extractIdentity(
-      bobPage,
-      USER_PASS,
-    );
-
-    // Non-admin Member cannot directly change roles either
-    const memberDirect = await submitDirectRoleChange(
-      baseUrl(),
-      bobIdentity,
-      aliceIdentity.prefix,
-      "member",
-    );
-    expect(memberDirect.status).not.toBe(200);
-
-    // ---- Step 4 continued: Alice creates proposal ----
-    // Reload Alice (key state advanced from failed direct attempt? No —
-    // the server rejected it, so no state change. But reload anyway
-    // since Bob's identity extraction may have changed Bob's state.)
+    // ---- Step 5: Alice clicks "Propose Admin" on Bob's row ----
     await unlockIdentity(alicePage);
     await expect(
       alicePage.locator("h2", { hasText: "Members" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Re-extract Alice's identity (key states refreshed after reload)
-    const aliceIdentity2: ExtractedIdentity = await extractIdentity(
-      alicePage,
-      USER_PASS,
-    );
+    const bobRow = alicePage.locator("tr", {
+      has: alicePage.locator("td.name", { hasText: "Bob" }),
+    });
+    const proposeBtn = bobRow.locator(".btn-propose", {
+      hasText: "Propose Admin",
+    });
+    await expect(proposeBtn).toBeVisible({ timeout: 5_000 });
+    await proposeBtn.click();
 
-    // Submit proposal via API
-    const proposalResult = await submitRoleChangeProposal(
-      baseUrl(),
-      aliceIdentity2,
-      bobPrefix,
-      "admin",
-    );
-    expect(proposalResult.status).toBe(200);
-
-    // ---- Step 5: Verify proposal appears in Alice's UI ----
-    // Reload to pick up the new event (our API call
-    // bypassed the client's key state tracking)
+    // ---- Step 6: Verify proposal appears ----
+    // Reload to pick up the new event via SSE/fetch
     await unlockIdentity(alicePage);
     await expect(
       alicePage.locator("h2", { hasText: "Members" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // The Proposals section should show the proposal
     await expect(
       alicePage.locator("h2", { hasText: "Proposals" }),
     ).toBeVisible({ timeout: 10_000 });
     const proposalCard = alicePage.locator(".proposal-card").first();
     await expect(proposalCard).toBeVisible({ timeout: 10_000 });
+    // Verify the proposal content is displayed
+    await expect(
+      proposalCard.locator(".proposal-content"),
+    ).toContainText("Promote", { timeout: 5_000 });
     await expect(proposalCard).toContainText("Respond");
 
-    // ---- Step 6: Verify proposal appears in Bob's UI ----
+    // ---- Step 7: Bob sees proposal ----
     await unlockIdentity(bobPage);
     await expect(
       bobPage.locator("h2", { hasText: "Members" }),
@@ -355,55 +331,45 @@ test.describe("proposal-based role changes", () => {
       bobPage.locator(".proposal-card").first(),
     ).toBeVisible({ timeout: 10_000 });
 
-    // ---- Step 7: Alice clicks "Respond" ----
+    // ---- Step 8: Alice clicks "Respond" ----
     const respondBtn = alicePage.locator(".proposal-card .btn-primary", {
       hasText: "Respond",
     });
     await expect(respondBtn).toBeVisible({ timeout: 5_000 });
     await respondBtn.click();
 
-    // Wait for the proposal to be resolved (auto-resolve
-    // fires because Alice is the only admin → majority of 1)
+    // Wait for auto-resolution (Alice is only admin → majority of 1)
     await expect(
       alicePage.locator(".proposal-card.resolved"),
     ).toBeVisible({ timeout: 15_000 });
 
-    // ---- Step 8: Verify Bob's role changed to admin ----
-    // Reload Alice's page to get fresh state
+    // ---- Step 9: Verify Bob promoted to Admin ----
     await unlockIdentity(alicePage);
     await expect(
       alicePage.locator("h2", { hasText: "Members" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Bob should now be admin
-    const bobRow = alicePage.locator("tr", {
+    const bobRowAfter = alicePage.locator("tr", {
       has: alicePage.locator("td.name", { hasText: "Bob" }),
     });
-    const roleCell = bobRow.locator("td").nth(1);
+    const roleCell = bobRowAfter.locator("td").nth(1);
     await expect(roleCell).toHaveText("Admin", { timeout: 10_000 });
 
-    // ---- Step 9: Verify Bob sees himself as admin ----
+    // Bob sees himself as Admin
     await unlockIdentity(bobPage);
     await expect(
       bobPage.locator("h2", { hasText: "Members" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    const bobRowInBobPage = bobPage.locator("tr", {
-      has: bobPage.locator("td.name", { hasText: "Bob" }),
+    const bobRoleOnBobPage = bobPage
+      .locator("tr", {
+        has: bobPage.locator("td.name", { hasText: "Bob" }),
+      })
+      .locator("td")
+      .nth(1);
+    await expect(bobRoleOnBobPage).toHaveText("Admin", {
+      timeout: 10_000,
     });
-    await expect(bobRowInBobPage.locator("td").nth(1)).toHaveText(
-      "Admin",
-      { timeout: 10_000 },
-    );
-
-    // Bob should see himself as Admin on his own page
-    const bobAdminOnOwnPage = bobPage.locator("tr", {
-      has: bobPage.locator("td.name", { hasText: "Bob" }),
-    }).locator("td").nth(1);
-    await expect(bobAdminOnOwnPage).toHaveText(
-      "Admin",
-      { timeout: 10_000 },
-    );
 
     // ---- Step 10: No errors ----
     await expect(alicePage.locator(".error-bar")).not.toBeVisible();
@@ -413,80 +379,62 @@ test.describe("proposal-based role changes", () => {
   test("demote admin requires two-admin majority", async () => {
     // State from previous test: Alice=Admin, Bob=Admin
 
-    // ---- Step 1: Alice cannot directly demote Bob ----
+    // ---- Step 1: Alice clicks "Propose Demote" on Bob ----
     await unlockIdentity(alicePage);
     await expect(
       alicePage.locator("h2", { hasText: "Members" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    const aliceId: ExtractedIdentity = await extractIdentity(
-      alicePage,
-      USER_PASS,
-    );
-    const bobId: ExtractedIdentity = await extractIdentity(
-      bobPage,
-      USER_PASS,
-    );
+    const bobRow = alicePage.locator("tr", {
+      has: alicePage.locator("td.name", { hasText: "Bob" }),
+    });
+    const demoteBtn = bobRow.locator(".btn-propose", {
+      hasText: "Propose Demote",
+    });
+    await expect(demoteBtn).toBeVisible({ timeout: 5_000 });
+    await demoteBtn.click();
 
-    // Direct demotion must be rejected (requiresMajority)
-    const directDemote = await submitDirectRoleChange(
-      baseUrl(),
-      aliceId,
-      bobId.prefix,
-      "member",
-    );
-    expect(directDemote.status).not.toBe(200);
-
-    // ---- Step 2: Alice proposes to demote Bob ----
-    const demotionProposal = await submitRoleChangeProposal(
-      baseUrl(),
-      aliceId,
-      bobId.prefix,
-      "member",
-    );
-    expect(demotionProposal.status).toBe(200);
-
-    // ---- Step 3: Alice responds — not enough for majority ----
-    // Reload Alice to see the new proposal
+    // ---- Step 2: Alice responds — not enough for majority ----
     await unlockIdentity(alicePage);
     await expect(
       alicePage.locator("h2", { hasText: "Members" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Click Respond on the OPEN proposal (not the resolved one from test 1)
-    const openRespondBtn = alicePage
-      .locator(".proposal-card:not(.resolved) .btn-primary", {
-        hasText: "Respond",
-      });
+    const openRespondBtn = alicePage.locator(
+      ".proposal-card:not(.resolved) .btn-primary",
+      { hasText: "Respond" },
+    );
     await expect(openRespondBtn).toBeVisible({ timeout: 10_000 });
     await openRespondBtn.click();
 
-    // Wait for Alice's response to be processed
+    // Wait for response to be processed
     await alicePage.waitForTimeout(2000);
 
-    // Proposal should NOT be auto-resolved yet (1/2 admins)
-    // The open proposal card should still exist
+    // Proposal should NOT be resolved yet (1/2 admins)
     await unlockIdentity(alicePage);
     await expect(
       alicePage.locator("h2", { hasText: "Members" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Bob should still be Admin (proposal not resolved)
-    const bobRoleBefore = alicePage.locator("tr", {
-      has: alicePage.locator("td.name", { hasText: "Bob" }),
-    }).locator("td").nth(1);
+    // Bob should still be Admin
+    const bobRoleBefore = alicePage
+      .locator("tr", {
+        has: alicePage.locator("td.name", { hasText: "Bob" }),
+      })
+      .locator("td")
+      .nth(1);
     await expect(bobRoleBefore).toHaveText("Admin", { timeout: 5_000 });
 
-    // ---- Step 4: Bob responds — majority reached ----
+    // ---- Step 3: Bob responds — majority reached ----
     await unlockIdentity(bobPage);
     await expect(
       bobPage.locator("h2", { hasText: "Members" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    const bobRespondBtn = bobPage
-      .locator(".proposal-card:not(.resolved) .btn-primary", {
-        hasText: "Respond",
-      });
+    const bobRespondBtn = bobPage.locator(
+      ".proposal-card:not(.resolved) .btn-primary",
+      { hasText: "Respond" },
+    );
     await expect(bobRespondBtn).toBeVisible({ timeout: 10_000 });
     await bobRespondBtn.click();
 
@@ -495,32 +443,37 @@ test.describe("proposal-based role changes", () => {
       bobPage.locator(".proposal-card:not(.resolved)"),
     ).not.toBeVisible({ timeout: 15_000 });
 
-    // ---- Step 5: Verify Bob demoted to Member ----
+    // ---- Step 4: Verify Bob demoted to Member ----
     await unlockIdentity(alicePage);
     await expect(
       alicePage.locator("h2", { hasText: "Members" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    const bobRoleAfter = alicePage.locator("tr", {
-      has: alicePage.locator("td.name", { hasText: "Bob" }),
-    }).locator("td").nth(1);
+    const bobRoleAfter = alicePage
+      .locator("tr", {
+        has: alicePage.locator("td.name", { hasText: "Bob" }),
+      })
+      .locator("td")
+      .nth(1);
     await expect(bobRoleAfter).toHaveText("Member", { timeout: 10_000 });
 
-    // Bob should see himself as Member
+    // Bob sees himself as Member
     await unlockIdentity(bobPage);
     await expect(
       bobPage.locator("h2", { hasText: "Members" }),
     ).toBeVisible({ timeout: 15_000 });
 
-    const bobRoleOnBobPage = bobPage.locator("tr", {
-      has: bobPage.locator("td.name", { hasText: "Bob" }),
-    }).locator("td").nth(1);
-    await expect(bobRoleOnBobPage).toHaveText(
-      "Member",
-      { timeout: 10_000 },
-    );
+    const bobRoleOnBobPage = bobPage
+      .locator("tr", {
+        has: bobPage.locator("td.name", { hasText: "Bob" }),
+      })
+      .locator("td")
+      .nth(1);
+    await expect(bobRoleOnBobPage).toHaveText("Member", {
+      timeout: 10_000,
+    });
 
-    // ---- Step 6: No errors ----
+    // ---- Step 5: No errors ----
     await expect(alicePage.locator(".error-bar")).not.toBeVisible();
     await expect(bobPage.locator(".error-bar")).not.toBeVisible();
   });

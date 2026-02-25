@@ -99,12 +99,9 @@ data Action
   | Dismiss
 
 type Slots =
-  ( bootstrap
-      :: H.Slot (Const Void) Bootstrap.Output Unit
-  , members
-      :: H.Slot (Const Void) Members.Output Unit
-  , proposals
-      :: H.Slot (Const Void) Proposals.Output Unit
+  ( bootstrap :: H.Slot (Const Void) Bootstrap.Output Unit
+  , members :: H.Slot (Const Void) Members.Output Unit
+  , proposals :: H.Slot (Const Void) Proposals.Output Unit
   )
 
 defaultSequencer :: MemberId
@@ -451,6 +448,17 @@ handleAction = case _ of
             (CEBaseDecision bd)
         Nothing ->
           H.modify_ _ { error = Just "No identity" }
+    Members.SubmitProposal bd -> do
+      deadline <- liftEffect $
+        Storage.deadlineFromNowMs 300000
+      st <- H.get
+      case st.identity of
+        Just ident ->
+          submitEvent Nothing ident
+            (CEProposal bd deadline)
+        Nothing ->
+          H.modify_ _
+            { error = Just "No identity" }
     Members.SubmitIntroduceWithInception intro -> do
       st <- H.get
       case st.identity of
@@ -722,7 +730,7 @@ checkMembershipAndLoad
   -> H.HalogenM State Action Slots o m Unit
 checkMembershipAndLoad key = do
   res <- liftAff $ Fetch.fetch
-    ( baseUrl <> "/events?after=-1&key=" <> key )
+    (baseUrl <> "/events?after=-1&key=" <> key)
     { method: "GET", body: "" }
   case res.status of
     200 -> do
@@ -736,11 +744,11 @@ checkMembershipAndLoad key = do
         Left _ ->
           H.modify_ _ { screen = BootstrapScreen }
         Right info ->
-          if info.adminEmails == []
-            && not info.pendingIntroduction
-            then
-              H.modify_ _
-                { screen = BootstrapScreen }
+          if
+            info.adminEmails == []
+              && not info.pendingIntroduction then
+            H.modify_ _
+              { screen = BootstrapScreen }
           else
             H.modify_ _
               { screen = NonMemberScreen info }
@@ -778,8 +786,7 @@ fetchAndReplay key = do
           mks <- buildAllMemberKeyStates fs
           let
             screen =
-              if isBootstrap fs.circle.circleState
-                then BootstrapScreen
+              if isBootstrap fs.circle.circleState then BootstrapScreen
               else NormalScreen
           H.modify_ _
             { fullState = fs
@@ -873,9 +880,9 @@ fetchNewEvents = do
             404 -> do
               let
                 screen =
-                  if isBootstrap
-                    fs.circle.circleState
-                    then BootstrapScreen
+                  if
+                    isBootstrap
+                      fs.circle.circleState then BootstrapScreen
                   else NormalScreen
               -- Merge: keep current memberKeyStates
               -- (may have been updated by handleKelUpdate)

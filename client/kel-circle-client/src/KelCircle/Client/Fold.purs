@@ -88,21 +88,23 @@ applyCircleEvent appFold extractDecision st (Tuple signer evt) = case evt of
       , nextSeq = st.nextSeq + 1
       }
   CEResolveProposal pid res ->
-    let st' = st
-          { proposals = P.resolveProposal
-              st.proposals
-              pid
-              res
-          , nextSeq = st.nextSeq + 1
-          }
-    in if isPositive res then
-         case P.findProposal st.proposals pid of
-           Just tp -> case extractDecision tp.content of
-             Just bd ->
-               st' { circle = applyBaseDecision st'.circle bd }
-             Nothing -> st'
-           Nothing -> st'
-       else st'
+    let
+      st' = st
+        { proposals = P.resolveProposal
+            st.proposals
+            pid
+            res
+        , nextSeq = st.nextSeq + 1
+        }
+    in
+      if isPositive res then
+        case P.findProposal st.proposals pid of
+          Just tp -> case extractDecision tp.content of
+            Just bd ->
+              st' { circle = applyBaseDecision st'.circle bd }
+            Nothing -> st'
+          Nothing -> st'
+      else st'
 
 -- | Fold a sequence of signed circle events into state.
 foldCircle
