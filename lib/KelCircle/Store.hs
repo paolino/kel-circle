@@ -74,7 +74,7 @@ import KelCircle.Processing
     , applyAppDecision
     , applyBase
     , applyProposal
-    , applyResolve
+    , applyResolveWithEffect
     , applyResponse
     , initFullState
     )
@@ -119,9 +119,11 @@ openStore
     -- ^ Initial application state
     -> (g -> d -> g)
     -- ^ Application fold function
+    -> (p -> Maybe BaseDecision)
+    -- ^ Extract base decision from proposal content
     -> FilePath
     -> IO (CircleStore g p r)
-openStore sid initApp appFold path = do
+openStore sid initApp appFold extractDecision path = do
     conn <- open path
     -- Create events table
     execute_
@@ -152,7 +154,7 @@ openStore sid initApp appFold path = do
     let initialState = initFullState sid initApp
         replayedState =
             foldl
-                (replayRow appFold)
+                (replayRow appFold extractDecision)
                 initialState
                 rows
     -- Populate key state cache from SQLite KELs
@@ -202,6 +204,8 @@ appendCircleEvent
     => CircleStore g p r
     -> (g -> d -> g)
     -- ^ Application fold function
+    -> (p -> Maybe BaseDecision)
+    -- ^ Extract base decision from proposal content
     -> Text
     -- ^ Signer key
     -> Text
@@ -216,6 +220,7 @@ appendCircleEvent
 appendCircleEvent
     store
     appFold
+    extractDecision
     signer
     sig
     evt
@@ -269,6 +274,7 @@ appendCircleEvent
             let st' =
                     applyEvent
                         appFold
+                        extractDecision
                         st
                         (MemberId signer)
                         evt
@@ -440,11 +446,12 @@ lookupKelKeyState store mid = do
 -- | Apply a circle event to the full state.
 applyEvent
     :: (g -> d -> g)
+    -> (p -> Maybe BaseDecision)
     -> FullState g p r
     -> MemberId
     -> CircleEvent d p r
     -> FullState g p r
-applyEvent appFold st signer = \case
+applyEvent appFold extractDecision st signer = \case
     CEBaseDecision bd -> applyBase st bd
     CEAppDecision d ->
         applyAppDecision st d appFold
@@ -453,7 +460,11 @@ applyEvent appFold st signer = \case
     CEResponse content pid ->
         applyResponse st content signer pid
     CEResolveProposal pid res ->
-        applyResolve st pid res
+        applyResolveWithEffect
+            extractDecision
+            st
+            pid
+            res
 
 {- | Replay a single row from the database into the
 full state.
@@ -461,14 +472,16 @@ full state.
 replayRow
     :: (FromJSON d, FromJSON p, FromJSON r)
     => (g -> d -> g)
+    -> (p -> Maybe BaseDecision)
     -> FullState g p r
     -> (Text, LBS.ByteString)
     -> FullState g p r
-replayRow appFold st (signer, eventJson) =
+replayRow appFold extractDecision st (signer, eventJson) =
     case decode eventJson of
         Just evt ->
             applyEvent
                 appFold
+                extractDecision
                 st
                 (MemberId signer)
                 evt

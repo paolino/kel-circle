@@ -4,7 +4,7 @@ module View.App
 
 import Prelude
 
-import Data.Argonaut.Core (Json, jsonNull, stringify)
+import Data.Argonaut.Core (Json, fromArray, stringify)
 import Data.Argonaut.Decode
   ( decodeJson
   , printJsonDecodeError
@@ -31,7 +31,9 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Subscription as HS
 import KelCircle.Client.Codec
-  ( decodeCircleEvent
+  ( decodeBaseDecision
+  , decodeCircleEvent
+  , encodeBaseDecision
   , encodeCircleEvent
   , encodeSubmission
   , decodeInfoResponse
@@ -66,8 +68,8 @@ data Screen
   | NonMemberScreen InfoResponse
   | NormalScreen
 
--- | Trivial app: no application events.
-type AppState = FullState Unit Unit Unit
+-- | Trivial app: proposal content is BaseDecision.
+type AppState = FullState Unit BaseDecision Unit
 
 type State =
   { screen :: Screen
@@ -567,15 +569,15 @@ submitEvent
    . MonadAff m
   => Maybe String
   -> Identity.Identity
-  -> CircleEvent Unit Unit Unit
+  -> CircleEvent Unit BaseDecision Unit
   -> H.HalogenM State Action Slots o m Unit
 submitEvent passphrase ident evt = do
   st <- H.get
   let
     evtJson = encodeCircleEvent
-      (const jsonNull)
-      (const jsonNull)
-      (const jsonNull)
+      (const (fromArray []))
+      encodeBaseDecision
+      (const (fromArray []))
       evt
     mKs = KV.lookupKeyState ident.prefix
       st.fullState.memberKeyStates
@@ -605,16 +607,16 @@ submitEventWithInception
    . MonadAff m
   => Maybe String
   -> Identity.Identity
-  -> CircleEvent Unit Unit Unit
+  -> CircleEvent Unit BaseDecision Unit
   -> String
   -> H.HalogenM State Action Slots o m Unit
 submitEventWithInception passphrase ident evt icpJsonStr = do
   st <- H.get
   let
     evtJson = encodeCircleEvent
-      (const jsonNull)
-      (const jsonNull)
-      (const jsonNull)
+      (const (fromArray []))
+      encodeBaseDecision
+      (const (fromArray []))
       evt
     mKs = KV.lookupKeyState ident.prefix
       st.fullState.memberKeyStates
@@ -641,16 +643,16 @@ doPost
   => Maybe String
   -> Identity.Identity
   -> String
-  -> CircleEvent Unit Unit Unit
+  -> CircleEvent Unit BaseDecision Unit
   -> Maybe Json
   -> H.HalogenM State Action Slots o m Unit
 doPost passphrase ident signature evt mInception = do
   H.modify_ _ { submitting = true }
   let
     body = encodeSubmission
-      (const jsonNull)
-      (const jsonNull)
-      (const jsonNull)
+      (const (fromArray []))
+      encodeBaseDecision
+      (const (fromArray []))
       { passphrase
       , signer: ident.prefix
       , signature
@@ -760,7 +762,7 @@ fetchAndReplay key = do
               case
                 decodeCircleEvent
                   (const (Right unit))
-                  (const (Right unit))
+                  decodeBaseDecision
                   (const (Right unit))
                   event
                 of
@@ -775,6 +777,7 @@ fetchAndReplay key = do
                   let
                     fs' = applyCircleEvent
                       trivialFold
+                      Just
                       fs
                       (Tuple signer evt)
                   go (seqNo + 1) fs'
@@ -856,7 +859,7 @@ fetchNewEvents = do
                   case
                     decodeCircleEvent
                       (const (Right unit))
-                      (const (Right unit))
+                      decodeBaseDecision
                       (const (Right unit))
                       event
                     of
@@ -867,6 +870,7 @@ fetchNewEvents = do
                       let
                         fs' = applyCircleEvent
                           trivialFold
+                          Just
                           fs
                           (Tuple signer evt)
                       go (seqNo + 1) fs'

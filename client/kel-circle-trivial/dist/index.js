@@ -5298,11 +5298,11 @@
   var eqTuple = function(dictEq) {
     var eq5 = eq(dictEq);
     return function(dictEq1) {
-      var eq15 = eq(dictEq1);
+      var eq16 = eq(dictEq1);
       return {
         eq: function(x) {
           return function(y) {
-            return eq5(x.value0)(y.value0) && eq15(x.value1)(y.value1);
+            return eq5(x.value0)(y.value0) && eq16(x.value1)(y.value1);
           };
         }
       };
@@ -12236,6 +12236,7 @@
   };
 
   // output/KelCircle.Client.Events/index.js
+  var eq12 = /* @__PURE__ */ eq(eqRole);
   var ThresholdReached = /* @__PURE__ */ function() {
     function ThresholdReached2() {
     }
@@ -12393,6 +12394,25 @@
       throw new Error("Failed pattern match at KelCircle.Client.Events (line 39, column 1 - line 43, column 27): " + [v.constructor.name]);
     }
   };
+  var isPositive = function(v) {
+    if (v instanceof ThresholdReached) {
+      return true;
+    }
+    ;
+    if (v instanceof ProposerPositive) {
+      return true;
+    }
+    ;
+    if (v instanceof ProposerNegative) {
+      return false;
+    }
+    ;
+    if (v instanceof Timeout) {
+      return false;
+    }
+    ;
+    throw new Error("Failed pattern match at KelCircle.Client.Events (line 47, column 1 - line 47, column 36): " + [v.constructor.name]);
+  };
   var eqResolution = {
     eq: function(x) {
       return function(y) {
@@ -12410,6 +12430,29 @@
         ;
         if (x instanceof Timeout && y instanceof Timeout) {
           return true;
+        }
+        ;
+        return false;
+      };
+    }
+  };
+  var eqBaseDecision = {
+    eq: function(x) {
+      return function(y) {
+        if (x instanceof IntroduceMember && y instanceof IntroduceMember) {
+          return x.value0 === y.value0 && x.value1 === y.value1 && eq12(x.value2)(y.value2);
+        }
+        ;
+        if (x instanceof RemoveMember && y instanceof RemoveMember) {
+          return x.value0 === y.value0;
+        }
+        ;
+        if (x instanceof ChangeRole && y instanceof ChangeRole) {
+          return x.value0 === y.value0 && eq12(x.value1)(y.value1);
+        }
+        ;
+        if (x instanceof RotateSequencer && y instanceof RotateSequencer) {
+          return x.value0 === y.value0;
         }
         ;
         return false;
@@ -12708,7 +12751,7 @@
   var show2 = /* @__PURE__ */ show(showResolution);
   var map26 = /* @__PURE__ */ map(functorArray);
   var elem3 = /* @__PURE__ */ elem2(eqString);
-  var eq12 = /* @__PURE__ */ eq(eqResolution);
+  var eq13 = /* @__PURE__ */ eq(eqResolution);
   var Open = /* @__PURE__ */ function() {
     function Open2() {
     }
@@ -12792,6 +12835,13 @@
       return !elem3(mid)(tp.respondents);
     };
   };
+  var findProposal = function(reg) {
+    return function(pid) {
+      return find2(function(tp) {
+        return tp.proposalId === pid;
+      })(reg);
+    };
+  };
   var eqProposalStatus = {
     eq: function(x) {
       return function(y) {
@@ -12800,7 +12850,7 @@
         }
         ;
         if (x instanceof Resolved && y instanceof Resolved) {
-          return eq12(x.value0)(y.value0);
+          return eq13(x.value0)(y.value0);
         }
         ;
         return false;
@@ -12838,7 +12888,7 @@
   };
 
   // output/KelCircle.Client.State/index.js
-  var eq13 = /* @__PURE__ */ eq(eqRole);
+  var eq14 = /* @__PURE__ */ eq(eqRole);
   var map27 = /* @__PURE__ */ map(functorArray);
   var Bootstrap = /* @__PURE__ */ function() {
     function Bootstrap2() {
@@ -12864,7 +12914,7 @@
   var isAdminMember = function(cs) {
     return function(mid) {
       return isJust(find2(function(m) {
-        return m.memberId === mid && eq13(m.memberRole)(Admin.value);
+        return m.memberId === mid && eq14(m.memberRole)(Admin.value);
       })(cs.members));
     };
   };
@@ -12969,7 +13019,7 @@
   };
   var adminCount = function(cs) {
     return length3(filter(function(m) {
-      return eq13(m.memberRole)(Admin.value);
+      return eq14(m.memberRole)(Admin.value);
     })(cs.members));
   };
   var authMode = function(cs) {
@@ -13000,59 +13050,91 @@
     };
   };
   var applyCircleEvent = function(appFold) {
-    return function(st) {
-      return function(v) {
-        if (v.value1 instanceof CEBaseDecision) {
-          return {
-            appState: st.appState,
-            proposals: st.proposals,
-            memberKeyStates: st.memberKeyStates,
-            circle: applyBaseDecision(st.circle)(v.value1.value0),
-            nextSeq: st.nextSeq + 1 | 0
-          };
-        }
-        ;
-        if (v.value1 instanceof CEAppDecision) {
-          return {
-            circle: st.circle,
-            proposals: st.proposals,
-            memberKeyStates: st.memberKeyStates,
-            appState: appFold(st.appState)(v.value1.value0),
-            nextSeq: st.nextSeq + 1 | 0
-          };
-        }
-        ;
-        if (v.value1 instanceof CEProposal) {
-          return {
-            circle: st.circle,
-            appState: st.appState,
-            memberKeyStates: st.memberKeyStates,
-            proposals: openProposal(st.proposals)(st.nextSeq)(v.value1.value0)(v.value0)(v.value1.value1),
-            nextSeq: st.nextSeq + 1 | 0
-          };
-        }
-        ;
-        if (v.value1 instanceof CEResponse) {
-          return {
-            circle: st.circle,
-            appState: st.appState,
-            memberKeyStates: st.memberKeyStates,
-            proposals: addResponse(st.proposals)(v.value1.value1)(v.value0)(v.value1.value0),
-            nextSeq: st.nextSeq + 1 | 0
-          };
-        }
-        ;
-        if (v.value1 instanceof CEResolveProposal) {
-          return {
-            circle: st.circle,
-            appState: st.appState,
-            memberKeyStates: st.memberKeyStates,
-            proposals: resolveProposal(st.proposals)(v.value1.value0)(v.value1.value1),
-            nextSeq: st.nextSeq + 1 | 0
-          };
-        }
-        ;
-        throw new Error("Failed pattern match at KelCircle.Client.Fold (line 57, column 50 - line 94, column 8): " + [v.value1.constructor.name]);
+    return function(extractDecision) {
+      return function(st) {
+        return function(v) {
+          if (v.value1 instanceof CEBaseDecision) {
+            return {
+              appState: st.appState,
+              proposals: st.proposals,
+              memberKeyStates: st.memberKeyStates,
+              circle: applyBaseDecision(st.circle)(v.value1.value0),
+              nextSeq: st.nextSeq + 1 | 0
+            };
+          }
+          ;
+          if (v.value1 instanceof CEAppDecision) {
+            return {
+              circle: st.circle,
+              proposals: st.proposals,
+              memberKeyStates: st.memberKeyStates,
+              appState: appFold(st.appState)(v.value1.value0),
+              nextSeq: st.nextSeq + 1 | 0
+            };
+          }
+          ;
+          if (v.value1 instanceof CEProposal) {
+            return {
+              circle: st.circle,
+              appState: st.appState,
+              memberKeyStates: st.memberKeyStates,
+              proposals: openProposal(st.proposals)(st.nextSeq)(v.value1.value0)(v.value0)(v.value1.value1),
+              nextSeq: st.nextSeq + 1 | 0
+            };
+          }
+          ;
+          if (v.value1 instanceof CEResponse) {
+            return {
+              circle: st.circle,
+              appState: st.appState,
+              memberKeyStates: st.memberKeyStates,
+              proposals: addResponse(st.proposals)(v.value1.value1)(v.value0)(v.value1.value0),
+              nextSeq: st.nextSeq + 1 | 0
+            };
+          }
+          ;
+          if (v.value1 instanceof CEResolveProposal) {
+            var st$prime = {
+              appState: st.appState,
+              circle: st.circle,
+              memberKeyStates: st.memberKeyStates,
+              proposals: resolveProposal(st.proposals)(v.value1.value0)(v.value1.value1),
+              nextSeq: st.nextSeq + 1 | 0
+            };
+            var $22 = isPositive(v.value1.value1);
+            if ($22) {
+              var v1 = findProposal(st.proposals)(v.value1.value0);
+              if (v1 instanceof Just) {
+                var v2 = extractDecision(v1.value0.content);
+                if (v2 instanceof Just) {
+                  return {
+                    appState: st$prime.appState,
+                    proposals: st$prime.proposals,
+                    nextSeq: st$prime.nextSeq,
+                    memberKeyStates: st$prime.memberKeyStates,
+                    circle: applyBaseDecision(st$prime.circle)(v2.value0)
+                  };
+                }
+                ;
+                if (v2 instanceof Nothing) {
+                  return st$prime;
+                }
+                ;
+                throw new Error("Failed pattern match at KelCircle.Client.Fold (line 100, column 23 - line 103, column 28): " + [v2.constructor.name]);
+              }
+              ;
+              if (v1 instanceof Nothing) {
+                return st$prime;
+              }
+              ;
+              throw new Error("Failed pattern match at KelCircle.Client.Fold (line 99, column 10 - line 104, column 26): " + [v1.constructor.name]);
+            }
+            ;
+            return st$prime;
+          }
+          ;
+          throw new Error("Failed pattern match at KelCircle.Client.Fold (line 60, column 66 - line 105, column 16): " + [v.value1.constructor.name]);
+        };
       };
     };
   };
@@ -15011,7 +15093,7 @@
     reflectSymbol: function() {
       return "content";
     }
-  })(eqUnit)));
+  })(eqBaseDecision)));
   var eq4 = /* @__PURE__ */ eq(eqArray2);
   var map33 = /* @__PURE__ */ map(functorArray);
   var notEq2 = /* @__PURE__ */ notEq(eqArray2);
@@ -15069,7 +15151,7 @@
           return canRespond(tp)(myKey.value0);
         }
         ;
-        throw new Error("Failed pattern match at View.Proposals (line 86, column 12 - line 88, column 32): " + [myKey.constructor.name]);
+        throw new Error("Failed pattern match at View.Proposals (line 87, column 12 - line 89, column 32): " + [myKey.constructor.name]);
       }();
       return div2([class_("proposal-card")])([h3_([text5("Proposal #" + show10(tp.proposalId))]), p_([text5("Proposed by: " + truncateKey(tp.proposer))]), p_([text5("Responses: " + show10(responseCount))]), p_([text5("Deadline: " + show10(tp.deadline))]), function() {
         if (canI) {
@@ -15131,7 +15213,7 @@
         return raise(new SubmitResponse(v.value0));
       }
       ;
-      throw new Error("Failed pattern match at View.Proposals (line 136, column 16 - line 143, column 33): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at View.Proposals (line 137, column 16 - line 144, column 33): " + [v.constructor.name]);
     };
   };
   var proposalsComponent = function(dictMonadAff) {
@@ -15200,7 +15282,7 @@
   var discard12 = /* @__PURE__ */ discard8(bindHalogenM);
   var modify_6 = /* @__PURE__ */ modify_2(monadStateHalogenM);
   var $$void8 = /* @__PURE__ */ $$void(functorHalogenM);
-  var eq14 = /* @__PURE__ */ eq(eqArray3);
+  var eq15 = /* @__PURE__ */ eq(eqArray3);
   var for_3 = /* @__PURE__ */ for_(applicativeHalogenM)(foldableArray);
   var when7 = /* @__PURE__ */ when(applicativeHalogenM);
   var IdentityScreen = /* @__PURE__ */ function() {
@@ -15414,7 +15496,7 @@
         return text5("");
       }
       ;
-      throw new Error("Failed pattern match at View.App (line 165, column 5 - line 180, column 28): " + [st.identity.constructor.name]);
+      throw new Error("Failed pattern match at View.App (line 167, column 5 - line 182, column 28): " + [st.identity.constructor.name]);
     }()]);
   };
   var defaultSequencer = "server";
@@ -15480,7 +15562,7 @@
             return text5("");
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 271, column 9 - line 290, column 32): " + [st.inception.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 273, column 9 - line 292, column 32): " + [st.inception.constructor.name]);
         }()]);
       }
       ;
@@ -15499,7 +15581,7 @@
         })(HandleProposals.create)]);
       }
       ;
-      throw new Error("Failed pattern match at View.App (line 193, column 14 - line 309, column 8): " + [st.screen.constructor.name]);
+      throw new Error("Failed pattern match at View.App (line 195, column 14 - line 311, column 8): " + [st.screen.constructor.name]);
     };
   };
   var render4 = function(dictMonadAff) {
@@ -15514,7 +15596,7 @@
           return text5("");
         }
         ;
-        throw new Error("Failed pattern match at View.App (line 149, column 5 - line 156, column 28): " + [st.error.constructor.name]);
+        throw new Error("Failed pattern match at View.App (line 151, column 5 - line 158, column 28): " + [st.error.constructor.name]);
       }(), content1(st)]);
     };
   };
@@ -15541,7 +15623,7 @@
                 return pure17(insertMemberKel(mid)(result.value0.value0)(acc));
               }
               ;
-              throw new Error("Failed pattern match at View.App (line 804, column 9 - line 808, column 49): " + [result.constructor.name]);
+              throw new Error("Failed pattern match at View.App (line 807, column 9 - line 811, column 49): " + [result.constructor.name]);
             });
           };
         })(st.fullState.memberKeyStates)(memberIds);
@@ -15567,7 +15649,7 @@
             return defaultSequencer;
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 726, column 13 - line 728, column 33): " + [v.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 728, column 13 - line 730, column 33): " + [v.constructor.name]);
         }();
         var go2 = function(seqNo) {
           return function(fs) {
@@ -15628,7 +15710,7 @@
                 }
                 ;
                 if (v instanceof Right) {
-                  var v1 = decodeCircleEvent($$const(new Right(unit)))($$const(new Right(unit)))($$const(new Right(unit)))(v.value0.event);
+                  var v1 = decodeCircleEvent($$const(new Right(unit)))(decodeBaseDecision)($$const(new Right(unit)))(v.value0.event);
                   if (v1 instanceof Left) {
                     return modify_6(function(v2) {
                       var $223 = {};
@@ -15645,14 +15727,14 @@
                   }
                   ;
                   if (v1 instanceof Right) {
-                    var fs$prime = applyCircleEvent(trivialFold)(fs)(new Tuple(v.value0.signer, v1.value0));
+                    var fs$prime = applyCircleEvent(trivialFold)(Just.create)(fs)(new Tuple(v.value0.signer, v1.value0));
                     return go2(seqNo + 1 | 0)(fs$prime);
                   }
                   ;
-                  throw new Error("Failed pattern match at View.App (line 760, column 15 - line 780, column 37): " + [v1.constructor.name]);
+                  throw new Error("Failed pattern match at View.App (line 762, column 15 - line 783, column 37): " + [v1.constructor.name]);
                 }
                 ;
-                throw new Error("Failed pattern match at View.App (line 753, column 11 - line 780, column 37): " + [v.constructor.name]);
+                throw new Error("Failed pattern match at View.App (line 755, column 11 - line 783, column 37): " + [v.constructor.name]);
               }
               ;
               return modify_6(function(v2) {
@@ -15737,7 +15819,7 @@
                 }
                 ;
                 if (v instanceof Right) {
-                  var v1 = decodeCircleEvent($$const(new Right(unit)))($$const(new Right(unit)))($$const(new Right(unit)))(v.value0.event);
+                  var v1 = decodeCircleEvent($$const(new Right(unit)))(decodeBaseDecision)($$const(new Right(unit)))(v.value0.event);
                   if (v1 instanceof Left) {
                     return modify_6(function(v2) {
                       var $246 = {};
@@ -15754,14 +15836,14 @@
                   }
                   ;
                   if (v1 instanceof Right) {
-                    var fs$prime = applyCircleEvent(trivialFold)(fs)(new Tuple(v.value0.signer, v1.value0));
+                    var fs$prime = applyCircleEvent(trivialFold)(Just.create)(fs)(new Tuple(v.value0.signer, v1.value0));
                     return go2(seqNo + 1 | 0)(fs$prime);
                   }
                   ;
-                  throw new Error("Failed pattern match at View.App (line 856, column 19 - line 872, column 41): " + [v1.constructor.name]);
+                  throw new Error("Failed pattern match at View.App (line 859, column 19 - line 876, column 41): " + [v1.constructor.name]);
                 }
                 ;
-                throw new Error("Failed pattern match at View.App (line 851, column 15 - line 872, column 41): " + [v.constructor.name]);
+                throw new Error("Failed pattern match at View.App (line 854, column 15 - line 876, column 41): " + [v.constructor.name]);
               }
               ;
               return modify_6(function(v2) {
@@ -15782,7 +15864,7 @@
         return go2(st.serverSeqNo - 1 | 0)(st.fullState);
       }
       ;
-      throw new Error("Failed pattern match at View.App (line 819, column 3 - line 880, column 43): " + [st.identity.constructor.name]);
+      throw new Error("Failed pattern match at View.App (line 822, column 3 - line 884, column 43): " + [st.identity.constructor.name]);
     });
   };
   var handleKelUpdate = function(dictMonadAff) {
@@ -15840,7 +15922,7 @@
                   });
                 }
                 ;
-                throw new Error("Failed pattern match at View.App (line 504, column 7 - line 521, column 42): " + [result.constructor.name]);
+                throw new Error("Failed pattern match at View.App (line 506, column 7 - line 523, column 42): " + [result.constructor.name]);
               });
             }
             ;
@@ -15897,14 +15979,14 @@
                     });
                   }
                   ;
-                  throw new Error("Failed pattern match at View.App (line 533, column 11 - line 550, column 46): " + [v.constructor.name]);
+                  throw new Error("Failed pattern match at View.App (line 535, column 11 - line 552, column 46): " + [v.constructor.name]);
                 }
                 ;
                 return pure17(unit);
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 500, column 3 - line 551, column 23): " + [currentKs.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 502, column 3 - line 553, column 23): " + [currentKs.constructor.name]);
           }())(function() {
             return bind110(get5)(function(st$prime) {
               if (st$prime.identity instanceof Just && st$prime.identity.value0.prefix === memberId) {
@@ -15998,7 +16080,7 @@
             }
             ;
             if (v instanceof Right) {
-              var $302 = eq14(v.value0.adminEmails)([]) && !v.value0.pendingIntroduction;
+              var $302 = eq15(v.value0.adminEmails)([]) && !v.value0.pendingIntroduction;
               if ($302) {
                 return modify_6(function(v1) {
                   var $303 = {};
@@ -16028,7 +16110,7 @@
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 696, column 7 - line 707, column 48): " + [v.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 698, column 7 - line 709, column 48): " + [v.constructor.name]);
           });
         }
         ;
@@ -16082,7 +16164,7 @@
                 $316.submitting = true;
                 return $316;
               }))(function() {
-                var body2 = encodeSubmission($$const(jsonNull))($$const(jsonNull))($$const(jsonNull))({
+                var body2 = encodeSubmission($$const(id2([])))(encodeBaseDecision)($$const(id2([])))({
                   passphrase,
                   signer: ident.prefix,
                   signature,
@@ -16132,7 +16214,7 @@
         return function(evt) {
           return bind110(get5)(function(st) {
             var mKs = lookupKeyState(ident.prefix)(st.fullState.memberKeyStates);
-            var evtJson = encodeCircleEvent($$const(jsonNull))($$const(jsonNull))($$const(jsonNull))(evt);
+            var evtJson = encodeCircleEvent($$const(id2([])))(encodeBaseDecision)($$const(id2([])))(evt);
             if (mKs instanceof Nothing) {
               return modify_6(function(v2) {
                 var $325 = {};
@@ -16176,10 +16258,10 @@
                 return doPost1(passphrase)(ident)(v.value0)(evt)(mInception);
               }
               ;
-              throw new Error("Failed pattern match at View.App (line 587, column 7 - line 601, column 23): " + [v.constructor.name]);
+              throw new Error("Failed pattern match at View.App (line 589, column 7 - line 603, column 23): " + [v.constructor.name]);
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 582, column 3 - line 601, column 23): " + [mKs.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 584, column 3 - line 603, column 23): " + [mKs.constructor.name]);
           });
         };
       };
@@ -16193,7 +16275,7 @@
           return function(icpJsonStr) {
             return bind110(get5)(function(st) {
               var mKs = lookupKeyState(ident.prefix)(st.fullState.memberKeyStates);
-              var evtJson = encodeCircleEvent($$const(jsonNull))($$const(jsonNull))($$const(jsonNull))(evt);
+              var evtJson = encodeCircleEvent($$const(id2([])))(encodeBaseDecision)($$const(id2([])))(evt);
               if (mKs instanceof Nothing) {
                 return modify_6(function(v2) {
                   var $341 = {};
@@ -16237,15 +16319,15 @@
                       return Nothing.value;
                     }
                     ;
-                    throw new Error("Failed pattern match at View.App (line 632, column 26 - line 634, column 32): " + [v1.constructor.name]);
+                    throw new Error("Failed pattern match at View.App (line 634, column 26 - line 636, column 32): " + [v1.constructor.name]);
                   }();
                   return doPost1(passphrase)(ident)(v.value0)(evt)(mInception);
                 }
                 ;
-                throw new Error("Failed pattern match at View.App (line 626, column 7 - line 636, column 23): " + [v.constructor.name]);
+                throw new Error("Failed pattern match at View.App (line 628, column 7 - line 638, column 23): " + [v.constructor.name]);
               }
               ;
-              throw new Error("Failed pattern match at View.App (line 621, column 3 - line 636, column 23): " + [mKs.constructor.name]);
+              throw new Error("Failed pattern match at View.App (line 623, column 3 - line 638, column 23): " + [mKs.constructor.name]);
             });
           };
         };
@@ -16350,7 +16432,7 @@
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 348, column 5 - line 370, column 47): " + [result.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 350, column 5 - line 372, column 47): " + [result.constructor.name]);
           });
         });
       }
@@ -16407,7 +16489,7 @@
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 376, column 5 - line 392, column 47): " + [result.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 378, column 5 - line 394, column 47): " + [result.constructor.name]);
           });
         });
       }
@@ -16433,7 +16515,7 @@
             });
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 397, column 7 - line 404, column 53): " + [st.identity.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 399, column 7 - line 406, column 53): " + [st.identity.constructor.name]);
         });
       }
       ;
@@ -16459,7 +16541,7 @@
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 409, column 7 - line 414, column 53): " + [st.identity.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 411, column 7 - line 416, column 53): " + [st.identity.constructor.name]);
           });
         }
         ;
@@ -16484,11 +16566,11 @@
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 417, column 7 - line 431, column 53): " + [st.identity.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 419, column 7 - line 433, column 53): " + [st.identity.constructor.name]);
           });
         }
         ;
-        throw new Error("Failed pattern match at View.App (line 406, column 27 - line 431, column 53): " + [v.value0.constructor.name]);
+        throw new Error("Failed pattern match at View.App (line 408, column 27 - line 433, column 53): " + [v.value0.constructor.name]);
       }
       ;
       if (v instanceof HandleProposals) {
@@ -16512,7 +16594,7 @@
             });
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 436, column 7 - line 441, column 53): " + [st.identity.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 438, column 7 - line 443, column 53): " + [st.identity.constructor.name]);
         });
       }
       ;
@@ -16526,7 +16608,7 @@
           return fetchNewEvents1;
         }
         ;
-        throw new Error("Failed pattern match at View.App (line 444, column 5 - line 446, column 32): " + [v1.constructor.name]);
+        throw new Error("Failed pattern match at View.App (line 446, column 5 - line 448, column 32): " + [v1.constructor.name]);
       }
       ;
       if (v instanceof SSEKelMessage) {
@@ -16541,7 +16623,7 @@
           });
         }
         ;
-        throw new Error("Failed pattern match at View.App (line 449, column 5 - line 453, column 46): " + [v1.constructor.name]);
+        throw new Error("Failed pattern match at View.App (line 451, column 5 - line 455, column 46): " + [v1.constructor.name]);
       }
       ;
       if (v instanceof CopyKey) {
@@ -16554,7 +16636,7 @@
             return pure17(unit);
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 457, column 5 - line 461, column 27): " + [st.identity.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 459, column 5 - line 463, column 27): " + [st.identity.constructor.name]);
         });
       }
       ;
@@ -16568,7 +16650,7 @@
             return pure17(unit);
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 465, column 5 - line 469, column 27): " + [st.inception.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 467, column 5 - line 471, column 27): " + [st.inception.constructor.name]);
         });
       }
       ;
@@ -16608,7 +16690,7 @@
         });
       }
       ;
-      throw new Error("Failed pattern match at View.App (line 334, column 16 - line 483, column 36): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at View.App (line 336, column 16 - line 485, column 36): " + [v.constructor.name]);
     };
   };
   var appComponent = function(dictMonadAff) {

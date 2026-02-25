@@ -34,7 +34,7 @@ import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import E2E.TestHelpers
-import KelCircle.Events (Resolution (..))
+import KelCircle.Events (BaseDecision (..), Resolution (..))
 import KelCircle.MemberKel
     ( extractDigest
     , extractKeys
@@ -42,6 +42,7 @@ import KelCircle.MemberKel
     , extractSeqNumHex
     , parseEventJson
     )
+import KelCircle.Types (MemberId (..), Role (..))
 import Keri.Cesr.Decode qualified as Cesr
 import Keri.Cesr.DerivationCode (DerivationCode (..))
 import Keri.Cesr.Primitive (Primitive (..))
@@ -271,15 +272,35 @@ executeScenario te scenario = do
         ( \case
             ProposeRound pr -> do
                 let proposer = tids !! prProposer pr
+                    -- Use ChangeRole admin Admin as a
+                    -- no-op proposal content (doesn't
+                    -- change circle state on resolve)
+                    bd =
+                        ChangeRole
+                            (MemberId (tidKey admin))
+                            Admin
                 pid <-
                     postEvent
                         te
                         ( submitProposal
                             proposer
+                            bd
                             9999
                         )
                 bumpSign (prProposer pr)
                 bumpTotal
+
+                -- If admin (0) is among responders,
+                -- auto-resolve fires after admin
+                -- responds, closing the proposal. Only
+                -- process responders up to (including)
+                -- admin; skip the rest.
+                let (beforeAdmin, fromAdmin) =
+                        break (== 0) (prResponders pr)
+                    effectiveResponders =
+                        case fromAdmin of
+                            (a : _) -> beforeAdmin ++ [a]
+                            [] -> beforeAdmin
 
                 mapM_
                     ( \ri -> do
@@ -293,19 +314,25 @@ executeScenario te scenario = do
                         bumpSign ri
                         bumpTotal
                     )
-                    (prResponders pr)
+                    effectiveResponders
 
-                -- Sequencer resolves
-                _ <-
-                    postEvent
-                        te
-                        ( resolveProposal
-                            seqId
-                            pid
-                            (prResolution pr)
-                        )
-                bumpTotal
-                bumpResolve
+                if 0 `elem` effectiveResponders
+                    then do
+                        -- Auto-resolve already fired
+                        bumpTotal
+                        bumpResolve
+                    else do
+                        -- Sequencer resolves explicitly
+                        _ <-
+                            postEvent
+                                te
+                                ( resolveProposal
+                                    seqId
+                                    pid
+                                    (prResolution pr)
+                                )
+                        bumpTotal
+                        bumpResolve
                 pure ()
             RemoveAction i -> do
                 _ <-

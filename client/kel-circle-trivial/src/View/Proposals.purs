@@ -14,6 +14,7 @@ import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import KelCircle.Client.Events (BaseDecision)
 import KelCircle.Client.Proposals
   ( TrackedProposal
   , ProposalRegistry
@@ -25,12 +26,12 @@ import KelCircle.Client.Types (MemberId, ProposalId)
 data Output = SubmitResponse ProposalId
 
 type Input =
-  { proposals :: ProposalRegistry Unit Unit
+  { proposals :: ProposalRegistry BaseDecision Unit
   , myKey :: Maybe MemberId
   }
 
 type State =
-  { proposals :: ProposalRegistry Unit Unit
+  { proposals :: ProposalRegistry BaseDecision Unit
   , myKey :: Maybe MemberId
   }
 
@@ -78,7 +79,7 @@ render st =
 proposalCard
   :: forall m
    . Maybe MemberId
-  -> TrackedProposal Unit Unit
+  -> TrackedProposal BaseDecision Unit
   -> H.ComponentHTML Action () m
 proposalCard myKey tp =
   let
@@ -111,7 +112,7 @@ proposalCard myKey tp =
 
 resolvedCard
   :: forall m
-   . TrackedProposal Unit Unit
+   . TrackedProposal BaseDecision Unit
   -> H.ComponentHTML Action () m
 resolvedCard tp =
   HH.div [ HP.class_ (HH.ClassName "proposal-card resolved") ]

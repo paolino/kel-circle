@@ -333,11 +333,12 @@ withTestEnv action = do
     seqTid <- newTestId
     let sid = MemberId (tidKey seqTid)
     ch <- newBroadcastTChanIO @SSEMessage
-    (store :: CircleStore () () ()) <-
+    (store :: CircleStore () BaseDecision ()) <-
         openStore
             sid
             ()
             trivialAppFold
+            Just
             dbPath
     -- Create sequencer inception KEL
     seqInception <- mkInceptionFor seqTid
@@ -350,6 +351,7 @@ withTestEnv action = do
             ServerConfig
                 { scStore = store
                 , scAppFold = trivialAppFold
+                , scExtractDecision = Just
                 , scBaseAppGate = trivialBaseGate
                 , scAppGate = trivialAppGate
                 , scProposalGate =
@@ -389,7 +391,7 @@ trivialAppGate :: () -> () -> Bool
 trivialAppGate _ _ = True
 
 -- | Trivial proposal gate: always passes.
-trivialProposalGate :: () -> () -> Bool
+trivialProposalGate :: () -> BaseDecision -> Bool
 trivialProposalGate _ _ = True
 
 -- | Parse inception JSON into a MemberKel.
@@ -505,7 +507,7 @@ decodeOrFail bs = case decode bs of
 data TestSub = TestSub
     { tsSigner :: TestId
     , tsPassphrase :: Maybe Text
-    , tsEvent :: CircleEvent () () ()
+    , tsEvent :: CircleEvent () BaseDecision ()
     , tsInception :: Maybe (IO Value)
     -- ^ Deferred inception builder (needs IO)
     }
@@ -515,7 +517,7 @@ event if one is configured, and signs the circle
 event as a KERI interaction event against the
 signer's current KEL state.
 -}
-signSubmission :: TestSub -> IO (Submission () () ())
+signSubmission :: TestSub -> IO (Submission () BaseDecision ())
 signSubmission ts = do
     mInception <- case tsInception ts of
         Nothing -> pure Nothing
@@ -539,7 +541,7 @@ interaction bytes, signs with Ed25519, and updates
 the KEL state with the new seqnum/digest.
 -}
 signInteraction
-    :: TestId -> CircleEvent () () () -> IO Text
+    :: TestId -> CircleEvent () BaseDecision () -> IO Text
 signInteraction tid evt = do
     mKs <- readIORef (tidKelState tid)
     case mKs of
@@ -671,14 +673,14 @@ changeRole signer target role =
         , tsInception = Nothing
         }
 
--- | Submit a proposal (trivial Unit content).
+-- | Submit a proposal with base decision content.
 submitProposal
-    :: TestId -> Timestamp -> TestSub
-submitProposal signer deadline =
+    :: TestId -> BaseDecision -> Timestamp -> TestSub
+submitProposal signer content deadline =
     TestSub
         { tsSigner = signer
         , tsPassphrase = Nothing
-        , tsEvent = CEProposal () deadline
+        , tsEvent = CEProposal content deadline
         , tsInception = Nothing
         }
 

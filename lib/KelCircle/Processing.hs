@@ -26,6 +26,7 @@ module KelCircle.Processing
     , applyProposal
     , applyResponse
     , applyResolve
+    , applyResolveWithEffect
     ) where
 
 import Data.Map.Strict (Map)
@@ -33,6 +34,7 @@ import Data.Map.Strict qualified as Map
 import KelCircle.Events
     ( BaseDecision (..)
     , Resolution
+    , isPositive
     )
 import KelCircle.Gate (fullGate)
 import KelCircle.MemberKel (KelKeyState)
@@ -260,3 +262,30 @@ applyResolve s pid r =
                 r
         , fsNextSeq = fsNextSeq s + 1
         }
+
+{- | Apply a resolution with side-effect: close the
+proposal and, on positive resolution, apply the
+embedded base decision to the circle.
+Mirrors Lean @applyResolveWithEffect@.
+-}
+applyResolveWithEffect
+    :: (p -> Maybe BaseDecision)
+    -> FullState g p r
+    -> ProposalId
+    -> Resolution
+    -> FullState g p r
+applyResolveWithEffect extractDecision s pid res =
+    let s' = applyResolve s pid res
+    in  if isPositive res
+            then case P.findProposal (fsProposals s) pid of
+                Just tp -> case extractDecision (P.tpContent tp) of
+                    Just bd ->
+                        s'
+                            { fsCircle =
+                                applyBaseDecision
+                                    (fsCircle s')
+                                    bd
+                            }
+                    Nothing -> s'
+                Nothing -> s'
+            else s'
