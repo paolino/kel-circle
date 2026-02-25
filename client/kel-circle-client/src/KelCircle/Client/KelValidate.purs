@@ -56,8 +56,7 @@ lookupKeyState = FO.lookup
 -- | A KEL event response from the server.
 type KelEventResponse =
   { event :: String
-  , signatures
-      :: Array { index :: Int, signature :: String }
+  , signatures :: Array { index :: Int, signature :: String }
   }
 
 -- | Validate and apply incremental KEL events to a
@@ -194,8 +193,9 @@ loadKeyStates = do
 stringifyKeyStates :: MemberKeyStates -> String
 stringifyKeyStates mks =
   let
-    entries = FO.toUnfoldable mks
-      :: Array (Tuple String KeyState)
+    entries =
+      FO.toUnfoldable mks
+        :: Array (Tuple String KeyState)
     pairs = map
       ( \(Tuple k ks) ->
           jsonStr k <> ":" <> stringifyKs ks
@@ -229,8 +229,9 @@ parseKeyStates str = case jsonParser str of
   Right json -> do
     obj <- toObject json
     let
-      entries = FO.toUnfoldable obj
-        :: Array (Tuple String Json)
+      entries =
+        FO.toUnfoldable obj
+          :: Array (Tuple String Json)
       parsed = mapMaybe
         ( \(Tuple k v) -> do
             ks <- parseKs v

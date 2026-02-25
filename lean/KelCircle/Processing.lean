@@ -150,6 +150,24 @@ def applyResolve {γ π ρ : Type}
     nextSeq := s.nextSeq + 1
     memberKels := appendKelEvent s.memberKels signer }
 
+-- Apply a resolution with side-effect: close the proposal and,
+-- on positive resolution, apply the embedded base decision to the
+-- circle. The extractDecision callback lets each application
+-- decide what happens on resolution.
+def applyResolveWithEffect {γ π ρ : Type}
+    (extractDecision : π → Option BaseDecision)
+    (s : FullState γ π ρ) (signer : MemberId)
+    (proposalId : ProposalId)
+    (r : Resolution) : FullState γ π ρ :=
+  let s' := applyResolve s signer proposalId r
+  if r.isPositive then
+    match findProposal s.proposals proposalId with
+    | some tp => match extractDecision tp.content with
+      | some bd => { s' with circle := applyBaseDecision s'.circle bd }
+      | none => s'
+    | none => s'
+  else s'
+
 -------------------------------------------------------------------
 -- Sequence number invariant
 -------------------------------------------------------------------
@@ -183,6 +201,46 @@ theorem apply_resolve_increments_seq {γ π ρ : Type}
     (proposalId : ProposalId) (r : Resolution) :
     (applyResolve s signer proposalId r).nextSeq = s.nextSeq + 1 := by
   simp [applyResolve]
+
+-- applyResolveWithEffect always increments the sequence number
+-- (same as applyResolve, since the base decision only changes circle)
+theorem applyResolveWithEffect_increments_seq {γ π ρ : Type}
+    (extractDecision : π → Option BaseDecision)
+    (s : FullState γ π ρ) (signer : MemberId)
+    (proposalId : ProposalId) (r : Resolution) :
+    (applyResolveWithEffect extractDecision s signer proposalId r).nextSeq
+      = s.nextSeq + 1 := by
+  simp [applyResolveWithEffect, applyResolve]
+  split
+  · split
+    · split <;> rfl
+    · rfl
+  · rfl
+
+-- When ¬r.isPositive, applyResolveWithEffect equals applyResolve
+theorem applyResolveWithEffect_negative_eq {γ π ρ : Type}
+    (extractDecision : π → Option BaseDecision)
+    (s : FullState γ π ρ) (signer : MemberId)
+    (proposalId : ProposalId) (r : Resolution)
+    (hn : r.isPositive = false) :
+    applyResolveWithEffect extractDecision s signer proposalId r
+      = applyResolve s signer proposalId r := by
+  simp [applyResolveWithEffect, hn]
+
+-- applyResolveWithEffect preserves the proposal registry
+-- (same as applyResolve — the circle change doesn't touch proposals)
+theorem applyResolveWithEffect_preserves_proposals {γ π ρ : Type}
+    (extractDecision : π → Option BaseDecision)
+    (s : FullState γ π ρ) (signer : MemberId)
+    (proposalId : ProposalId) (r : Resolution) :
+    (applyResolveWithEffect extractDecision s signer proposalId r).proposals
+      = (applyResolve s signer proposalId r).proposals := by
+  simp [applyResolveWithEffect, applyResolve]
+  split
+  · split
+    · split <;> rfl
+    · rfl
+  · rfl
 
 -------------------------------------------------------------------
 -- Base state preservation

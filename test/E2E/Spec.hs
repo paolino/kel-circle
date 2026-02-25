@@ -309,6 +309,16 @@ proposalTests =
         , testCase
             "resolve proposal"
             testResolveProposal
+        , testCase
+            "promote member to admin via proposal"
+            testPromoteViaProposal
+        , testCase
+            "demote admin via majority proposal"
+            testDemoteViaProposal
+        , testCase
+            "promote member to admin via \
+            \proposal in normal mode"
+            testPromoteInNormalMode
         ]
 
 testProposalAndResponse :: IO ()
@@ -319,9 +329,10 @@ testProposalAndResponse = withTestEnv $ \te -> do
     _ <- postEvent te (bootstrapAdmin admin1)
     _ <- postEvent te (introduceMember admin1 user1)
 
-    -- Admin opens a proposal (deadline = 9999)
+    -- Admin opens a proposal to promote user1
+    let bd = ChangeRole (MemberId $ tidKey user1) Admin
     proposalSn <-
-        postEvent te (submitProposal admin1 9999)
+        postEvent te (submitProposal admin1 bd 9999)
     -- proposal id = sequence number when opened
     let pid = proposalSn
 
@@ -339,11 +350,14 @@ testResolveProposal = withTestEnv $ \te -> do
     -- The sequencer can resolve proposals
     let seqId = teSequencer te
     admin1 <- newTestId
+    user1 <- newTestId
 
     _ <- postEvent te (bootstrapAdmin admin1)
+    _ <- postEvent te (introduceMember admin1 user1)
 
+    let bd = ChangeRole (MemberId $ tidKey user1) Admin
     proposalSn <-
-        postEvent te (submitProposal admin1 9999)
+        postEvent te (submitProposal admin1 bd 9999)
     let pid = proposalSn
 
     _ <-
@@ -358,6 +372,122 @@ testResolveProposal = withTestEnv $ \te -> do
     cond <- getCondition te
     -- Proposal still in list (resolved)
     length (crProposals cond) @?= 1
+
+testPromoteViaProposal :: IO ()
+testPromoteViaProposal = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+
+    _ <- postEvent te (bootstrapAdmin admin1)
+    _ <- postEvent te (introduceMember admin1 user1)
+
+    -- admin1 submits proposal to promote user1
+    let bd =
+            ChangeRole
+                (MemberId $ tidKey user1)
+                Admin
+    proposalSn <-
+        postEvent
+            te
+            (submitProposal admin1 bd 9999)
+    let pid = proposalSn
+
+    -- admin1 responds (only admin, so majority = 1)
+    _ <-
+        postEvent
+            te
+            (respondToProposal admin1 pid)
+
+    -- Auto-resolve should have fired
+    cond <- getCondition te
+    let user1Role =
+            findMemberRole
+                (crMembers cond)
+                (tidKey user1)
+    user1Role @?= Just "admin"
+
+testDemoteViaProposal :: IO ()
+testDemoteViaProposal = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+
+    -- Bootstrap admin1 and introduce a member
+    _ <- postEvent te (bootstrapAdmin admin1)
+    _ <- postEvent te (introduceMember admin1 user1)
+
+    -- Verify admin1 is admin
+    cond0 <- getCondition te
+    findMemberRole (crMembers cond0) (tidKey admin1)
+        @?= Just "admin"
+
+    -- admin1 proposes self-demotion (majority of 1)
+    let bd =
+            ChangeRole
+                (MemberId $ tidKey admin1)
+                Member
+    proposalSn <-
+        postEvent
+            te
+            (submitProposal admin1 bd 9999)
+    let pid = proposalSn
+
+    -- admin1 responds: sole admin, majority reached
+    _ <-
+        postEvent
+            te
+            (respondToProposal admin1 pid)
+    cond1 <- getCondition te
+    let admin1Role =
+            findMemberRole
+                (crMembers cond1)
+                (tidKey admin1)
+    admin1Role @?= Just "member"
+
+    -- Circle should be in bootstrap mode now
+    crAuthMode cond1 @?= "bootstrap"
+
+testPromoteInNormalMode :: IO ()
+testPromoteInNormalMode = withTestEnv $ \te -> do
+    admin1 <- newTestId
+    user1 <- newTestId
+    user2 <- newTestId
+
+    _ <- postEvent te (bootstrapAdmin admin1)
+    -- Exit bootstrap by introducing members
+    _ <- postEvent te (introduceMember admin1 user1)
+    _ <- postEvent te (introduceMember admin1 user2)
+
+    -- Promote user1 to admin via proposal:
+    let bd =
+            ChangeRole
+                (MemberId $ tidKey user1)
+                Admin
+    proposalSn <-
+        postEvent
+            te
+            (submitProposal admin1 bd 9999)
+    let pid = proposalSn
+
+    -- admin1 responds (sole admin, majority = 1)
+    _ <-
+        postEvent
+            te
+            (respondToProposal admin1 pid)
+
+    -- Auto-resolve should have promoted user1
+    cond <- getCondition te
+    let user1Role =
+            findMemberRole
+                (crMembers cond)
+                (tidKey user1)
+    user1Role @?= Just "admin"
+
+-- | Find a member's role in the condition response.
+findMemberRole :: [ConditionMember] -> Text -> Maybe Text
+findMemberRole ms key =
+    case filter (\m -> cmMemberId m == key) ms of
+        (m : _) -> Just (cmRole m)
+        [] -> Nothing
 
 -- --------------------------------------------------------
 -- Auth edge cases
@@ -693,7 +823,7 @@ testForgedSignatureRejected =
                 TestSub
                     { tsSigner = user1
                     , tsPassphrase = Nothing
-                    , tsEvent = CEProposal () 9999
+                    , tsEvent = CEProposal (RemoveMember (MemberId $ tidKey user1)) 9999
                     , tsInception = Nothing
                     }
         sub <- signSubmission forged
@@ -733,7 +863,7 @@ testWrongKeySignatureRejected =
                 TestSub
                     { tsSigner = imposter
                     , tsPassphrase = Nothing
-                    , tsEvent = CEProposal () 9999
+                    , tsEvent = CEProposal (RemoveMember (MemberId $ tidKey user1)) 9999
                     , tsInception = Nothing
                     }
         sub <- signSubmission wrongKey
@@ -763,16 +893,16 @@ testTamperedPayloadRejected =
                 TestSub
                     { tsSigner = user1
                     , tsPassphrase = Nothing
-                    , tsEvent = CEProposal () 9999
+                    , tsEvent = CEProposal (RemoveMember (MemberId $ tidKey user1)) 9999
                     , tsInception = Nothing
                     }
         sub <- signSubmission original
-        -- Tamper: change the event payload
-        let tampered :: Submission () () ()
+        -- Tamper: change the event payload (different deadline)
+        let tampered :: Submission () BaseDecision ()
             tampered =
                 sub
                     { subEvent =
-                        CEProposal () 1234
+                        CEProposal (RemoveMember (MemberId $ tidKey user1)) 1234
                     }
         resp <-
             httpPost
@@ -836,10 +966,18 @@ testRotateAndNewKey = withTestEnv $ \te -> do
     rotCount @?= 2
 
     -- Submit event signed with NEW key → accepted
+    let dummyBd =
+            ChangeRole
+                (MemberId $ tidKey user1)
+                Admin
     _ <-
         postEvent
             te
-            (submitProposal rotatedUser1 9999)
+            ( submitProposal
+                rotatedUser1
+                dummyBd
+                9999
+            )
 
     -- user1 KEL: inception + rotation + ixn = 3
     kr1 <- getMemberKel te (tidKey user1)
@@ -859,10 +997,14 @@ testRotateOldKeyRejected = withTestEnv $ \te -> do
     -- Try submitting with the OLD key (user1 still has
     -- original keypair) → should be rejected because
     -- user1's KEL state is stale (wrong seqnum)
+    let dummyBd2 =
+            ChangeRole
+                (MemberId $ tidKey user1)
+                Admin
     resp <-
         postEventRaw
             te
-            (submitProposal user1 9999)
+            (submitProposal user1 dummyBd2 9999)
     HC.responseStatus resp @?= status422
 
 testBadCommitmentRejected :: IO ()
@@ -965,10 +1107,18 @@ testKelGrowsAfterInteraction =
                 (introduceMember admin1 user1)
 
         -- user1 submits a proposal → ixn event
+        let dummyBd' =
+                ChangeRole
+                    (MemberId $ tidKey user1)
+                    Admin
         _ <-
             postEvent
                 te
-                (submitProposal user1 9999)
+                ( submitProposal
+                    user1
+                    dummyBd'
+                    9999
+                )
 
         kr <- getMemberKel te (tidKey user1)
         kelRespEventCount kr @?= 2
@@ -997,10 +1147,18 @@ testPartialFetchAfter = withTestEnv $ \te -> do
     _ <- postEvent te (introduceMember admin1 user1)
 
     -- user1 submits → 2 KEL events (icp + ixn)
+    let dummyBd3 =
+            ChangeRole
+                (MemberId $ tidKey user1)
+                Admin
     _ <-
         postEvent
             te
-            (submitProposal user1 9999)
+            ( submitProposal
+                user1
+                dummyBd3
+                9999
+            )
 
     kr <-
         getMemberKelAfter te (tidKey user1) 1

@@ -20,6 +20,7 @@ import Data.ByteString qualified as BS
 import Data.Text (Text, pack)
 import Data.Text.IO qualified as TIO
 import KelCircle.Events (BaseDecision)
+import KelCircle.Gate (requiresMajority)
 import KelCircle.MemberKel (KelEvent (..), MemberKel (..))
 import KelCircle.Server
     ( SSEMessage
@@ -92,9 +93,15 @@ runServer port dbPath passphrase keyFile = do
                     }
         sid = MemberId cesrAid
     bracket
-        (openStore sid () trivialAppFold dbPath)
+        ( openStore
+            sid
+            ()
+            trivialAppFold
+            Just
+            dbPath
+        )
         closeStore
-        $ \(store :: CircleStore () () ()) -> do
+        $ \(store :: CircleStore () BaseDecision ()) -> do
             ensureSequencerKel store sid kp cesrAid
             ch <- newBroadcastTChanIO @SSEMessage
             let logger msg =
@@ -104,6 +111,7 @@ runServer port dbPath passphrase keyFile = do
                     ServerConfig
                         { scStore = store
                         , scAppFold = trivialAppFold
+                        , scExtractDecision = Just
                         , scBaseAppGate =
                             trivialBaseGate
                         , scAppGate = trivialAppGate
@@ -160,7 +168,7 @@ loadOrGenerateKeyPair path = do
 doesn't exist yet.
 -}
 ensureSequencerKel
-    :: CircleStore () () ()
+    :: CircleStore () BaseDecision ()
     -> MemberId
     -> KeyPair
     -> Text
@@ -214,6 +222,8 @@ trivialBaseGate _ _ = True
 trivialAppGate :: () -> () -> Bool
 trivialAppGate _ _ = True
 
--- | Trivial proposal gate: always passes.
-trivialProposalGate :: () -> () -> Bool
-trivialProposalGate _ _ = True
+{- | Trivial proposal gate: only majority-gated
+decisions are valid proposal content.
+-}
+trivialProposalGate :: () -> BaseDecision -> Bool
+trivialProposalGate _ = requiresMajority

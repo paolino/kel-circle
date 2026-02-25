@@ -43,7 +43,9 @@ import KelCircle.Crypto (validateCesrPrefix)
 import KelCircle.Events
     ( BaseDecision (..)
     , CircleEvent (..)
+    , Resolution (..)
     )
+import KelCircle.Gate (hasAdminMajority)
 import KelCircle.InteractionVerify
     ( VerifyResult (..)
     , buildInteractionBytes
@@ -60,6 +62,7 @@ import KelCircle.MemberKel
     , validateInception
     )
 import KelCircle.Processing (FullState (..))
+import KelCircle.Proposals qualified as P
 import KelCircle.RotationVerify qualified as RV
 import KelCircle.Server.JSON
     ( AppendResult (..)
@@ -134,6 +137,8 @@ data ServerConfig g d p r = ServerConfig
     -- ^ Persistent store
     , scAppFold :: g -> d -> g
     -- ^ Application fold function
+    , scExtractDecision :: p -> Maybe BaseDecision
+    -- ^ Extract base decision from proposal content
     , scBaseAppGate :: g -> BaseDecision -> Bool
     -- ^ App-level gate for base decisions
     , scAppGate :: g -> d -> Bool
@@ -455,6 +460,7 @@ doAppend cfg sub fs respond = do
                                 appendCircleEvent
                                     (scStore cfg)
                                     (scAppFold cfg)
+                                    (scExtractDecision cfg)
                                     (subSigner sub)
                                     (subSignature sub)
                                     evt
@@ -481,6 +487,13 @@ doAppend cfg sub fs respond = do
                                             ( KelUpdates
                                                 kelUpdates
                                             )
+                            -- Auto-resolve after response
+                            case evt of
+                                CEResponse _ pid ->
+                                    autoResolveIfMajority
+                                        cfg
+                                        pid
+                                _ -> pure ()
                             respond $
                                 responseLBS
                                     status200
@@ -859,6 +872,88 @@ handleStream cfg respond =
                                 flush
                         loop
                 loop
+
+-- --------------------------------------------------------
+-- Auto-resolution
+-- --------------------------------------------------------
+
+{- | After a response is appended, check if the proposal
+now has admin majority. If so, emit a @CEResolveProposal@
+event signed by the sequencer.
+-}
+autoResolveIfMajority
+    :: (ToJSON d, ToJSON p, ToJSON r)
+    => ServerConfig g d p r
+    -> Int
+    -- ^ Proposal id
+    -> IO ()
+autoResolveIfMajority cfg pid = do
+    st <- readFullState (scStore cfg)
+    let cs = circleState (fsCircle st)
+        sid =
+            sequencerId (fsCircle st)
+    case P.findProposal (fsProposals st) pid of
+        Just tp
+            | P.isOpen (P.tpStatus tp)
+            , hasAdminMajority
+                cs
+                (P.tpRespondents tp) -> do
+                let resolveEvt =
+                        CEResolveProposal
+                            pid
+                            ThresholdReached
+                    evtJson =
+                        object
+                            [ "tag"
+                                .= ( "resolveProposal"
+                                        :: Text
+                                   )
+                            , "proposalId" .= pid
+                            , "resolution"
+                                .= ThresholdReached
+                            ]
+                ixnResult <-
+                    signSequencerInteraction
+                        (scSequencerKeyPair cfg)
+                        evtJson
+                        ( lookupKelKeyState
+                            (scStore cfg)
+                            sid
+                        )
+                        sid
+                case ixnResult of
+                    Left ve ->
+                        scLog cfg $
+                            "  auto-resolve ixn error: "
+                                <> T.pack (show ve)
+                    Right mIxn -> do
+                        (sn, kelUpdates) <-
+                            appendCircleEvent
+                                (scStore cfg)
+                                (scAppFold cfg)
+                                (scExtractDecision cfg)
+                                (unMemberId sid)
+                                ""
+                                resolveEvt
+                                Nothing
+                                mIxn
+                        scLog cfg $
+                            "  auto-resolved pid="
+                                <> T.pack (show pid)
+                                <> " seq="
+                                <> T.pack (show sn)
+                        atomically $
+                            writeTChan
+                                (scBroadcast cfg)
+                                (KelCircle.Server.CircleEvent sn)
+                        case kelUpdates of
+                            [] -> pure ()
+                            _ ->
+                                atomically $
+                                    writeTChan
+                                        (scBroadcast cfg)
+                                        (KelUpdates kelUpdates)
+        _ -> pure ()
 
 -- --------------------------------------------------------
 -- Helpers

@@ -394,6 +394,15 @@ test.describe("3-client bootstrap and introduction", () => {
     ).toBeVisible({ timeout: 15_000 });
     await expect(bobPage.locator(".not-member-hint")).toBeVisible();
 
+    // Bob must be able to copy his key and inception JSON
+    // so the admin can introduce him
+    await expect(
+      bobPage.locator("button", { hasText: "Copy Key" }),
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(
+      bobPage.locator("button", { hasText: "Copy Inception JSON" }),
+    ).toBeVisible({ timeout: 5_000 });
+
     // Bob has inception data in localStorage
     const bobInception = await getInceptionJson(bobPage);
     expect(JSON.parse(bobInception)).toHaveProperty("event");

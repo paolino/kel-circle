@@ -118,13 +118,15 @@ applyBaseDecision c = case _ of
           }
       }
   RotateSequencer newSid ->
-    let oldSid = c.sequencerId
-        renamedMembers = map
-          (\m -> if m.memberId == oldSid then m { memberName = oldSid } else m)
-          c.circleState.members
-    in { circleState: c.circleState
-            { members = Array.snoc renamedMembers
-                { memberId: newSid, memberRole: MemberRole, memberName: "sequencer" }
-            }
-       , sequencerId: newSid
-       }
+    let
+      oldSid = c.sequencerId
+      renamedMembers = map
+        (\m -> if m.memberId == oldSid then m { memberName = oldSid } else m)
+        c.circleState.members
+    in
+      { circleState: c.circleState
+          { members = Array.snoc renamedMembers
+              { memberId: newSid, memberRole: MemberRole, memberName: "sequencer" }
+          }
+      , sequencerId: newSid
+      }

@@ -10,10 +10,12 @@ module KelCircle.Client.Fold
 import Prelude
 
 import Data.Foldable (foldl)
+import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import KelCircle.Client.Events
   ( BaseDecision(..)
   , CircleEvent(..)
+  , isPositive
   )
 import KelCircle.Client.Proposals as P
 import KelCircle.Client.State
@@ -51,10 +53,11 @@ initFullState sid initApp =
 applyCircleEvent
   :: forall g d p r
    . (g -> d -> g)
+  -> (p -> Maybe BaseDecision)
   -> FullState g p r
   -> Tuple MemberId (CircleEvent d p r)
   -> FullState g p r
-applyCircleEvent appFold st (Tuple signer evt) = case evt of
+applyCircleEvent appFold extractDecision st (Tuple signer evt) = case evt of
   CEBaseDecision bd ->
     st
       { circle = applyBaseDecision st.circle bd
@@ -85,20 +88,31 @@ applyCircleEvent appFold st (Tuple signer evt) = case evt of
       , nextSeq = st.nextSeq + 1
       }
   CEResolveProposal pid res ->
-    st
-      { proposals = P.resolveProposal
-          st.proposals
-          pid
-          res
-      , nextSeq = st.nextSeq + 1
-      }
+    let
+      st' = st
+        { proposals = P.resolveProposal
+            st.proposals
+            pid
+            res
+        , nextSeq = st.nextSeq + 1
+        }
+    in
+      if isPositive res then
+        case P.findProposal st.proposals pid of
+          Just tp -> case extractDecision tp.content of
+            Just bd ->
+              st' { circle = applyBaseDecision st'.circle bd }
+            Nothing -> st'
+          Nothing -> st'
+      else st'
 
 -- | Fold a sequence of signed circle events into state.
 foldCircle
   :: forall g d p r
    . (g -> d -> g)
+  -> (p -> Maybe BaseDecision)
   -> FullState g p r
   -> Array (Tuple MemberId (CircleEvent d p r))
   -> FullState g p r
-foldCircle appFold =
-  foldl (applyCircleEvent appFold)
+foldCircle appFold extractDecision =
+  foldl (applyCircleEvent appFold extractDecision)

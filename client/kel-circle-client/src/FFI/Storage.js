@@ -18,3 +18,5 @@ export const confirmImpl = (msg) => () => {
 export const copyToClipboardImpl = (text) => () => {
   navigator.clipboard.writeText(text);
 };
+
+export const deadlineFromNowMsImpl = (ms) => () => Date.now() + ms;

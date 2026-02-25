@@ -282,6 +282,30 @@ This separation is formally verified in Lean: each `apply*`
 function preserves the state components it does not logically
 modify.
 
+### Resolve with effect
+
+When a proposal carries a `BaseDecision` (via the `extractDecision`
+callback), positive resolution triggers that decision on the circle.
+This is the mechanism that enables majority-gated operations like
+role changes and admin introductions through the proposal flow.
+
+The function `applyResolveWithEffect` extends `applyResolve`:
+
+1. Close the proposal (same as `applyResolve`)
+2. If the resolution is positive (`ThresholdReached` or
+   `ProposerPositive`), look up the proposal content
+3. Extract a `BaseDecision` from the content
+4. Apply that decision to the circle
+
+The sequencer auto-resolves proposals after each response when
+admin majority is detected. This avoids a separate resolution
+step from the client.
+
+**Lean predicates:** `applyResolveWithEffect`,
+`applyResolveWithEffect_increments_seq`,
+`applyResolveWithEffect_negative_eq`,
+`applyResolveWithEffect_preserves_proposals`
+
 **Lean predicates:** `CircleEvent`, `FullState`, `initFullState`,
 `gateBaseDecision`, `gateAppDecision`, `gateProposal`,
 `gateResponse`, `gateResolve`,

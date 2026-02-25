@@ -4,6 +4,7 @@ module FFI.Storage
   , removeItem
   , confirm
   , copyToClipboard
+  , deadlineFromNowMs
   ) where
 
 import Prelude
@@ -36,3 +37,8 @@ foreign import copyToClipboardImpl :: String -> Effect Unit
 
 copyToClipboard :: String -> Effect Unit
 copyToClipboard = copyToClipboardImpl
+
+foreign import deadlineFromNowMsImpl :: Int -> Effect Int
+
+deadlineFromNowMs :: Int -> Effect Int
+deadlineFromNowMs = deadlineFromNowMsImpl

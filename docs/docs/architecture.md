@@ -545,11 +545,17 @@ sequenceDiagram
     Note over S: adminCount=3, majority=2<br/>2 responses ≥ 2 → threshold met
 
     S->>S: CEResolveProposal 5 ThresholdReached
-    Note over S: sn=8, proposal closed
+    Note over S: sn=8, proposal resolved<br/>applyResolveWithEffect applies ChangeRole
 ```
 
 The majority threshold is `adminCount / 2 + 1` — with one admin,
 that admin can act alone; with three admins, two are needed.
+
+Auto-resolution happens immediately after each `CEResponse`: the
+server checks `hasAdminMajority` on the updated respondent list
+and, if met, emits a `CEResolveProposal ThresholdReached` event
+signed by the sequencer. The `applyResolveWithEffect` function
+then applies the embedded `BaseDecision` to the circle state.
 
 ---
 
