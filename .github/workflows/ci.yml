@@ -17,3 +17,21 @@ jobs:
         with:
           cachix-auth-token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - run: nix develop --quiet -c just ci
+
+  playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: paolino/dev-assets/setup-nix@v0.0.1
+        with:
+          cachix-auth-token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      - name: Build server
+        run: nix develop --quiet -c cabal build kel-circle-server -O0
+      - name: Build client
+        run: nix develop --quiet -c bash -c "cd client && spago build"
+      - name: Bundle client
+        run: nix develop --quiet -c just bundle-client
+      - name: Install Playwright chromium
+        run: nix develop --quiet -c npx --prefix client playwright install --with-deps chromium
+      - name: Run Playwright tests
+        run: nix develop --quiet -c bash -c "cd client && npx playwright test"
