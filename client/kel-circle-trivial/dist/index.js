@@ -14883,9 +14883,21 @@
           }();
           var isSequencer = member2.memberName === "sequencer";
           var isMe = member2.memberId === myId;
-          return tr_([td([class_("name")])([text5(member2.memberName)]), td_([text5(show9(member2.memberRole))]), function() {
-            var $27 = amIAdmin && (!isSequencer && !isMe);
-            if ($27) {
+          return tr(function() {
+            if (isMe) {
+              return [class_("me")];
+            }
+            ;
+            return [];
+          }())([td([class_("name")])([text5(member2.memberName + function() {
+            if (isMe) {
+              return " (you)";
+            }
+            ;
+            return "";
+          }())]), td_([text5(show9(member2.memberRole))]), function() {
+            var $30 = amIAdmin && (!isSequencer && !isMe);
+            if ($30) {
               return td_([proposeBtn, button([onClick($$const(new DoRemove(member2.memberId))), class_("btn-danger"), disabled10(submitting)])([text5("Remove")])]);
             }
             ;
@@ -14964,78 +14976,78 @@
     return function(v) {
       if (v instanceof Receive3) {
         return modify_4(function(v1) {
-          var $37 = {};
-          for (var $38 in v1) {
-            if ({}.hasOwnProperty.call(v1, $38)) {
-              $37[$38] = v1[$38];
+          var $40 = {};
+          for (var $41 in v1) {
+            if ({}.hasOwnProperty.call(v1, $41)) {
+              $40[$41] = v1[$41];
             }
             ;
           }
           ;
-          $37.circleState = v.value0.circleState;
-          $37.myKey = v.value0.myKey;
-          $37.submitting = v.value0.submitting;
-          return $37;
+          $40.circleState = v.value0.circleState;
+          $40.myKey = v.value0.myKey;
+          $40.submitting = v.value0.submitting;
+          return $40;
         });
       }
       ;
       if (v instanceof SetNewMemberKey) {
         return modify_4(function(v1) {
-          var $41 = {};
-          for (var $42 in v1) {
-            if ({}.hasOwnProperty.call(v1, $42)) {
-              $41[$42] = v1[$42];
+          var $44 = {};
+          for (var $45 in v1) {
+            if ({}.hasOwnProperty.call(v1, $45)) {
+              $44[$45] = v1[$45];
             }
             ;
           }
           ;
-          $41.newMemberKey = v.value0;
-          return $41;
+          $44.newMemberKey = v.value0;
+          return $44;
         });
       }
       ;
       if (v instanceof SetNewMemberName) {
         return modify_4(function(v1) {
-          var $45 = {};
-          for (var $46 in v1) {
-            if ({}.hasOwnProperty.call(v1, $46)) {
-              $45[$46] = v1[$46];
+          var $48 = {};
+          for (var $49 in v1) {
+            if ({}.hasOwnProperty.call(v1, $49)) {
+              $48[$49] = v1[$49];
             }
             ;
           }
           ;
-          $45.newMemberName = v.value0;
-          return $45;
+          $48.newMemberName = v.value0;
+          return $48;
         });
       }
       ;
       if (v instanceof SetNewMemberInception) {
         return modify_4(function(v1) {
-          var $49 = {};
-          for (var $50 in v1) {
-            if ({}.hasOwnProperty.call(v1, $50)) {
-              $49[$50] = v1[$50];
+          var $52 = {};
+          for (var $53 in v1) {
+            if ({}.hasOwnProperty.call(v1, $53)) {
+              $52[$53] = v1[$53];
             }
             ;
           }
           ;
-          $49.newMemberInception = v.value0;
-          return $49;
+          $52.newMemberInception = v.value0;
+          return $52;
         });
       }
       ;
       if (v instanceof ToggleNewMemberAdmin) {
         return modify_4(function(s) {
-          var $53 = {};
-          for (var $54 in s) {
-            if ({}.hasOwnProperty.call(s, $54)) {
-              $53[$54] = s[$54];
+          var $56 = {};
+          for (var $57 in s) {
+            if ({}.hasOwnProperty.call(s, $57)) {
+              $56[$57] = s[$57];
             }
             ;
           }
           ;
-          $53.newMemberAdmin = !s.newMemberAdmin;
-          return $53;
+          $56.newMemberAdmin = !s.newMemberAdmin;
+          return $56;
         });
       }
       ;
@@ -15050,16 +15062,16 @@
               return MemberRole.value;
             }();
             var name15 = function() {
-              var $57 = st.newMemberName === "";
-              if ($57) {
+              var $60 = st.newMemberName === "";
+              if ($60) {
                 return st.newMemberKey;
               }
               ;
               return st.newMemberName;
             }();
             return discard7(function() {
-              var $58 = st.newMemberInception !== "";
-              if ($58) {
+              var $61 = st.newMemberInception !== "";
+              if ($61) {
                 return raise(new SubmitIntroduceWithInception({
                   memberId: st.newMemberKey,
                   name: name15,
@@ -15071,19 +15083,19 @@
               return raise(new SubmitDecision(new IntroduceMember(st.newMemberKey, name15, role)));
             }())(function() {
               return modify_4(function(v1) {
-                var $59 = {};
-                for (var $60 in v1) {
-                  if ({}.hasOwnProperty.call(v1, $60)) {
-                    $59[$60] = v1[$60];
+                var $62 = {};
+                for (var $63 in v1) {
+                  if ({}.hasOwnProperty.call(v1, $63)) {
+                    $62[$63] = v1[$63];
                   }
                   ;
                 }
                 ;
-                $59.newMemberKey = "";
-                $59.newMemberName = "";
-                $59.newMemberAdmin = false;
-                $59.newMemberInception = "";
-                return $59;
+                $62.newMemberKey = "";
+                $62.newMemberName = "";
+                $62.newMemberAdmin = false;
+                $62.newMemberInception = "";
+                return $62;
               });
             });
           }());
@@ -15098,7 +15110,7 @@
         return raise(new SubmitProposal(new ChangeRole(v.value0, v.value1)));
       }
       ;
-      throw new Error("Failed pattern match at View.Members (line 240, column 16 - line 302, column 56): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at View.Members (line 248, column 16 - line 310, column 56): " + [v.constructor.name]);
     };
   };
   var membersComponent = function(dictMonadAff) {
@@ -15110,8 +15122,8 @@
         initialize: defaultEval.initialize,
         finalize: defaultEval.finalize,
         handleAction: handleAction2(dictMonadAff),
-        receive: function($65) {
-          return Just.create(Receive3.create($65));
+        receive: function($68) {
+          return Just.create(Receive3.create($68));
         }
       })
     });

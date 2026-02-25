@@ -168,10 +168,18 @@ memberRow amIAdmin submitting myId member =
           ]
           [ HH.text "Propose Demote" ]
   in
-    HH.tr_
+    HH.tr
+      ( if isMe then
+          [ HP.class_ (HH.ClassName "me") ]
+        else []
+      )
       [ HH.td
           [ HP.class_ (HH.ClassName "name") ]
-          [ HH.text member.memberName ]
+          [ HH.text
+              ( member.memberName
+                  <> if isMe then " (you)" else ""
+              )
+          ]
       , HH.td_ [ HH.text (show member.memberRole) ]
       , if amIAdmin && not isSequencer && not isMe then HH.td_
           [ proposeBtn
