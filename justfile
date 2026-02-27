@@ -87,7 +87,7 @@ docker:
     nix build --quiet .#docker-image -o result
     @echo "Image tarball: ./result"
 
-# Load docker image locally
+# Load docker image locally and extract tag
 docker-load: docker
     docker load < result
 
@@ -95,7 +95,7 @@ docker-load: docker
 deploy-dev: docker-load
     #!/usr/bin/env bash
     set -euo pipefail
-    TAG=$(docker images "ghcr.io/paolino/kel-circle" --format '{{"{{"}}.Tag{{"}}"}}' | head -1)
+    TAG=$(docker load < result 2>&1 | grep -oP 'ghcr.io/paolino/kel-circle:\K[^\s]+')
     echo "Loaded tag: $TAG"
     docker tag "ghcr.io/paolino/kel-circle:$TAG" "ghcr.io/paolino/kel-circle:dev"
     docker push "ghcr.io/paolino/kel-circle:dev"
