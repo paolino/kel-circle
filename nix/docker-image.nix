@@ -5,7 +5,7 @@ pkgs.dockerTools.buildImage {
   tag = version;
   config = {
     EntryPoint =
-      [ "kel-circle-server" "3001" "/data/kel-circle.db" "bootstrap" ];
+      [ "kel-circle-server" "3001" "/data/kel-circle.db" "bootstrap" "/data/sequencer.key" ];
     ExposedPorts = { "3001/tcp" = { }; };
     Volumes = { "/data" = { }; };
     WorkingDir = "/app";
