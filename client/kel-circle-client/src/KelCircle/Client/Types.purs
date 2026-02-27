@@ -17,7 +17,8 @@ type MemberId = String
 type ProposalId = Int
 
 -- | UTC timestamp (milliseconds since epoch).
-type Timestamp = Int
+-- | Uses Number because millisecond timestamps exceed 32-bit Int range.
+type Timestamp = Number
 
 -- | Role in the circle. Mirrors Haskell @Role@.
 data Role
