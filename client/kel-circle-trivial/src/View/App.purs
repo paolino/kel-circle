@@ -47,7 +47,7 @@ import KelCircle.Client.Fold
   )
 import KelCircle.Client.Identity as Identity
 import KelCircle.Client.KelValidate as KV
-import KelCircle.Client.State (isBootstrap)
+import KelCircle.Client.State (isBootstrap, isMember)
 import KelCircle.Client.Types (MemberId, Role(..))
 import Type.Proxy (Proxy(..))
 import View.Bootstrap as Bootstrap
@@ -696,7 +696,10 @@ checkMembershipAndLoad key = do
   case res.status of
     200 -> do
       fetchAndReplay key
-      startSSE key
+      st <- H.get
+      case st.screen of
+        NormalScreen -> startSSE key
+        _ -> pure unit
     403 -> do
       infoRes <- liftAff $ Fetch.fetch
         (baseUrl <> "/info?key=" <> key)
@@ -746,10 +749,16 @@ fetchAndReplay key = do
           -- Replay done. Build member key states.
           mks <- buildAllMemberKeyStates fs
           let
+            cs = fs.circle.circleState
             screen =
-              if isBootstrap fs.circle.circleState
+              if isBootstrap cs
                 then BootstrapScreen
-              else NormalScreen
+              else if isMember cs key
+                then NormalScreen
+              else NonMemberScreen
+                { adminEmails: []
+                , pendingIntroduction: false
+                }
           H.modify_ _
             { fullState = fs
                 { memberKeyStates = mks }
