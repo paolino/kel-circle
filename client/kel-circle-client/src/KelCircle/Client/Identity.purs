@@ -33,8 +33,9 @@ import Data.Int (floor, toNumber) as Int
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
+import Effect.Exception (message)
 import FFI.KeyRestore (keyPairFromSecretKey)
 import FFI.Storage as Storage
 import FFI.TextEncoder (encodeUtf8)
@@ -162,15 +163,19 @@ loadIdentity passphrase = do
         Nothing ->
           pure $ Left "no stored keri prefix"
         Just keriPrefix -> do
-          secretKey <-
+          result <- try $
             WebCrypto.decrypt passphrase encrypted
-          kp <- liftEffect $
-            keyPairFromSecretKey secretKey
-          pure $ Right
-            { keyPair: kp
-            , prefix
-            , keriPrefix
-            }
+          case result of
+            Left err ->
+              pure $ Left (message err)
+            Right secretKey -> do
+              kp <- liftEffect $
+                keyPairFromSecretKey secretKey
+              pure $ Right
+                { keyPair: kp
+                , prefix
+                , keriPrefix
+                }
 
 -- | Sign a circle event as a KERI interaction.
 -- | Returns the CESR-encoded Ed25519 signature.

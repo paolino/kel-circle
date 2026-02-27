@@ -4968,6 +4968,9 @@
   function error(msg) {
     return new Error(msg);
   }
+  function message(e) {
+    return e.message;
+  }
   function throwException(e) {
     return function() {
       throw e;
@@ -13855,6 +13858,7 @@
   var bind32 = /* @__PURE__ */ bind(bindAff);
   var liftEffect7 = /* @__PURE__ */ liftEffect(monadEffectAff);
   var pure32 = /* @__PURE__ */ pure(applicativeAff);
+  var $$try3 = /* @__PURE__ */ $$try(monadErrorAff);
   var map29 = /* @__PURE__ */ map(functorArray);
   var fromFoldable6 = /* @__PURE__ */ fromFoldable3(foldableArray);
   var signCircleEvent = function(ident) {
@@ -13908,7 +13912,7 @@
       });
     }
     ;
-    throw new Error("Failed pattern match at KelCircle.Client.Identity (line 240, column 25 - line 248, column 37): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at KelCircle.Client.Identity (line 245, column 25 - line 253, column 37): " + [v.constructor.name]);
   };
   var loadInceptionData = function __do2() {
     var mStr = getItem("kel-circle-inception")();
@@ -13933,24 +13937,32 @@
               }
               ;
               if (mKpfx instanceof Just) {
-                return bind32(decrypt(passphrase)(mEnc.value0))(function(secretKey) {
-                  return bind32(liftEffect7(keyPairFromSecretKey(secretKey)))(function(kp) {
-                    return pure32(new Right({
-                      keyPair: kp,
-                      prefix: mPfx.value0,
-                      keriPrefix: mKpfx.value0
-                    }));
-                  });
+                return bind32($$try3(decrypt(passphrase)(mEnc.value0)))(function(result) {
+                  if (result instanceof Left) {
+                    return pure32(new Left(message(result.value0)));
+                  }
+                  ;
+                  if (result instanceof Right) {
+                    return bind32(liftEffect7(keyPairFromSecretKey(result.value0)))(function(kp) {
+                      return pure32(new Right({
+                        keyPair: kp,
+                        prefix: mPfx.value0,
+                        keriPrefix: mKpfx.value0
+                      }));
+                    });
+                  }
+                  ;
+                  throw new Error("Failed pattern match at KelCircle.Client.Identity (line 168, column 11 - line 178, column 18): " + [result.constructor.name]);
                 });
               }
               ;
-              throw new Error("Failed pattern match at KelCircle.Client.Identity (line 161, column 22 - line 173, column 14): " + [mKpfx.constructor.name]);
+              throw new Error("Failed pattern match at KelCircle.Client.Identity (line 162, column 22 - line 178, column 18): " + [mKpfx.constructor.name]);
             }
             ;
-            throw new Error("Failed pattern match at KelCircle.Client.Identity (line 159, column 23 - line 173, column 14): " + [mPfx.constructor.name]);
+            throw new Error("Failed pattern match at KelCircle.Client.Identity (line 160, column 23 - line 178, column 18): " + [mPfx.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at KelCircle.Client.Identity (line 157, column 3 - line 173, column 14): " + [mEnc.constructor.name]);
+          throw new Error("Failed pattern match at KelCircle.Client.Identity (line 158, column 3 - line 178, column 18): " + [mEnc.constructor.name]);
         });
       });
     });
@@ -15218,7 +15230,7 @@
   var bind110 = /* @__PURE__ */ bind(bindHalogenM);
   var get5 = /* @__PURE__ */ get(monadStateHalogenM);
   var foldM4 = /* @__PURE__ */ foldM(foldableArray)(monadHalogenM);
-  var $$try3 = /* @__PURE__ */ $$try(monadErrorAff);
+  var $$try4 = /* @__PURE__ */ $$try(monadErrorAff);
   var pure17 = /* @__PURE__ */ pure(applicativeHalogenM);
   var show14 = /* @__PURE__ */ show(showInt);
   var discard8 = /* @__PURE__ */ discard(discardUnit);
@@ -15466,7 +15478,7 @@
       }
       ;
       if (st.screen instanceof UnlockScreen) {
-        return div2([class_("identity-screen")])([h2_([text5("Welcome back")]), p_([text5("Enter your passphrase to unlock your identity.")]), passphraseField(st), button([onClick($$const(UnlockIdentity.value)), class_("btn-primary"), disabled10(st.passphraseInput === "")])([text5("Unlock")])]);
+        return div2([class_("identity-screen")])([h2_([text5("Welcome back")]), p_([text5("Enter your passphrase to unlock your identity.")]), passphraseField(st), button([onClick($$const(UnlockIdentity.value)), class_("btn-primary"), disabled10(st.passphraseInput === "")])([text5("Unlock")]), button([onClick($$const(ResetIdentity.value)), class_("btn-secondary")])([text5("Reset Identity")])]);
       }
       ;
       if (st.screen instanceof BootstrapScreen) {
@@ -15505,7 +15517,7 @@
             return text5("");
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 271, column 9 - line 290, column 32): " + [st.inception.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 277, column 9 - line 296, column 32): " + [st.inception.constructor.name]);
         }()]);
       }
       ;
@@ -15525,7 +15537,7 @@
         })(HandleProposals.create)]);
       }
       ;
-      throw new Error("Failed pattern match at View.App (line 193, column 14 - line 311, column 8): " + [st.screen.constructor.name]);
+      throw new Error("Failed pattern match at View.App (line 193, column 14 - line 317, column 8): " + [st.screen.constructor.name]);
     };
   };
   var render4 = function(dictMonadAff) {
@@ -15554,7 +15566,7 @@
         })(fs.circle.circleState.members);
         return foldM4(function(acc) {
           return function(mid) {
-            return bind110(liftAff2($$try3(fetchAndValidateFullKel(baseUrl)(mid))))(function(result) {
+            return bind110(liftAff2($$try4(fetchAndValidateFullKel(baseUrl)(mid))))(function(result) {
               if (result instanceof Left) {
                 return pure17(acc);
               }
@@ -15567,7 +15579,7 @@
                 return pure17(insertMemberKel(mid)(result.value0.value0)(acc));
               }
               ;
-              throw new Error("Failed pattern match at View.App (line 806, column 9 - line 810, column 49): " + [result.constructor.name]);
+              throw new Error("Failed pattern match at View.App (line 812, column 9 - line 816, column 49): " + [result.constructor.name]);
             });
           };
         })(st.fullState.memberKeyStates)(memberIds);
@@ -15593,7 +15605,7 @@
             return defaultSequencer;
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 728, column 13 - line 730, column 33): " + [v.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 734, column 13 - line 736, column 33): " + [v.constructor.name]);
         }();
         var go2 = function(seqNo) {
           return function(fs) {
@@ -15675,10 +15687,10 @@
                     return go2(seqNo + 1 | 0)(fs$prime);
                   }
                   ;
-                  throw new Error("Failed pattern match at View.App (line 762, column 15 - line 782, column 37): " + [v1.constructor.name]);
+                  throw new Error("Failed pattern match at View.App (line 768, column 15 - line 788, column 37): " + [v1.constructor.name]);
                 }
                 ;
-                throw new Error("Failed pattern match at View.App (line 755, column 11 - line 782, column 37): " + [v.constructor.name]);
+                throw new Error("Failed pattern match at View.App (line 761, column 11 - line 788, column 37): " + [v.constructor.name]);
               }
               ;
               return modify_6(function(v2) {
@@ -15784,10 +15796,10 @@
                     return go2(seqNo + 1 | 0)(fs$prime);
                   }
                   ;
-                  throw new Error("Failed pattern match at View.App (line 858, column 19 - line 874, column 41): " + [v1.constructor.name]);
+                  throw new Error("Failed pattern match at View.App (line 864, column 19 - line 880, column 41): " + [v1.constructor.name]);
                 }
                 ;
-                throw new Error("Failed pattern match at View.App (line 853, column 15 - line 874, column 41): " + [v.constructor.name]);
+                throw new Error("Failed pattern match at View.App (line 859, column 15 - line 880, column 41): " + [v.constructor.name]);
               }
               ;
               return modify_6(function(v2) {
@@ -15808,7 +15820,7 @@
         return go2(st.serverSeqNo - 1 | 0)(st.fullState);
       }
       ;
-      throw new Error("Failed pattern match at View.App (line 821, column 3 - line 882, column 43): " + [st.identity.constructor.name]);
+      throw new Error("Failed pattern match at View.App (line 827, column 3 - line 888, column 43): " + [st.identity.constructor.name]);
     });
   };
   var handleKelUpdate = function(dictMonadAff) {
@@ -15866,7 +15878,7 @@
                   });
                 }
                 ;
-                throw new Error("Failed pattern match at View.App (line 506, column 7 - line 523, column 42): " + [result.constructor.name]);
+                throw new Error("Failed pattern match at View.App (line 512, column 7 - line 529, column 42): " + [result.constructor.name]);
               });
             }
             ;
@@ -15923,14 +15935,14 @@
                     });
                   }
                   ;
-                  throw new Error("Failed pattern match at View.App (line 535, column 11 - line 552, column 46): " + [v.constructor.name]);
+                  throw new Error("Failed pattern match at View.App (line 541, column 11 - line 558, column 46): " + [v.constructor.name]);
                 }
                 ;
                 return pure17(unit);
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 502, column 3 - line 553, column 23): " + [currentKs.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 508, column 3 - line 559, column 23): " + [currentKs.constructor.name]);
           }())(function() {
             return bind110(get5)(function(st$prime) {
               if (st$prime.identity instanceof Just && st$prime.identity.value0.prefix === memberId) {
@@ -16054,7 +16066,7 @@
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 698, column 7 - line 709, column 48): " + [v.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 704, column 7 - line 715, column 48): " + [v.constructor.name]);
           });
         }
         ;
@@ -16202,10 +16214,10 @@
                 return doPost1(passphrase)(ident)(v.value0)(evt)(mInception);
               }
               ;
-              throw new Error("Failed pattern match at View.App (line 589, column 7 - line 603, column 23): " + [v.constructor.name]);
+              throw new Error("Failed pattern match at View.App (line 595, column 7 - line 609, column 23): " + [v.constructor.name]);
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 584, column 3 - line 603, column 23): " + [mKs.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 590, column 3 - line 609, column 23): " + [mKs.constructor.name]);
           });
         };
       };
@@ -16263,15 +16275,15 @@
                       return Nothing.value;
                     }
                     ;
-                    throw new Error("Failed pattern match at View.App (line 634, column 26 - line 636, column 32): " + [v1.constructor.name]);
+                    throw new Error("Failed pattern match at View.App (line 640, column 26 - line 642, column 32): " + [v1.constructor.name]);
                   }();
                   return doPost1(passphrase)(ident)(v.value0)(evt)(mInception);
                 }
                 ;
-                throw new Error("Failed pattern match at View.App (line 628, column 7 - line 638, column 23): " + [v.constructor.name]);
+                throw new Error("Failed pattern match at View.App (line 634, column 7 - line 644, column 23): " + [v.constructor.name]);
               }
               ;
-              throw new Error("Failed pattern match at View.App (line 623, column 3 - line 638, column 23): " + [mKs.constructor.name]);
+              throw new Error("Failed pattern match at View.App (line 629, column 3 - line 644, column 23): " + [mKs.constructor.name]);
             });
           };
         };
@@ -16376,7 +16388,7 @@
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 350, column 5 - line 372, column 47): " + [result.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 356, column 5 - line 378, column 47): " + [result.constructor.name]);
           });
         });
       }
@@ -16433,7 +16445,7 @@
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 378, column 5 - line 394, column 47): " + [result.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 384, column 5 - line 400, column 47): " + [result.constructor.name]);
           });
         });
       }
@@ -16459,7 +16471,7 @@
             });
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 399, column 7 - line 406, column 53): " + [st.identity.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 405, column 7 - line 412, column 53): " + [st.identity.constructor.name]);
         });
       }
       ;
@@ -16485,7 +16497,7 @@
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 411, column 7 - line 416, column 53): " + [st.identity.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 417, column 7 - line 422, column 53): " + [st.identity.constructor.name]);
           });
         }
         ;
@@ -16510,11 +16522,11 @@
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 419, column 7 - line 433, column 53): " + [st.identity.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 425, column 7 - line 439, column 53): " + [st.identity.constructor.name]);
           });
         }
         ;
-        throw new Error("Failed pattern match at View.App (line 408, column 27 - line 433, column 53): " + [v.value0.constructor.name]);
+        throw new Error("Failed pattern match at View.App (line 414, column 27 - line 439, column 53): " + [v.value0.constructor.name]);
       }
       ;
       if (v instanceof HandleProposals) {
@@ -16538,7 +16550,7 @@
             });
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 438, column 7 - line 443, column 53): " + [st.identity.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 444, column 7 - line 449, column 53): " + [st.identity.constructor.name]);
         });
       }
       ;
@@ -16552,7 +16564,7 @@
           return fetchNewEvents1;
         }
         ;
-        throw new Error("Failed pattern match at View.App (line 446, column 5 - line 448, column 32): " + [v1.constructor.name]);
+        throw new Error("Failed pattern match at View.App (line 452, column 5 - line 454, column 32): " + [v1.constructor.name]);
       }
       ;
       if (v instanceof SSEKelMessage) {
@@ -16567,7 +16579,7 @@
           });
         }
         ;
-        throw new Error("Failed pattern match at View.App (line 451, column 5 - line 455, column 46): " + [v1.constructor.name]);
+        throw new Error("Failed pattern match at View.App (line 457, column 5 - line 461, column 46): " + [v1.constructor.name]);
       }
       ;
       if (v instanceof CopyKey) {
@@ -16580,7 +16592,7 @@
             return pure17(unit);
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 459, column 5 - line 463, column 27): " + [st.identity.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 465, column 5 - line 469, column 27): " + [st.identity.constructor.name]);
         });
       }
       ;
@@ -16594,7 +16606,7 @@
             return pure17(unit);
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 467, column 5 - line 471, column 27): " + [st.inception.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 473, column 5 - line 477, column 27): " + [st.inception.constructor.name]);
         });
       }
       ;
@@ -16634,7 +16646,7 @@
         });
       }
       ;
-      throw new Error("Failed pattern match at View.App (line 336, column 16 - line 485, column 36): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at View.App (line 342, column 16 - line 491, column 36): " + [v.constructor.name]);
     };
   };
   var appComponent = function(dictMonadAff) {
