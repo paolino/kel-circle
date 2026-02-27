@@ -15579,7 +15579,7 @@
                 return pure17(insertMemberKel(mid)(result.value0.value0)(acc));
               }
               ;
-              throw new Error("Failed pattern match at View.App (line 812, column 9 - line 816, column 49): " + [result.constructor.name]);
+              throw new Error("Failed pattern match at View.App (line 821, column 9 - line 825, column 49): " + [result.constructor.name]);
             });
           };
         })(st.fullState.memberKeyStates)(memberIds);
@@ -15605,7 +15605,7 @@
             return defaultSequencer;
           }
           ;
-          throw new Error("Failed pattern match at View.App (line 734, column 13 - line 736, column 33): " + [v.constructor.name]);
+          throw new Error("Failed pattern match at View.App (line 737, column 13 - line 739, column 33): " + [v.constructor.name]);
         }();
         var go2 = function(seqNo) {
           return function(fs) {
@@ -15621,27 +15621,35 @@
                       return BootstrapScreen.value;
                     }
                     ;
-                    return NormalScreen.value;
+                    var $214 = isMember(fs.circle.circleState)(key);
+                    if ($214) {
+                      return NormalScreen.value;
+                    }
+                    ;
+                    return new NonMemberScreen({
+                      adminEmails: [],
+                      pendingIntroduction: false
+                    });
                   }();
                   return discard12(modify_6(function(v2) {
-                    var $214 = {};
-                    for (var $215 in v2) {
-                      if ({}.hasOwnProperty.call(v2, $215)) {
-                        $214[$215] = v2[$215];
+                    var $215 = {};
+                    for (var $216 in v2) {
+                      if ({}.hasOwnProperty.call(v2, $216)) {
+                        $215[$216] = v2[$216];
                       }
                       ;
                     }
                     ;
-                    $214.fullState = {
+                    $215.fullState = {
                       appState: fs.appState,
                       circle: fs.circle,
                       nextSeq: fs.nextSeq,
                       proposals: fs.proposals,
                       memberKeyStates: mks
                     };
-                    $214.serverSeqNo = seqNo + 1 | 0;
-                    $214.screen = screen;
-                    return $214;
+                    $215.serverSeqNo = seqNo + 1 | 0;
+                    $215.screen = screen;
+                    return $215;
                   }))(function() {
                     return liftEffect8(persistKeyStates(mks));
                   });
@@ -15652,16 +15660,16 @@
                 var v = parseEventResponse(res.body);
                 if (v instanceof Left) {
                   return modify_6(function(v12) {
-                    var $218 = {};
-                    for (var $219 in v12) {
-                      if ({}.hasOwnProperty.call(v12, $219)) {
-                        $218[$219] = v12[$219];
+                    var $219 = {};
+                    for (var $220 in v12) {
+                      if ({}.hasOwnProperty.call(v12, $220)) {
+                        $219[$220] = v12[$220];
                       }
                       ;
                     }
                     ;
-                    $218.error = new Just("Decode error: " + v.value0);
-                    return $218;
+                    $219.error = new Just("Decode error: " + v.value0);
+                    return $219;
                   });
                 }
                 ;
@@ -15669,16 +15677,16 @@
                   var v1 = decodeCircleEvent($$const(new Right(unit)))($$const(new Right(unit)))($$const(new Right(unit)))(v.value0.event);
                   if (v1 instanceof Left) {
                     return modify_6(function(v2) {
-                      var $223 = {};
-                      for (var $224 in v2) {
-                        if ({}.hasOwnProperty.call(v2, $224)) {
-                          $223[$224] = v2[$224];
+                      var $224 = {};
+                      for (var $225 in v2) {
+                        if ({}.hasOwnProperty.call(v2, $225)) {
+                          $224[$225] = v2[$225];
                         }
                         ;
                       }
                       ;
-                      $223.error = new Just("Event decode: " + printJsonDecodeError(v1.value0));
-                      return $223;
+                      $224.error = new Just("Event decode: " + printJsonDecodeError(v1.value0));
+                      return $224;
                     });
                   }
                   ;
@@ -15687,23 +15695,23 @@
                     return go2(seqNo + 1 | 0)(fs$prime);
                   }
                   ;
-                  throw new Error("Failed pattern match at View.App (line 768, column 15 - line 788, column 37): " + [v1.constructor.name]);
+                  throw new Error("Failed pattern match at View.App (line 777, column 15 - line 797, column 37): " + [v1.constructor.name]);
                 }
                 ;
-                throw new Error("Failed pattern match at View.App (line 761, column 11 - line 788, column 37): " + [v.constructor.name]);
+                throw new Error("Failed pattern match at View.App (line 770, column 11 - line 797, column 37): " + [v.constructor.name]);
               }
               ;
               return modify_6(function(v2) {
-                var $231 = {};
-                for (var $232 in v2) {
-                  if ({}.hasOwnProperty.call(v2, $232)) {
-                    $231[$232] = v2[$232];
+                var $232 = {};
+                for (var $233 in v2) {
+                  if ({}.hasOwnProperty.call(v2, $233)) {
+                    $232[$233] = v2[$233];
                   }
                   ;
                 }
                 ;
-                $231.error = new Just("Fetch failed: " + show14(res.status));
-                return $231;
+                $232.error = new Just("Fetch failed: " + show14(res.status));
+                return $232;
               });
             });
           };
@@ -15728,32 +15736,32 @@
             })))(function(res) {
               if (res.status === 404) {
                 var screen = function() {
-                  var $236 = isBootstrap(fs.circle.circleState);
-                  if ($236) {
+                  var $237 = isBootstrap(fs.circle.circleState);
+                  if ($237) {
                     return BootstrapScreen.value;
                   }
                   ;
                   return NormalScreen.value;
                 }();
                 return modify_6(function(s) {
-                  var $237 = {};
-                  for (var $238 in s) {
-                    if ({}.hasOwnProperty.call(s, $238)) {
-                      $237[$238] = s[$238];
+                  var $238 = {};
+                  for (var $239 in s) {
+                    if ({}.hasOwnProperty.call(s, $239)) {
+                      $238[$239] = s[$239];
                     }
                     ;
                   }
                   ;
-                  $237.fullState = {
+                  $238.fullState = {
                     circle: fs.circle,
                     appState: fs.appState,
                     nextSeq: fs.nextSeq,
                     proposals: fs.proposals,
                     memberKeyStates: s.fullState.memberKeyStates
                   };
-                  $237.serverSeqNo = seqNo + 1 | 0;
-                  $237.screen = screen;
-                  return $237;
+                  $238.serverSeqNo = seqNo + 1 | 0;
+                  $238.screen = screen;
+                  return $238;
                 });
               }
               ;
@@ -15761,16 +15769,16 @@
                 var v = parseEventResponse(res.body);
                 if (v instanceof Left) {
                   return modify_6(function(v12) {
-                    var $241 = {};
-                    for (var $242 in v12) {
-                      if ({}.hasOwnProperty.call(v12, $242)) {
-                        $241[$242] = v12[$242];
+                    var $242 = {};
+                    for (var $243 in v12) {
+                      if ({}.hasOwnProperty.call(v12, $243)) {
+                        $242[$243] = v12[$243];
                       }
                       ;
                     }
                     ;
-                    $241.serverSeqNo = seqNo + 1 | 0;
-                    return $241;
+                    $242.serverSeqNo = seqNo + 1 | 0;
+                    return $242;
                   });
                 }
                 ;
@@ -15778,16 +15786,16 @@
                   var v1 = decodeCircleEvent($$const(new Right(unit)))($$const(new Right(unit)))($$const(new Right(unit)))(v.value0.event);
                   if (v1 instanceof Left) {
                     return modify_6(function(v2) {
-                      var $246 = {};
-                      for (var $247 in v2) {
-                        if ({}.hasOwnProperty.call(v2, $247)) {
-                          $246[$247] = v2[$247];
+                      var $247 = {};
+                      for (var $248 in v2) {
+                        if ({}.hasOwnProperty.call(v2, $248)) {
+                          $247[$248] = v2[$248];
                         }
                         ;
                       }
                       ;
-                      $246.serverSeqNo = seqNo + 1 | 0;
-                      return $246;
+                      $247.serverSeqNo = seqNo + 1 | 0;
+                      return $247;
                     });
                   }
                   ;
@@ -15796,23 +15804,23 @@
                     return go2(seqNo + 1 | 0)(fs$prime);
                   }
                   ;
-                  throw new Error("Failed pattern match at View.App (line 864, column 19 - line 880, column 41): " + [v1.constructor.name]);
+                  throw new Error("Failed pattern match at View.App (line 873, column 19 - line 889, column 41): " + [v1.constructor.name]);
                 }
                 ;
-                throw new Error("Failed pattern match at View.App (line 859, column 15 - line 880, column 41): " + [v.constructor.name]);
+                throw new Error("Failed pattern match at View.App (line 868, column 15 - line 889, column 41): " + [v.constructor.name]);
               }
               ;
               return modify_6(function(v2) {
-                var $254 = {};
-                for (var $255 in v2) {
-                  if ({}.hasOwnProperty.call(v2, $255)) {
-                    $254[$255] = v2[$255];
+                var $255 = {};
+                for (var $256 in v2) {
+                  if ({}.hasOwnProperty.call(v2, $256)) {
+                    $255[$256] = v2[$256];
                   }
                   ;
                 }
                 ;
-                $254.error = new Just("Fetch failed: " + show14(res.status));
-                return $254;
+                $255.error = new Just("Fetch failed: " + show14(res.status));
+                return $255;
               });
             });
           };
@@ -15820,7 +15828,7 @@
         return go2(st.serverSeqNo - 1 | 0)(st.fullState);
       }
       ;
-      throw new Error("Failed pattern match at View.App (line 827, column 3 - line 888, column 43): " + [st.identity.constructor.name]);
+      throw new Error("Failed pattern match at View.App (line 836, column 3 - line 897, column 43): " + [st.identity.constructor.name]);
     });
   };
   var handleKelUpdate = function(dictMonadAff) {
@@ -15835,42 +15843,42 @@
               return bind110(liftAff2(fetchAndValidateFullKel(baseUrl)(memberId)))(function(result) {
                 if (result instanceof Left) {
                   return modify_6(function(v) {
-                    var $260 = {};
-                    for (var $261 in v) {
-                      if ({}.hasOwnProperty.call(v, $261)) {
-                        $260[$261] = v[$261];
+                    var $261 = {};
+                    for (var $262 in v) {
+                      if ({}.hasOwnProperty.call(v, $262)) {
+                        $261[$262] = v[$262];
                       }
                       ;
                     }
                     ;
-                    $260.error = new Just("KEL fetch error: " + result.value0);
-                    return $260;
+                    $261.error = new Just("KEL fetch error: " + result.value0);
+                    return $261;
                   });
                 }
                 ;
                 if (result instanceof Right) {
                   return discard12(modify_6(function(s) {
-                    var $267 = {};
-                    for (var $268 in s) {
-                      if ({}.hasOwnProperty.call(s, $268)) {
-                        $267[$268] = s[$268];
+                    var $268 = {};
+                    for (var $269 in s) {
+                      if ({}.hasOwnProperty.call(s, $269)) {
+                        $268[$269] = s[$269];
                       }
                       ;
                     }
                     ;
-                    $267.fullState = function() {
-                      var $264 = {};
-                      for (var $265 in s.fullState) {
-                        if ({}.hasOwnProperty.call(s.fullState, $265)) {
-                          $264[$265] = s["fullState"][$265];
+                    $268.fullState = function() {
+                      var $265 = {};
+                      for (var $266 in s.fullState) {
+                        if ({}.hasOwnProperty.call(s.fullState, $266)) {
+                          $265[$266] = s["fullState"][$266];
                         }
                         ;
                       }
                       ;
-                      $264.memberKeyStates = insertMemberKel(memberId)(result.value0)(s.fullState.memberKeyStates);
-                      return $264;
+                      $265.memberKeyStates = insertMemberKel(memberId)(result.value0)(s.fullState.memberKeyStates);
+                      return $265;
                     }();
-                    return $267;
+                    return $268;
                   }))(function() {
                     return bind110(get5)(function(st$prime) {
                       return liftEffect8(persistKeyStates(st$prime.fullState.memberKeyStates));
@@ -15892,42 +15900,42 @@
                   var v = parseKelResponseAndApply(currentKs.value0)(res.body);
                   if (v instanceof Left) {
                     return modify_6(function(v1) {
-                      var $273 = {};
-                      for (var $274 in v1) {
-                        if ({}.hasOwnProperty.call(v1, $274)) {
-                          $273[$274] = v1[$274];
+                      var $274 = {};
+                      for (var $275 in v1) {
+                        if ({}.hasOwnProperty.call(v1, $275)) {
+                          $274[$275] = v1[$275];
                         }
                         ;
                       }
                       ;
-                      $273.error = new Just("KEL validate: " + v.value0);
-                      return $273;
+                      $274.error = new Just("KEL validate: " + v.value0);
+                      return $274;
                     });
                   }
                   ;
                   if (v instanceof Right) {
                     return discard12(modify_6(function(s) {
-                      var $280 = {};
-                      for (var $281 in s) {
-                        if ({}.hasOwnProperty.call(s, $281)) {
-                          $280[$281] = s[$281];
+                      var $281 = {};
+                      for (var $282 in s) {
+                        if ({}.hasOwnProperty.call(s, $282)) {
+                          $281[$282] = s[$282];
                         }
                         ;
                       }
                       ;
-                      $280.fullState = function() {
-                        var $277 = {};
-                        for (var $278 in s.fullState) {
-                          if ({}.hasOwnProperty.call(s.fullState, $278)) {
-                            $277[$278] = s["fullState"][$278];
+                      $281.fullState = function() {
+                        var $278 = {};
+                        for (var $279 in s.fullState) {
+                          if ({}.hasOwnProperty.call(s.fullState, $279)) {
+                            $278[$279] = s["fullState"][$279];
                           }
                           ;
                         }
                         ;
-                        $277.memberKeyStates = insertMemberKel(memberId)(v.value0)(s.fullState.memberKeyStates);
-                        return $277;
+                        $278.memberKeyStates = insertMemberKel(memberId)(v.value0)(s.fullState.memberKeyStates);
+                        return $278;
                       }();
-                      return $280;
+                      return $281;
                     }))(function() {
                       return bind110(get5)(function(st$prime) {
                         return liftEffect8(persistKeyStates(st$prime.fullState.memberKeyStates));
@@ -15947,16 +15955,16 @@
             return bind110(get5)(function(st$prime) {
               if (st$prime.identity instanceof Just && st$prime.identity.value0.prefix === memberId) {
                 return modify_6(function(v) {
-                  var $286 = {};
-                  for (var $287 in v) {
-                    if ({}.hasOwnProperty.call(v, $287)) {
-                      $286[$287] = v[$287];
+                  var $287 = {};
+                  for (var $288 in v) {
+                    if ({}.hasOwnProperty.call(v, $288)) {
+                      $287[$288] = v[$288];
                     }
                     ;
                   }
                   ;
-                  $286.submitting = false;
-                  return $286;
+                  $287.submitting = false;
+                  return $287;
                 });
               }
               ;
@@ -15983,16 +15991,16 @@
             return es;
           }))(function(es) {
             return modify_6(function(v1) {
-              var $291 = {};
-              for (var $292 in v1) {
-                if ({}.hasOwnProperty.call(v1, $292)) {
-                  $291[$292] = v1[$292];
+              var $292 = {};
+              for (var $293 in v1) {
+                if ({}.hasOwnProperty.call(v1, $293)) {
+                  $292[$293] = v1[$293];
                 }
                 ;
               }
               ;
-              $291.sse = new Just(es);
-              return $291;
+              $292.sse = new Just(es);
+              return $292;
             });
           });
         });
@@ -16010,7 +16018,13 @@
       })))(function(res) {
         if (res.status === 200) {
           return discard12(fetchAndReplay1(key))(function() {
-            return startSSE1(key);
+            return bind110(get5)(function(st) {
+              if (st.screen instanceof NormalScreen) {
+                return startSSE1(key);
+              }
+              ;
+              return pure17(unit);
+            });
           });
         }
         ;
@@ -16022,80 +16036,80 @@
             var v = parseInfoResponse(infoRes.body);
             if (v instanceof Left) {
               return modify_6(function(v1) {
-                var $298 = {};
-                for (var $299 in v1) {
-                  if ({}.hasOwnProperty.call(v1, $299)) {
-                    $298[$299] = v1[$299];
+                var $300 = {};
+                for (var $301 in v1) {
+                  if ({}.hasOwnProperty.call(v1, $301)) {
+                    $300[$301] = v1[$301];
                   }
                   ;
                 }
                 ;
-                $298.screen = BootstrapScreen.value;
-                return $298;
+                $300.screen = BootstrapScreen.value;
+                return $300;
               });
             }
             ;
             if (v instanceof Right) {
-              var $302 = eq14(v.value0.adminEmails)([]) && !v.value0.pendingIntroduction;
-              if ($302) {
+              var $304 = eq14(v.value0.adminEmails)([]) && !v.value0.pendingIntroduction;
+              if ($304) {
                 return modify_6(function(v1) {
-                  var $303 = {};
-                  for (var $304 in v1) {
-                    if ({}.hasOwnProperty.call(v1, $304)) {
-                      $303[$304] = v1[$304];
+                  var $305 = {};
+                  for (var $306 in v1) {
+                    if ({}.hasOwnProperty.call(v1, $306)) {
+                      $305[$306] = v1[$306];
                     }
                     ;
                   }
                   ;
-                  $303.screen = BootstrapScreen.value;
-                  return $303;
+                  $305.screen = BootstrapScreen.value;
+                  return $305;
                 });
               }
               ;
               return modify_6(function(v1) {
-                var $306 = {};
-                for (var $307 in v1) {
-                  if ({}.hasOwnProperty.call(v1, $307)) {
-                    $306[$307] = v1[$307];
+                var $308 = {};
+                for (var $309 in v1) {
+                  if ({}.hasOwnProperty.call(v1, $309)) {
+                    $308[$309] = v1[$309];
                   }
                   ;
                 }
                 ;
-                $306.screen = new NonMemberScreen(v.value0);
-                return $306;
+                $308.screen = new NonMemberScreen(v.value0);
+                return $308;
               });
             }
             ;
-            throw new Error("Failed pattern match at View.App (line 704, column 7 - line 715, column 48): " + [v.constructor.name]);
+            throw new Error("Failed pattern match at View.App (line 707, column 7 - line 718, column 48): " + [v.constructor.name]);
           });
         }
         ;
         if (res.status === 404) {
           return modify_6(function(v) {
-            var $310 = {};
-            for (var $311 in v) {
-              if ({}.hasOwnProperty.call(v, $311)) {
-                $310[$311] = v[$311];
+            var $312 = {};
+            for (var $313 in v) {
+              if ({}.hasOwnProperty.call(v, $313)) {
+                $312[$313] = v[$313];
               }
               ;
             }
             ;
-            $310.screen = BootstrapScreen.value;
-            return $310;
+            $312.screen = BootstrapScreen.value;
+            return $312;
           });
         }
         ;
         return modify_6(function(v) {
-          var $313 = {};
-          for (var $314 in v) {
-            if ({}.hasOwnProperty.call(v, $314)) {
-              $313[$314] = v[$314];
+          var $315 = {};
+          for (var $316 in v) {
+            if ({}.hasOwnProperty.call(v, $316)) {
+              $315[$316] = v[$316];
             }
             ;
           }
           ;
-          $313.error = new Just("Fetch failed: " + show14(res.status));
-          return $313;
+          $315.error = new Just("Fetch failed: " + show14(res.status));
+          return $315;
         });
       });
     };
@@ -16109,16 +16123,16 @@
           return function(evt) {
             return function(mInception) {
               return discard12(modify_6(function(v) {
-                var $316 = {};
-                for (var $317 in v) {
-                  if ({}.hasOwnProperty.call(v, $317)) {
-                    $316[$317] = v[$317];
+                var $318 = {};
+                for (var $319 in v) {
+                  if ({}.hasOwnProperty.call(v, $319)) {
+                    $318[$319] = v[$319];
                   }
                   ;
                 }
                 ;
-                $316.submitting = true;
-                return $316;
+                $318.submitting = true;
+                return $318;
               }))(function() {
                 var body2 = encodeSubmission($$const(jsonNull))($$const(jsonNull))($$const(jsonNull))({
                   passphrase,
@@ -16131,20 +16145,20 @@
                   method: "POST",
                   body: stringify(body2)
                 })))(function(res) {
-                  var $319 = res.status !== 200;
-                  if ($319) {
+                  var $321 = res.status !== 200;
+                  if ($321) {
                     return modify_6(function(v) {
-                      var $320 = {};
-                      for (var $321 in v) {
-                        if ({}.hasOwnProperty.call(v, $321)) {
-                          $320[$321] = v[$321];
+                      var $322 = {};
+                      for (var $323 in v) {
+                        if ({}.hasOwnProperty.call(v, $323)) {
+                          $322[$323] = v[$323];
                         }
                         ;
                       }
                       ;
-                      $320.error = new Just("Submit failed: " + res.body);
-                      $320.submitting = false;
-                      return $320;
+                      $322.error = new Just("Submit failed: " + res.body);
+                      $322.submitting = false;
+                      return $322;
                     });
                   }
                   ;
@@ -16173,16 +16187,16 @@
             var evtJson = encodeCircleEvent($$const(jsonNull))($$const(jsonNull))($$const(jsonNull))(evt);
             if (mKs instanceof Nothing) {
               return modify_6(function(v2) {
-                var $325 = {};
-                for (var $326 in v2) {
-                  if ({}.hasOwnProperty.call(v2, $326)) {
-                    $325[$326] = v2[$326];
+                var $327 = {};
+                for (var $328 in v2) {
+                  if ({}.hasOwnProperty.call(v2, $328)) {
+                    $327[$328] = v2[$328];
                   }
                   ;
                 }
                 ;
-                $325.error = new Just("No key state for signing");
-                return $325;
+                $327.error = new Just("No key state for signing");
+                return $327;
               });
             }
             ;
@@ -16190,16 +16204,16 @@
               var v = signCircleEvent(ident)(mKs.value0)(evtJson);
               if (v instanceof Left) {
                 return modify_6(function(v1) {
-                  var $329 = {};
-                  for (var $330 in v1) {
-                    if ({}.hasOwnProperty.call(v1, $330)) {
-                      $329[$330] = v1[$330];
+                  var $331 = {};
+                  for (var $332 in v1) {
+                    if ({}.hasOwnProperty.call(v1, $332)) {
+                      $331[$332] = v1[$332];
                     }
                     ;
                   }
                   ;
-                  $329.error = new Just("Signing failed: " + v.value0);
-                  return $329;
+                  $331.error = new Just("Signing failed: " + v.value0);
+                  return $331;
                 });
               }
               ;
@@ -16234,16 +16248,16 @@
               var evtJson = encodeCircleEvent($$const(jsonNull))($$const(jsonNull))($$const(jsonNull))(evt);
               if (mKs instanceof Nothing) {
                 return modify_6(function(v2) {
-                  var $341 = {};
-                  for (var $342 in v2) {
-                    if ({}.hasOwnProperty.call(v2, $342)) {
-                      $341[$342] = v2[$342];
+                  var $343 = {};
+                  for (var $344 in v2) {
+                    if ({}.hasOwnProperty.call(v2, $344)) {
+                      $343[$344] = v2[$344];
                     }
                     ;
                   }
                   ;
-                  $341.error = new Just("No key state for signing");
-                  return $341;
+                  $343.error = new Just("No key state for signing");
+                  return $343;
                 });
               }
               ;
@@ -16251,16 +16265,16 @@
                 var v = signCircleEvent(ident)(mKs.value0)(evtJson);
                 if (v instanceof Left) {
                   return modify_6(function(v1) {
-                    var $345 = {};
-                    for (var $346 in v1) {
-                      if ({}.hasOwnProperty.call(v1, $346)) {
-                        $345[$346] = v1[$346];
+                    var $347 = {};
+                    for (var $348 in v1) {
+                      if ({}.hasOwnProperty.call(v1, $348)) {
+                        $347[$348] = v1[$348];
                       }
                       ;
                     }
                     ;
-                    $345.error = new Just("Signing failed: " + v.value0);
-                    return $345;
+                    $347.error = new Just("Signing failed: " + v.value0);
+                    return $347;
                   });
                 }
                 ;
@@ -16303,16 +16317,16 @@
         return bind110(liftEffect8(hasStoredIdentity))(function(hasIdent) {
           if (hasIdent) {
             return modify_6(function(v12) {
-              var $356 = {};
-              for (var $357 in v12) {
-                if ({}.hasOwnProperty.call(v12, $357)) {
-                  $356[$357] = v12[$357];
+              var $358 = {};
+              for (var $359 in v12) {
+                if ({}.hasOwnProperty.call(v12, $359)) {
+                  $358[$359] = v12[$359];
                 }
                 ;
               }
               ;
-              $356.screen = UnlockScreen.value;
-              return $356;
+              $358.screen = UnlockScreen.value;
+              return $358;
             });
           }
           ;
@@ -16322,16 +16336,16 @@
       ;
       if (v instanceof SetPassphrase2) {
         return modify_6(function(v12) {
-          var $359 = {};
-          for (var $360 in v12) {
-            if ({}.hasOwnProperty.call(v12, $360)) {
-              $359[$360] = v12[$360];
+          var $361 = {};
+          for (var $362 in v12) {
+            if ({}.hasOwnProperty.call(v12, $362)) {
+              $361[$362] = v12[$362];
             }
             ;
           }
           ;
-          $359.passphraseInput = v.value0;
-          return $359;
+          $361.passphraseInput = v.value0;
+          return $361;
         });
       }
       ;
@@ -16340,16 +16354,16 @@
           return bind110(liftEffect8(generateIdentity))(function(result) {
             if (result instanceof Left) {
               return modify_6(function(v12) {
-                var $364 = {};
-                for (var $365 in v12) {
-                  if ({}.hasOwnProperty.call(v12, $365)) {
-                    $364[$365] = v12[$365];
+                var $366 = {};
+                for (var $367 in v12) {
+                  if ({}.hasOwnProperty.call(v12, $367)) {
+                    $366[$367] = v12[$367];
                   }
                   ;
                 }
                 ;
-                $364.error = new Just("Identity gen failed: " + result.value0);
-                return $364;
+                $366.error = new Just("Identity gen failed: " + result.value0);
+                return $366;
               });
             }
             ;
@@ -16358,17 +16372,17 @@
                 var mks = insert3(result.value0.identity.prefix)(result.value0.keyState)(empty4);
                 return discard12(liftEffect8(persistKeyStates(mks)))(function() {
                   return discard12(modify_6(function(v12) {
-                    var $368 = {};
-                    for (var $369 in v12) {
-                      if ({}.hasOwnProperty.call(v12, $369)) {
-                        $368[$369] = v12[$369];
+                    var $370 = {};
+                    for (var $371 in v12) {
+                      if ({}.hasOwnProperty.call(v12, $371)) {
+                        $370[$371] = v12[$371];
                       }
                       ;
                     }
                     ;
-                    $368.identity = new Just(result.value0.identity);
-                    $368.inception = new Just(result.value0.inception);
-                    $368.fullState = function() {
+                    $370.identity = new Just(result.value0.identity);
+                    $370.inception = new Just(result.value0.inception);
+                    $370.fullState = function() {
                       var v2 = initFullState(defaultSequencer)(unit);
                       return {
                         appState: v2.appState,
@@ -16378,9 +16392,9 @@
                         memberKeyStates: mks
                       };
                     }();
-                    $368.error = Nothing.value;
-                    $368.passphraseInput = "";
-                    return $368;
+                    $370.error = Nothing.value;
+                    $370.passphraseInput = "";
+                    return $370;
                   }))(function() {
                     return checkMembershipAndLoad1(result.value0.identity.prefix);
                   });
@@ -16398,16 +16412,16 @@
           return bind110(liftAff2(loadIdentity(st.passphraseInput)))(function(result) {
             if (result instanceof Left) {
               return modify_6(function(v12) {
-                var $376 = {};
-                for (var $377 in v12) {
-                  if ({}.hasOwnProperty.call(v12, $377)) {
-                    $376[$377] = v12[$377];
+                var $378 = {};
+                for (var $379 in v12) {
+                  if ({}.hasOwnProperty.call(v12, $379)) {
+                    $378[$379] = v12[$379];
                   }
                   ;
                 }
                 ;
-                $376.error = new Just("Unlock failed: " + result.value0);
-                return $376;
+                $378.error = new Just("Unlock failed: " + result.value0);
+                return $378;
               });
             }
             ;
@@ -16415,17 +16429,17 @@
               return bind110(liftEffect8(loadInceptionData))(function(inception) {
                 return bind110(liftEffect8(loadKeyStates))(function(mks) {
                   return discard12(modify_6(function(v12) {
-                    var $380 = {};
-                    for (var $381 in v12) {
-                      if ({}.hasOwnProperty.call(v12, $381)) {
-                        $380[$381] = v12[$381];
+                    var $382 = {};
+                    for (var $383 in v12) {
+                      if ({}.hasOwnProperty.call(v12, $383)) {
+                        $382[$383] = v12[$383];
                       }
                       ;
                     }
                     ;
-                    $380.identity = new Just(result.value0);
-                    $380.inception = inception;
-                    $380.fullState = function() {
+                    $382.identity = new Just(result.value0);
+                    $382.inception = inception;
+                    $382.fullState = function() {
                       var v2 = initFullState(defaultSequencer)(unit);
                       return {
                         appState: v2.appState,
@@ -16435,9 +16449,9 @@
                         memberKeyStates: mks
                       };
                     }();
-                    $380.error = Nothing.value;
-                    $380.passphraseInput = "";
-                    return $380;
+                    $382.error = Nothing.value;
+                    $382.passphraseInput = "";
+                    return $382;
                   }))(function() {
                     return checkMembershipAndLoad1(result.value0.prefix);
                   });
@@ -16458,16 +16472,16 @@
           ;
           if (st.identity instanceof Nothing) {
             return modify_6(function(v12) {
-              var $387 = {};
-              for (var $388 in v12) {
-                if ({}.hasOwnProperty.call(v12, $388)) {
-                  $387[$388] = v12[$388];
+              var $389 = {};
+              for (var $390 in v12) {
+                if ({}.hasOwnProperty.call(v12, $390)) {
+                  $389[$390] = v12[$390];
                 }
                 ;
               }
               ;
-              $387.error = new Just("No identity");
-              return $387;
+              $389.error = new Just("No identity");
+              return $389;
             });
           }
           ;
@@ -16484,16 +16498,16 @@
             ;
             if (st.identity instanceof Nothing) {
               return modify_6(function(v12) {
-                var $397 = {};
-                for (var $398 in v12) {
-                  if ({}.hasOwnProperty.call(v12, $398)) {
-                    $397[$398] = v12[$398];
+                var $399 = {};
+                for (var $400 in v12) {
+                  if ({}.hasOwnProperty.call(v12, $400)) {
+                    $399[$400] = v12[$400];
                   }
                   ;
                 }
                 ;
-                $397.error = new Just("No identity");
-                return $397;
+                $399.error = new Just("No identity");
+                return $399;
               });
             }
             ;
@@ -16509,16 +16523,16 @@
             ;
             if (st.identity instanceof Nothing) {
               return modify_6(function(v12) {
-                var $403 = {};
-                for (var $404 in v12) {
-                  if ({}.hasOwnProperty.call(v12, $404)) {
-                    $403[$404] = v12[$404];
+                var $405 = {};
+                for (var $406 in v12) {
+                  if ({}.hasOwnProperty.call(v12, $406)) {
+                    $405[$406] = v12[$406];
                   }
                   ;
                 }
                 ;
-                $403.error = new Just("No identity");
-                return $403;
+                $405.error = new Just("No identity");
+                return $405;
               });
             }
             ;
@@ -16537,16 +16551,16 @@
           ;
           if (st.identity instanceof Nothing) {
             return modify_6(function(v12) {
-              var $411 = {};
-              for (var $412 in v12) {
-                if ({}.hasOwnProperty.call(v12, $412)) {
-                  $411[$412] = v12[$412];
+              var $413 = {};
+              for (var $414 in v12) {
+                if ({}.hasOwnProperty.call(v12, $414)) {
+                  $413[$414] = v12[$414];
                 }
                 ;
               }
               ;
-              $411.error = new Just("No identity");
-              return $411;
+              $413.error = new Just("No identity");
+              return $413;
             });
           }
           ;
@@ -16614,18 +16628,18 @@
         return bind110(liftEffect8(confirm2("Reset your identity? This cannot be undone.")))(function(ok) {
           return when7(ok)(discard12(liftEffect8(clearIdentity))(function() {
             return modify_6(function(v12) {
-              var $431 = {};
-              for (var $432 in v12) {
-                if ({}.hasOwnProperty.call(v12, $432)) {
-                  $431[$432] = v12[$432];
+              var $433 = {};
+              for (var $434 in v12) {
+                if ({}.hasOwnProperty.call(v12, $434)) {
+                  $433[$434] = v12[$434];
                 }
                 ;
               }
               ;
-              $431.identity = Nothing.value;
-              $431.inception = Nothing.value;
-              $431.screen = IdentityScreen.value;
-              return $431;
+              $433.identity = Nothing.value;
+              $433.inception = Nothing.value;
+              $433.screen = IdentityScreen.value;
+              return $433;
             });
           }));
         });
@@ -16633,16 +16647,16 @@
       ;
       if (v instanceof Dismiss) {
         return modify_6(function(v12) {
-          var $434 = {};
-          for (var $435 in v12) {
-            if ({}.hasOwnProperty.call(v12, $435)) {
-              $434[$435] = v12[$435];
+          var $436 = {};
+          for (var $437 in v12) {
+            if ({}.hasOwnProperty.call(v12, $437)) {
+              $436[$437] = v12[$437];
             }
             ;
           }
           ;
-          $434.error = Nothing.value;
-          return $434;
+          $436.error = Nothing.value;
+          return $436;
         });
       }
       ;
