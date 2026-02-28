@@ -10,6 +10,8 @@ module KelCircle.Client.Identity
   , clearIdentity
   , loadInceptionData
   , encodeInceptionData
+  , exportIdentityBundle
+  , importIdentityBundle
   ) where
 
 import Prelude
@@ -238,6 +240,62 @@ encodeInceptionData icp =
           ]
     )
     icp.signatures
+
+-- | Export all identity data as a JSON bundle.
+-- | Works without unlocking (secret key stays
+-- | encrypted).
+exportIdentityBundle :: Effect (Maybe String)
+exportIdentityBundle = do
+  mEnc <- Storage.getItem "kel-circle-encrypted"
+  mPfx <- Storage.getItem "kel-circle-prefix"
+  mKpfx <- Storage.getItem "kel-circle-keri-prefix"
+  mIcp <- Storage.getItem "kel-circle-inception"
+  case mEnc, mPfx, mKpfx, mIcp of
+    Just enc, Just pfx, Just kpfx, Just icp ->
+      pure $ Just $ stringify $ fromObject $
+        FO.fromFoldable
+          [ Tuple "encrypted" (fromString enc)
+          , Tuple "prefix" (fromString pfx)
+          , Tuple "keriPrefix" (fromString kpfx)
+          , Tuple "inception" (fromString icp)
+          ]
+    _, _, _, _ -> pure Nothing
+
+-- | Import an identity bundle into localStorage.
+-- | Validates all 4 fields are present.
+importIdentityBundle
+  :: String -> Effect (Either String Unit)
+importIdentityBundle str =
+  case jsonParser str of
+    Left err -> pure $ Left ("Invalid JSON: " <> err)
+    Right json -> case toObject json of
+      Nothing -> pure $ Left "Expected JSON object"
+      Just obj -> do
+        let
+          mEnc = FO.lookup "encrypted" obj
+            >>= toString
+          mPfx = FO.lookup "prefix" obj
+            >>= toString
+          mKpfx = FO.lookup "keriPrefix" obj
+            >>= toString
+          mIcp = FO.lookup "inception" obj
+            >>= toString
+        case mEnc, mPfx, mKpfx, mIcp of
+          Just enc, Just pfx, Just kpfx, Just icp
+            -> do
+              Storage.setItem "kel-circle-encrypted"
+                enc
+              Storage.setItem "kel-circle-prefix"
+                pfx
+              Storage.setItem "kel-circle-keri-prefix"
+                kpfx
+              Storage.setItem "kel-circle-inception"
+                icp
+              pure $ Right unit
+          _, _, _, _ ->
+            pure $ Left
+              "Missing required fields: encrypted, \
+              \prefix, keriPrefix, inception"
 
 -- Helpers
 

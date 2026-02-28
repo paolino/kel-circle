@@ -79,6 +79,8 @@ type State =
   , error :: Maybe String
   , passphraseInput :: String
   , submitting :: Boolean
+  , importMode :: Boolean
+  , importData :: String
   }
 
 data Action
@@ -94,6 +96,10 @@ data Action
   | CopyKey
   | CopyInception
   | ResetIdentity
+  | ExportIdentity
+  | StartImport
+  | SetImportData String
+  | DoImport
   | Dismiss
 
 type Slots =
@@ -132,6 +138,8 @@ initialState =
   , error: Nothing
   , passphraseInput: ""
   , submitting: false
+  , importMode: false
+  , importData: ""
   }
 
 -- --------------------------------------------------------
@@ -172,6 +180,11 @@ header st = HH.nav
             ]
             [ HH.text "Copy" ]
         , HH.button
+            [ HE.onClick (const ExportIdentity)
+            , HP.class_ (HH.ClassName "btn-copy")
+            ]
+            [ HH.text "Export" ]
+        , HH.button
             [ HE.onClick (const ResetIdentity)
             , HP.class_ (HH.ClassName "btn-reset")
             ]
@@ -194,45 +207,72 @@ content st = case st.screen of
   IdentityScreen ->
     HH.div
       [ HP.class_ (HH.ClassName "identity-screen") ]
-      [ HH.h2_ [ HH.text "Welcome to kel-circle" ]
-      , HH.p_
-          [ HH.text
-              "Generate a KERI identity to get \
-              \started. Choose a passphrase to \
-              \protect your secret key."
-          ]
-      , passphraseField st
-      , HH.button
-          [ HE.onClick (const GenerateIdentity)
-          , HP.class_ (HH.ClassName "btn-primary")
-          , HP.disabled (st.passphraseInput == "")
-          ]
-          [ HH.text "Generate Identity" ]
-      ]
+      ( [ HH.h2_
+            [ HH.text "Welcome to kel-circle" ]
+        , HH.p_
+            [ HH.text
+                "Generate a KERI identity to get \
+                \started. Choose a passphrase to \
+                \protect your secret key."
+            ]
+        , passphraseField st
+        , HH.button
+            [ HE.onClick (const GenerateIdentity)
+            , HP.class_
+                (HH.ClassName "btn-primary")
+            , HP.disabled
+                (st.passphraseInput == "")
+            ]
+            [ HH.text "Generate Identity" ]
+        , HH.button
+            [ HE.onClick (const StartImport)
+            , HP.class_
+                (HH.ClassName "btn-secondary")
+            ]
+            [ HH.text "Import Identity" ]
+        ]
+          <> importSection st
+      )
 
   UnlockScreen ->
     HH.div
       [ HP.class_ (HH.ClassName "identity-screen") ]
-      [ HH.h2_ [ HH.text "Welcome back" ]
-      , HH.p_
-          [ HH.text
-              "Enter your passphrase to unlock \
-              \your identity."
-          ]
-      , passphraseField st
-      , HH.button
-          [ HE.onClick (const UnlockIdentity)
-          , HP.class_ (HH.ClassName "btn-primary")
-          , HP.disabled (st.passphraseInput == "")
-          ]
-          [ HH.text "Unlock" ]
-      , HH.button
-          [ HE.onClick (const ResetIdentity)
-          , HP.class_
-              (HH.ClassName "btn-secondary")
-          ]
-          [ HH.text "Reset Identity" ]
-      ]
+      ( [ HH.h2_ [ HH.text "Welcome back" ]
+        , HH.p_
+            [ HH.text
+                "Enter your passphrase to unlock \
+                \your identity."
+            ]
+        , passphraseField st
+        , HH.button
+            [ HE.onClick (const UnlockIdentity)
+            , HP.class_
+                (HH.ClassName "btn-primary")
+            , HP.disabled
+                (st.passphraseInput == "")
+            ]
+            [ HH.text "Unlock" ]
+        , HH.button
+            [ HE.onClick (const ExportIdentity)
+            , HP.class_
+                (HH.ClassName "btn-secondary")
+            ]
+            [ HH.text "Export" ]
+        , HH.button
+            [ HE.onClick (const StartImport)
+            , HP.class_
+                (HH.ClassName "btn-secondary")
+            ]
+            [ HH.text "Import" ]
+        , HH.button
+            [ HE.onClick (const ResetIdentity)
+            , HP.class_
+                (HH.ClassName "btn-secondary")
+            ]
+            [ HH.text "Reset Identity" ]
+        ]
+          <> importSection st
+      )
 
   BootstrapScreen ->
     HH.slot (Proxy :: _ "bootstrap") unit
@@ -315,6 +355,37 @@ content st = case st.screen of
           }
           HandleProposals
       ]
+
+importSection
+  :: forall m
+   . State
+  -> Array (H.ComponentHTML Action Slots m)
+importSection st =
+  if st.importMode then
+    [ HH.div
+        [ HP.class_
+            (HH.ClassName "import-section")
+        ]
+        [ HH.textarea
+            [ HP.value st.importData
+            , HP.placeholder
+                "Paste identity JSON bundle"
+            , HP.rows 6
+            , HE.onValueInput SetImportData
+            , HP.class_
+                (HH.ClassName "import-textarea")
+            ]
+        , HH.button
+            [ HE.onClick (const DoImport)
+            , HP.class_
+                (HH.ClassName "btn-primary")
+            , HP.disabled
+                (st.importData == "")
+            ]
+            [ HH.text "Import" ]
+        ]
+    ]
+  else []
 
 passphraseField
   :: forall m. State -> H.ComponentHTML Action Slots m
@@ -486,6 +557,39 @@ handleAction = case _ of
         , inception = Nothing
         , screen = IdentityScreen
         }
+
+  ExportIdentity -> do
+    bundle <- liftEffect
+      Identity.exportIdentityBundle
+    case bundle of
+      Just json ->
+        liftEffect $ Storage.copyToClipboard json
+      Nothing ->
+        H.modify_ _
+          { error = Just "No identity to export" }
+
+  StartImport ->
+    H.modify_ \s ->
+      s { importMode = not s.importMode }
+
+  SetImportData s ->
+    H.modify_ _ { importData = s }
+
+  DoImport -> do
+    st <- H.get
+    result <- liftEffect $
+      Identity.importIdentityBundle st.importData
+    case result of
+      Left err ->
+        H.modify_ _
+          { error = Just ("Import failed: " <> err) }
+      Right _ ->
+        H.modify_ _
+          { screen = UnlockScreen
+          , importMode = false
+          , importData = ""
+          , error = Nothing
+          }
 
   Dismiss ->
     H.modify_ _ { error = Nothing }

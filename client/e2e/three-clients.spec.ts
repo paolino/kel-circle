@@ -388,11 +388,10 @@ test.describe("3-client bootstrap and introduction", () => {
     // ---- Step 2: Bob generates identity ----
     const bobPrefix = await generateIdentity(bobPage);
 
-    // Bob sees Members screen (events exist), as non-member
+    // Bob sees non-member screen
     await expect(
-      bobPage.locator("h2", { hasText: "Members" }),
+      bobPage.locator("h2", { hasText: "Not a member yet" }),
     ).toBeVisible({ timeout: 15_000 });
-    await expect(bobPage.locator(".not-member-hint")).toBeVisible();
 
     // Bob has inception data in localStorage
     const bobInception = await getInceptionJson(bobPage);
@@ -409,10 +408,10 @@ test.describe("3-client bootstrap and introduction", () => {
     // ---- Step 4: Carol generates identity ----
     const carolPrefix = await generateIdentity(carolPage);
 
+    // Carol sees non-member screen
     await expect(
-      carolPage.locator("h2", { hasText: "Members" }),
+      carolPage.locator("h2", { hasText: "Not a member yet" }),
     ).toBeVisible({ timeout: 15_000 });
-    await expect(carolPage.locator(".not-member-hint")).toBeVisible();
 
     const carolInception = await getInceptionJson(carolPage);
 
@@ -508,13 +507,10 @@ test.describe("3-client bootstrap and introduction", () => {
     // ---- Step 11: Carol reloads and is no longer a member ----
     await unlockIdentity(carolPage);
 
+    // Carol sees non-member screen after removal
     await expect(
-      carolPage.locator("h2", { hasText: "Members" }),
+      carolPage.locator("h2", { hasText: "Not a member yet" }),
     ).toBeVisible({ timeout: 15_000 });
-    // Carol sees the not-member hint
-    await expect(
-      carolPage.locator(".not-member-hint"),
-    ).toBeVisible({ timeout: 10_000 });
 
     // ---- Step 12: Alice removes Bob ----
     const bobRow = alicePage.locator("tr", {
@@ -538,5 +534,271 @@ test.describe("3-client bootstrap and introduction", () => {
 
     // ---- Step 13: Verify no errors ----
     await expect(alicePage.locator(".error-bar")).not.toBeVisible();
+  });
+});
+
+// ----------------------------------------------------------
+// Test suite: identity export / import
+// ----------------------------------------------------------
+
+test.describe("identity export and import", () => {
+  test.beforeAll(async () => {
+    await startServer();
+  });
+
+  test.afterAll(() => {
+    stopServer();
+  });
+
+  test("export button appears on identity and unlock screens", async ({
+    page,
+  }) => {
+    await page.goto(baseUrl(), { waitUntil: "networkidle" });
+
+    // Identity screen: Import button visible, no Export yet
+    await expect(
+      page.locator("button", { hasText: "Import Identity" }),
+    ).toBeVisible();
+
+    // Generate an identity to get to unlock screen on reload
+    await page.locator('input[placeholder="Passphrase"]').fill(USER_PASS);
+    await page.locator("button", { hasText: "Generate Identity" }).click();
+
+    await page.waitForFunction(
+      () => {
+        const h2 = document.querySelector("h2");
+        return h2 && h2.textContent !== "Welcome to kel-circle";
+      },
+      { timeout: 30_000 },
+    );
+
+    // Header shows Export button when unlocked
+    await expect(
+      page.locator(".user-id button", { hasText: "Export" }),
+    ).toBeVisible();
+
+    // Reload → unlock screen has Export and Import
+    await page.goto(baseUrl(), { waitUntil: "networkidle" });
+    await expect(
+      page.locator("h2", { hasText: "Welcome back" }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.locator("button", { hasText: "Export" }),
+    ).toBeVisible();
+    await expect(
+      page.locator("button", { hasText: "Import" }),
+    ).toBeVisible();
+  });
+
+  test("import toggle shows and hides textarea", async ({ page }) => {
+    await page.goto(baseUrl(), { waitUntil: "networkidle" });
+
+    // Click Import Identity to show textarea
+    await page.locator("button", { hasText: "Import Identity" }).click();
+    await expect(
+      page.locator('textarea[placeholder="Paste identity JSON bundle"]'),
+    ).toBeVisible();
+
+    // Import button inside section is disabled when empty
+    await expect(
+      page.locator(".import-section button", { hasText: "Import" }),
+    ).toBeDisabled();
+
+    // Toggle off
+    await page.locator("button", { hasText: "Import Identity" }).click();
+    await expect(
+      page.locator('textarea[placeholder="Paste identity JSON bundle"]'),
+    ).not.toBeVisible();
+  });
+
+  test("import rejects invalid JSON", async ({ page }) => {
+    await page.goto(baseUrl(), { waitUntil: "networkidle" });
+
+    await page.locator("button", { hasText: "Import Identity" }).click();
+    await page
+      .locator('textarea[placeholder="Paste identity JSON bundle"]')
+      .fill("not json");
+    await page
+      .locator(".import-section button", { hasText: "Import" })
+      .click();
+
+    await expect(page.locator(".error-bar")).toBeVisible();
+    await expect(page.locator(".error-bar")).toContainText("Import failed");
+  });
+
+  test("import rejects JSON with missing fields", async ({ page }) => {
+    await page.goto(baseUrl(), { waitUntil: "networkidle" });
+
+    await page.locator("button", { hasText: "Import Identity" }).click();
+    await page
+      .locator('textarea[placeholder="Paste identity JSON bundle"]')
+      .fill(JSON.stringify({ encrypted: "foo" }));
+    await page
+      .locator(".import-section button", { hasText: "Import" })
+      .click();
+
+    await expect(page.locator(".error-bar")).toBeVisible();
+    await expect(page.locator(".error-bar")).toContainText("Missing required");
+  });
+
+  test("export and import roundtrip restores identity", async ({
+    browser,
+  }) => {
+    // ---- Alice generates identity in context A ----
+    const ctxA = await browser.newContext();
+    const pageA = await ctxA.newPage();
+    const alicePrefix = await generateIdentity(pageA);
+
+    // Read the full bundle from localStorage directly
+    const bundle = await pageA.evaluate(() => {
+      const enc = localStorage.getItem("kel-circle-encrypted");
+      const pfx = localStorage.getItem("kel-circle-prefix");
+      const kpfx = localStorage.getItem("kel-circle-keri-prefix");
+      const icp = localStorage.getItem("kel-circle-inception");
+      if (!enc || !pfx || !kpfx || !icp) return null;
+      return JSON.stringify({
+        encrypted: enc,
+        prefix: pfx,
+        keriPrefix: kpfx,
+        inception: icp,
+      });
+    });
+    expect(bundle).toBeTruthy();
+
+    // ---- Import into context B (fresh browser) ----
+    const ctxB = await browser.newContext();
+    const pageB = await ctxB.newPage();
+    await pageB.goto(baseUrl(), { waitUntil: "networkidle" });
+
+    // Should start on identity screen
+    await expect(
+      pageB.locator("button", { hasText: "Generate Identity" }),
+    ).toBeVisible();
+
+    // Open import, paste bundle, click Import
+    await pageB.locator("button", { hasText: "Import Identity" }).click();
+    await pageB
+      .locator('textarea[placeholder="Paste identity JSON bundle"]')
+      .fill(bundle!);
+    await pageB
+      .locator(".import-section button", { hasText: "Import" })
+      .click();
+
+    // Should transition to unlock screen
+    await expect(
+      pageB.locator("h2", { hasText: "Welcome back" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Unlock with same passphrase
+    await pageB.locator('input[placeholder="Passphrase"]').fill(USER_PASS);
+    await pageB.locator("button", { hasText: "Unlock" }).click();
+
+    // Wait for transition away from unlock
+    await pageB.waitForFunction(
+      () => {
+        const h2 = document.querySelector("h2");
+        return h2 && h2.textContent !== "Welcome back";
+      },
+      { timeout: 30_000 },
+    );
+
+    // Verify same prefix
+    const importedPrefix = await pageB.evaluate(() =>
+      localStorage.getItem("kel-circle-prefix"),
+    );
+    expect(importedPrefix).toBe(alicePrefix);
+
+    // Header shows the same truncated key
+    await expect(pageB.locator(".user-id")).toBeVisible();
+
+    await ctxA.close();
+    await ctxB.close();
+  });
+
+  test("export on unlock screen copies bundle to clipboard", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext({
+      permissions: ["clipboard-read", "clipboard-write"],
+    });
+    const page = await ctx.newPage();
+
+    // Generate identity first
+    await generateIdentity(page);
+
+    // Reload to get unlock screen
+    await page.goto(baseUrl(), { waitUntil: "networkidle" });
+    await expect(
+      page.locator("h2", { hasText: "Welcome back" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Click Export
+    await page.locator("button", { hasText: "Export" }).click();
+
+    // Read clipboard
+    const clipboard = await page.evaluate(() =>
+      navigator.clipboard.readText(),
+    );
+    const parsed = JSON.parse(clipboard);
+    expect(parsed).toHaveProperty("encrypted");
+    expect(parsed).toHaveProperty("prefix");
+    expect(parsed).toHaveProperty("keriPrefix");
+    expect(parsed).toHaveProperty("inception");
+
+    await ctx.close();
+  });
+
+  test("import on unlock screen switches identity", async ({ browser }) => {
+    // Generate identity A in context 1
+    const ctx1 = await browser.newContext();
+    const page1 = await ctx1.newPage();
+    const prefixA = await generateIdentity(page1);
+
+    const bundleA = await page1.evaluate(() => {
+      const enc = localStorage.getItem("kel-circle-encrypted");
+      const pfx = localStorage.getItem("kel-circle-prefix");
+      const kpfx = localStorage.getItem("kel-circle-keri-prefix");
+      const icp = localStorage.getItem("kel-circle-inception");
+      return JSON.stringify({
+        encrypted: enc,
+        prefix: pfx,
+        keriPrefix: kpfx,
+        inception: icp,
+      });
+    });
+
+    // Generate identity B in context 2
+    const ctx2 = await browser.newContext();
+    const page2 = await ctx2.newPage();
+    await generateIdentity(page2);
+
+    // Reload page2 → unlock screen
+    await page2.goto(baseUrl(), { waitUntil: "networkidle" });
+    await expect(
+      page2.locator("h2", { hasText: "Welcome back" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Import A's bundle into B's browser
+    await page2.locator("button", { hasText: "Import" }).click();
+    await page2
+      .locator('textarea[placeholder="Paste identity JSON bundle"]')
+      .fill(bundleA);
+    await page2
+      .locator(".import-section button", { hasText: "Import" })
+      .click();
+
+    // Should show unlock screen (for imported identity)
+    await expect(
+      page2.locator("h2", { hasText: "Welcome back" }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Verify localStorage now has A's prefix
+    const currentPrefix = await page2.evaluate(() =>
+      localStorage.getItem("kel-circle-prefix"),
+    );
+    expect(currentPrefix).toBe(prefixA);
+
+    await ctx1.close();
+    await ctx2.close();
   });
 });
