@@ -226,6 +226,11 @@ content st = case st.screen of
           , HP.disabled (st.passphraseInput == "")
           ]
           [ HH.text "Unlock" ]
+      , HH.button
+          [ HE.onClick (const ResetIdentity)
+          , HP.class_ (HH.ClassName "btn-reset")
+          ]
+          [ HH.text "Reset Identity" ]
       ]
 
   BootstrapScreen ->
