@@ -21,212 +21,191 @@ Core protocol semantics, Lean formalisation, and a running server.
 
 ---
 
-## Phase 2 — Cryptographic integrity
+## Phase 2 — Cryptographic integrity (per-member KELs)
 
-Signatures are currently persisted but **never verified**. Every submitted
-event carries an Ed25519 signature over the payload, but the gate layer
-ignores it. This phase closes that gap and brings members' identities in line
-with KERI.
+Every circle member is identified by their KERI prefix — a
+self-certifying identifier backed by a full Key Event Log (KEL).
+The server is the **sole writer** of all member KELs and verifies
+every submission against the signer's current key state. This
+phase implements that architecture.
+
+### Design principles
+
+1. **One KEL per member.** The server stores each member's KEL
+   (inception + interaction events) alongside the global circle
+   sequence.
+2. **Circle events are KERI anchors.** When a member submits a
+   circle event, the server wraps it as a KERI interaction event
+   (in the `anchors` field) and appends it to that member's KEL.
+3. **Inception on introduction.** When `IntroduceMember` is
+   accepted, the new member submits their KERI inception event.
+   The server creates their KEL. Until inception is received, the
+   member cannot submit circle events.
+4. **Signature verification via KEL replay.** The server replays
+   the signer's KEL to derive their current `KeyState`, then
+   verifies the submission signature against those keys.
+5. **Key rotation via KERI rotation events.** Members rotate keys
+   by submitting a KERI rotation event (with pre-rotation
+   commitments). This updates their KEL without affecting the
+   circle sequence.
 
 ### Current state
 
 | Component | Status |
 |-----------|--------|
-| `Submission` carries `subSigner :: Text` and `subSignature :: Text` | ✅ stored |
-| SQLite `events` table has `signer` and `signature` columns | ✅ stored |
-| `MemberId` is a `Text` newtype — no format validation | ❌ unvalidated |
-| `signSubmission` in E2E helpers produces dummy `"sig:<key>"` | ❌ not real crypto |
-| No `keri-hs` dependency in `kel-circle.cabal` | ❌ missing |
-| No signature verification anywhere in gate or server | ❌ missing |
-| No challenge-response endpoints | ❌ missing |
-| PureScript client has no Ed25519 keygen or signing | ❌ missing |
+| `keri-hs` dependency wired in | ✅ done (PR #14) |
+| `MemberId` validated as CESR Ed25519 prefix | ✅ done (PR #14) |
+| `KelCircle.Crypto.validateCesrPrefix` | ✅ done (PR #14) |
+| `InvalidMemberId` validation error | ✅ done (PR #14) |
+| E2E tests use real Ed25519 keypairs | ✅ done (PR #14) |
+| Per-member KEL storage (`member_kels` table) | ✅ done (PR #23) |
+| `KelCircle.MemberKel` module | ✅ done (PR #23) |
+| Inception event on member introduction | ✅ done (PR #23) |
+| Circle events wrapped as KERI interactions | ✅ done (PR #24) |
+| `KelCircle.InteractionVerify` module | ✅ done (PR #24) |
+| Signature verification via KEL key state | ✅ done (PR #24) |
+| Real Ed25519 signatures in submissions | ✅ done (PR #24) |
+| Key rotation with pre-rotation commitments | ✅ done (PR #26) |
+| `KelCircle.RotationVerify` module | ✅ done (PR #26) |
+| PureScript client crypto | ❌ remaining |
+| Cross-cutting integrity E2E invariants | ❌ remaining |
+
+**Test counts:** 79 unit tests, 33 E2E tests (112 total).
 
 ### Sub-roadmap
 
-Phase 2 is split into six incremental steps. Each step is independently
-buildable and testable; later steps depend on earlier ones.
+Phase 2 is split into six incremental steps. Each step is
+independently buildable and testable.
 
-#### Step 2.1 — Add `keri-hs` dependency and CESR validation
+#### Step 2.1 — CESR validation for MemberId ✅
 
-Wire the `keri-hs` library into kel-circle. Use it to validate that
-`MemberId` values are well-formed CESR-encoded Ed25519 public key prefixes.
+Wire `keri-hs` into kel-circle. Validate that every `MemberId`
+used in `IntroduceMember` is a well-formed CESR-encoded Ed25519
+public key prefix.
 
-**Changes:**
+**Done:** PR #14 merged. `KelCircle.Crypto.validateCesrPrefix`
+rejects non-CESR member IDs at the gate. 60 unit + 21 E2E tests
+passing.
 
-- Add `keri-hs` to `kel-circle.cabal` `build-depends` (and to the Nix
-  flake input if needed)
-- New module `KelCircle.Crypto` that re-exports the subset of `keri-hs`
-  needed: `Keri.Cesr.decode`, `Keri.Cesr.Primitive`,
-  `Keri.Cesr.DerivationCode(Ed25519PubKey, Ed25519Sig)`,
-  `Keri.Crypto.Ed25519.verify`, `Keri.Crypto.Ed25519.publicKeyFromBytes`
-- Validation function `validateCesrPrefix :: Text -> Either Text PublicKey`
-  that decodes a CESR text, checks the derivation code is `Ed25519PubKey`,
-  and returns the parsed public key
-- `IntroduceMember mid name role` — the gate rejects if `mid` is not a
-  valid CESR Ed25519 prefix (call `validateCesrPrefix`)
-- Add `InvalidMemberId` constructor to `ValidationError`
-- E2E test: scenario 6 (non-CESR member ID rejected)
+#### Step 2.2 — Per-member KEL storage and inception ✅
 
-**Done when:** existing tests still pass, and introducing a member with a
-garbage `MemberId` returns 422.
+Add a `member_kels` table and wire inception into the member
+introduction flow. Every introduced member has a KEL with an
+inception event.
 
-#### Step 2.2 — Signature verification at the gate layer
+**Done:** PR #23.
 
-Every `POST /events` must carry a valid Ed25519 signature over the
-JSON-serialized event body, verifiable against the signer's public key.
+- `member_kels` SQLite table (member_id, seq_num, event_json,
+  signatures_json)
+- `KelCircle.MemberKel` module: `MemberKel`, `KelEvent`,
+  `createInception`, `appendInteraction`, `currentKeyState`
+- `FullState` gains `fsMemberKels :: Map MemberId MemberKel`
+- Bootstrap flow creates admin's KEL with inception
+- Members without inception cannot submit events
+- KEL deleted on member removal
 
-**Changes:**
+#### Step 2.3 — Circle events as KERI interaction events ✅
 
-- New function `verifySubmissionSignature :: Text -> Text -> LBS.ByteString
-  -> Either Text ()` — decodes the CESR signer prefix to a public key,
-  decodes the CESR signature, and calls `Keri.Crypto.Ed25519.verify`
-- **What is signed:** the canonical JSON encoding of `subEvent` (the same
-  bytes the server stores in `event_json`). The server re-encodes the event
-  to JSON and verifies the signature over those bytes.
-- Call `verifySubmissionSignature` in `handlePostEvent` (and
-  `handleBootstrapPost`) **before** gate validation. Return 422 with a new
-  `SignatureInvalid` error on failure.
-- Add `SignatureInvalid` constructor to `ValidationError` (or a separate
-  `CryptoError` type)
-- Update E2E `TestId` to hold a real `Keri.Crypto.Ed25519.KeyPair`;
-  `newTestId` calls `generateKeyPair`, `tidKey` becomes the CESR-encoded
-  public key prefix
-- Update `signSubmission` to produce a real Ed25519 signature over the
-  JSON-encoded event
-- E2E tests: scenarios 1–4 (valid accepted, forged rejected, wrong-key
-  rejected, tampered payload rejected)
+Every circle event submission is wrapped as a KERI interaction
+event and appended to the signer's KEL. Signatures are verified
+against the member's current key state.
 
-**Done when:** all 4 signature E2E scenarios pass, existing E2E tests
-still pass (they now use real signatures).
+**Done:** PR #24.
 
-#### Step 2.3 — Anchored key verification for members
+- `KelCircle.InteractionVerify` module
+- Server builds KERI interaction event with circle data in
+  `anchors`, verifies signature via `verifySignatures`
+- `signSubmission` in E2E helpers produces real Ed25519
+  signatures over KERI interaction events
+- E2E tests: valid signature accepted, forged rejected,
+  wrong-key rejected, tampered payload rejected, KEL grows
 
-After introduction, all subsequent events from a member must be signed
-with the key that was anchored at introduction time.
+#### Step 2.4 — Key rotation ✅
 
-**Changes:**
+Members can rotate their signing keys via KERI rotation events.
+After rotation, subsequent events must be signed with the new
+key.
 
-- `Member` gains a `memberKey :: Text` field (the CESR-encoded public key,
-  already stored as the second argument to `IntroduceMember`)
-- On `POST /events` in normal mode, look up the signer's `memberKey` from
-  `CircleState.members` and verify the signature against **that** key (not
-  just against the `subSigner` text — the signer must match an anchored
-  member)
-- Reject if `subSigner` does not match any member's `memberKey`, or if the
-  signature doesn't verify against the anchored key
-- In bootstrap mode the signer is the new admin being introduced, so the
-  key is self-certifying: the `subSigner` text **is** the key, and the
-  signature is verified against it
-- E2E tests: scenarios 5, 7 (introduction anchors key; subsequent events
-  verified against anchored key)
+**Done:** PR #26.
 
-**Done when:** a member introduced with key A cannot submit events signed
-with key B.
-
-#### Step 2.4 — Challenge-response authentication
-
-Prevent impersonation by requiring clients to prove possession of their
-private key before submitting events.
-
-**Changes:**
-
-- New server-side state: `TVar (Map MemberId ByteString)` for pending
-  nonces, `TVar (Map Text MemberId)` for session tokens
-- New endpoint `GET /challenge?member=<memberId>` — generate a random
-  32-byte nonce, store it keyed by member ID, return `{"nonce": "<hex>"}`
-- New endpoint `POST /challenge` — body
-  `{"member": "<memberId>", "signedNonce": "<CESR sig>"}`. Server looks up
-  the pending nonce, verifies the signature against the member's anchored
-  key, and on success: deletes the nonce (one-time use), generates a random
-  session token, stores it in the session map, returns
-  `{"token": "<token>"}`
-- `POST /events` requires an `Authorization: Bearer <token>` header in
-  normal mode. Server looks up the token to find the signer's member ID.
-  The `subSigner` field must match the token's member ID.
-- Bootstrap mode is exempt from challenge-response (no members exist yet
-  to challenge)
-- Nonces expire after a configurable TTL (e.g. 60 seconds)
-- E2E tests: scenarios 8–12 (challenge issued, correct response accepted,
-  wrong-key rejected, replayed nonce rejected, unauthenticated POST
-  rejected)
-
-**Done when:** all 5 challenge-response E2E scenarios pass.
+- `KelCircle.RotationVerify` module
+- `POST /members/<id>/rotate` endpoint
+- Pre-rotation commitment verification
+- Old key rejected after rotation
+- E2E tests: rotation accepted, old key rejected, bad
+  pre-commitment rejected
 
 #### Step 2.5 — PureScript client crypto
 
-Browser-side Ed25519 key generation, signing, and challenge-response
-flow.
+Browser-side Ed25519 key generation, KERI event construction,
+and signing.
 
 **Changes:**
 
-- PureScript FFI module wrapping the Web Crypto API (or a JS Ed25519
-  library like `@noble/ed25519`) for: key generation, signing, CESR
-  encoding of public key and signature
-- Key storage in browser `localStorage`, encrypted with a user-chosen
-  passphrase (AES-GCM via Web Crypto)
-- Client codec updated: `encodeSubmission` takes a `KeyPair` and signs the
-  JSON-serialized event before encoding
-- Challenge-response flow in the client: on connect, call
-  `GET /challenge?member=<myId>`, sign the nonce, `POST /challenge`, store
-  the session token, attach it to subsequent `POST /events` requests
-- Halogen UI: key generation on first use, passphrase prompt, visual
-  indicator of authentication state
+- PureScript FFI module wrapping `@noble/ed25519` for key
+  generation and signing
+- CESR encoding of public keys and signatures
+- KERI interaction event construction (matching server's
+  expected format)
+- Key storage in `localStorage`, encrypted with AES-GCM via
+  Web Crypto
+- Inception flow on first use: generate keypair, build inception
+  event, sign it, submit to server
+- Halogen UI: key generation, passphrase prompt, auth state
+  indicator
 
-**Done when:** the Halogen demo can bootstrap an admin, introduce members,
-and submit events — all with real Ed25519 signatures and challenge-response
-auth.
+**Done when:** the Halogen demo can bootstrap an admin, introduce
+members, and submit events — all with real KERI-backed
+signatures.
 
-#### Step 2.6 — Sequencer ordering E2E and cross-cutting invariants
+#### Step 2.6 — Cross-cutting integrity invariants
 
-Final verification pass: sequencer ordering properties and cross-cutting
-invariants that must hold across all scenarios.
+Final verification pass: every event in the global sequence is
+backed by a valid KERI interaction event in the signer's KEL.
 
-**Changes:**
+**E2E tests:**
 
-- E2E tests: scenarios 13–16 (contiguous sequence numbers, monotonically
-  increasing, monotonic timestamps, no duplicates)
-- Cross-cutting invariant tests (run after every multi-event scenario):
-    - Replay the full log via `GET /events` and verify every signature
-      against the signer's anchored public key
-    - Verify the sequencer's events are signed with the sequencer's KERI
-      AID key
-    - Verify no two members share the same public key prefix
-    - Verify global sequence invariants (contiguity, monotonicity, no
-      duplicates)
+| # | Scenario | Expected |
+|---|----------|----------|
+| 13 | Full log replay: every signature verifiable via KEL | verified |
+| 14 | Sequencer events signed with sequencer key | verified |
+| 15 | No two members share the same prefix | verified |
+| 16 | Global sequence invariants (contiguity, monotonicity) | verified |
 
-**Done when:** all 16 scenarios pass, all cross-cutting invariants hold,
-CI is green.
+**Cross-cutting invariants (checked after every multi-event
+scenario):**
+
+- Every event in the log has a corresponding KERI interaction
+  event in the signer's KEL
+- Replaying each member's KEL yields a valid `KeyState`
+- Every signature verifies against the signer's key state at
+  the time of signing
+- No two members share the same KERI prefix
+- The global sequence is contiguous with monotonically
+  increasing sequence numbers and timestamps
+
+**Done when:** all scenarios pass, all invariants hold, CI green.
 
 ### Security E2E scenarios (summary)
 
-| # | Category | Scenario | Expected |
-|---|----------|----------|----------|
-| 1 | Signature | Valid signature accepted | 200 |
-| 2 | Signature | Forged signature rejected | 422 |
-| 3 | Signature | Wrong-key signature rejected | 422 |
-| 4 | Signature | Tampered payload rejected | 422 |
-| 5 | AID anchoring | Introduction anchors public key | key in /condition |
-| 6 | AID anchoring | Non-CESR member ID rejected | 422 |
-| 7 | AID anchoring | Subsequent events verified against anchored key | 200 / 422 |
-| 8 | Challenge | Challenge issued on connect | nonce returned |
-| 9 | Challenge | Correct challenge response accepted | 200 + token |
-| 10 | Challenge | Wrong-key challenge rejected | 401 |
-| 11 | Challenge | Replayed nonce rejected | 401 |
-| 12 | Challenge | Unauthenticated POST rejected | 401 |
-| 13 | Ordering | Sequence numbers are contiguous | verified |
-| 14 | Ordering | Sequence numbers are monotonically increasing | verified |
-| 15 | Ordering | Timestamps are monotonically non-decreasing | verified |
-| 16 | Ordering | No duplicate sequence numbers | verified |
-
-### Cross-cutting invariants
-
-- Every event in the log has a valid signature verifiable against the
-  signer's anchored public key.
-- The sequencer's events are signed with the sequencer's KERI AID key.
-- No two members share the same public key prefix.
-- The event log satisfies global sequence invariants: contiguous,
-  monotonically increasing sequence numbers; monotonically non-decreasing
-  timestamps; no duplicate sequence numbers.
+| # | Step | Category | Scenario | Status |
+|---|------|----------|----------|--------|
+| 1 | 2.2 | Inception | Member inception stored | ✅ |
+| 2 | 2.2 | Inception | No inception → cannot submit | ✅ |
+| 3 | 2.2 | Inception | Bootstrap admin has inception | ✅ |
+| 4 | 2.2 | Inception | Wrong-prefix inception rejected | ✅ |
+| 5 | 2.3 | Signature | Valid KERI-backed signature accepted | ✅ |
+| 6 | 2.3 | Signature | Forged signature rejected | ✅ |
+| 7 | 2.3 | Signature | Wrong-key signature rejected | ✅ |
+| 8 | 2.3 | Signature | Tampered payload rejected | ✅ |
+| 9 | 2.3 | Signature | Member KEL grows per event | ✅ |
+| 10 | 2.4 | Rotation | New key accepted after rotation | ✅ |
+| 11 | 2.4 | Rotation | Old key rejected after rotation | ✅ |
+| 12 | 2.4 | Rotation | Bad pre-commitment rejected | ✅ |
+| 13 | 2.6 | Integrity | Full log verifiable via KELs | ❌ |
+| 14 | 2.6 | Integrity | Sequencer events properly signed | ❌ |
+| 15 | 2.6 | Integrity | No duplicate prefixes | ❌ |
+| 16 | 2.6 | Integrity | Global sequence invariants hold | ❌ |
 
 ---
 
